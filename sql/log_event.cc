@@ -5144,13 +5144,6 @@ end:
   thd->m_digest = nullptr;
 
   /*
-    Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST,
-    and performance_schema.threads.
-  */
-  thd->reset_rewritten_query();
-  thd->reset_query_for_display();
-
-  /*
     As a disk space optimization, future masters will not log an event for
     LAST_INSERT_ID() if that function returned 0 (and thus they will be able
     to replace the THD::stmt_depends_on_first_successful_insert_id_in_prev_stmt
@@ -6864,13 +6857,6 @@ void User_var_log_event::print(FILE *,
     quoted_len = my_strmov_quoted_identifier(quoted_id, name, name_len);
   }
   quoted_id[quoted_len] = '\0';
-<<<<<<< HEAD
-  [[maybe_unused]] int write_res =
-      my_b_write(head, (uchar *)quoted_id, quoted_len);
-  assert(write_res == 0);
-||||||| merged common ancestors
-  my_b_write(head, (uchar *)quoted_id, quoted_len);
-=======
   const auto restore_sql_mode = [&]() {
     if (!has_nul) return;
     if (saved_sql_mode_inited) {
@@ -6906,8 +6892,9 @@ void User_var_log_event::print(FILE *,
   };
 
   my_b_printf(head, "SET @");
-  my_b_write(head, (uchar *)quoted_id, quoted_len);
->>>>>>> mysql-9.7.4
+  [[maybe_unused]] int write_res =
+      my_b_write(head, (uchar *)quoted_id, quoted_len);
+  assert(write_res == 0);
 
   if (is_null) {
     my_b_printf(head, ":=NULL%s\n", print_event_info->delimiter);

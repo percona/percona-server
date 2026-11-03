@@ -8194,21 +8194,6 @@ int handler::compare_key_in_buffer(const uchar *buf) const {
   assert(end_range != nullptr);
   assert(m_record_buffer == nullptr || !m_record_buffer->is_out_of_range());
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-  /*
-    End range on descending scans is only checked with ICP for now, and then we
-    check it with compare_key_icp() instead of this function.
-  */
-  assert(range_scan_direction == RANGE_SCAN_ASC);
-
-=======
-  /*
-    End range on descending scans is only checked with ICP for now, and then we
-    check it with compare_key_icp() instead of this function.
-  */
-  assert(range_scan_direction == RANGE_SCAN_ASC);
-
   if ((table->key_info[active_index].flags & HA_MULTI_VALUED_KEY) &&
       table->key_read) {
     // For multi-valued indexes, key_cmp() needs the virtual column backing the
@@ -8218,7 +8203,6 @@ int handler::compare_key_in_buffer(const uchar *buf) const {
     return -1;
   }
 
->>>>>>> mysql-9.7.4
   // Make the fields in the key point into the buffer instead of record[0].
   const ptrdiff_t diff = buf - table->record[0];
   if (diff != 0) move_key_field_offsets(end_range, range_key_part, diff);

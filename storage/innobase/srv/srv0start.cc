@@ -72,12 +72,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #include "log0buf.h"
 #include "log0chkp.h"
-<<<<<<< HEAD
 #include "log0ddl.h"
-||||||| merged common ancestors
-=======
 #include "log0encryption.h"
->>>>>>> mysql-9.7.4
 #include "log0recv.h"
 #include "log0write.h"
 #include "mem0mem.h"

@@ -1564,12 +1564,8 @@ char *mysql_data_home = const_cast<char *>(".");
 const char *mysql_real_data_home_ptr = mysql_real_data_home;
 char *opt_protocol_compression_algorithms;
 char server_version[SERVER_VERSION_LENGTH];
-<<<<<<< HEAD
-char server_version_suffix[SERVER_VERSION_LENGTH];
-||||||| merged common ancestors
-=======
 char server_version_with_update[SERVER_VERSION_LENGTH];
->>>>>>> mysql-9.7.4
+char server_version_suffix[SERVER_VERSION_LENGTH];
 const char *mysqld_unix_port;
 char *opt_mysql_tmpdir;
 
@@ -14223,19 +14219,15 @@ static void set_server_version(void) {
     if (SERVER_VERSION_LENGTH - (end - buf) > static_cast<int>(sizeof("-tsan")))
       end = my_stpcpy(end, "-tsan");
 #endif
-<<<<<<< HEAD
-
-  assert(end < server_version + SERVER_VERSION_LENGTH);
-  my_stpcpy(server_version_suffix,
-            server_version + strlen(MYSQL_SERVER_VERSION));
-||||||| merged common ancestors
-=======
+    assert(end < buf + SERVER_VERSION_LENGTH);
   };
 
   append_runtime_version_suffixes(server_version, MYSQL_SERVER_VERSION);
   append_runtime_version_suffixes(server_version_with_update,
                                   MYSQL_SERVER_VERSION_WITH_UPDATE);
->>>>>>> mysql-9.7.4
+
+  my_stpcpy(server_version_suffix,
+            server_version + strlen(MYSQL_SERVER_VERSION));
 }
 
 static const char *get_relative_path(const char *path) {

@@ -3646,15 +3646,9 @@ to column numbers in altered_table */
 [[nodiscard]] static const ulint *innobase_build_col_map(
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *table, const dict_table_t *new_table,
-<<<<<<< HEAD
-    const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap,
-    row_prebuilt_t *prebuilt) {
-||||||| merged common ancestors
-    const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap) {
-=======
     const dict_table_t *old_table, dtuple_t *add_cols,
-    const bool **col_has_compatible_charset_change, mem_heap_t *heap) {
->>>>>>> mysql-9.7.4
+    const bool **col_has_compatible_charset_change, mem_heap_t *heap,
+    row_prebuilt_t *prebuilt) {
   DBUG_TRACE;
   assert(altered_table != table);
   assert(new_table != old_table);
@@ -5293,19 +5287,9 @@ template <typename Table>
       add_cols = nullptr;
     }
 
-<<<<<<< HEAD
-    ctx->col_map = innobase_build_col_map(ha_alter_info, altered_table,
-                                          old_table, ctx->new_table, user_table,
-                                          add_cols, ctx->heap, prebuilt);
-||||||| merged common ancestors
-    ctx->col_map =
-        innobase_build_col_map(ha_alter_info, altered_table, old_table,
-                               ctx->new_table, user_table, add_cols, ctx->heap);
-=======
     ctx->col_map = innobase_build_col_map(
         ha_alter_info, altered_table, old_table, ctx->new_table, user_table,
-        add_cols, &ctx->col_has_compatible_charset_change, ctx->heap);
->>>>>>> mysql-9.7.4
+        add_cols, &ctx->col_has_compatible_charset_change, ctx->heap, prebuilt);
     ctx->add_cols = add_cols;
   } else {
     assert(!innobase_need_rebuild(ha_alter_info));
@@ -6496,7 +6480,6 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     }
   }
 
-<<<<<<< HEAD
   /* The hidden column comes or goes with this ALTER
   (innobase_vec_aux_col_changes). Either way every row is rewritten, so
   prepare must build a new table, as add_fts_doc_id makes it for FTS_DOC_ID;
@@ -6511,20 +6494,9 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
   if (!vec_aux_col_changes &&
       (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ||
-       ((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
+       ((ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ==
             Alter_inplace_info::CHANGE_CREATE_OPTION &&
         !innobase_need_rebuild(ha_alter_info)))) {
-||||||| merged common ancestors
-  if (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ||
-      ((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
-           Alter_inplace_info::CHANGE_CREATE_OPTION &&
-       !innobase_need_rebuild(ha_alter_info))) {
-=======
-  if (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ||
-      ((ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ==
-           Alter_inplace_info::CHANGE_CREATE_OPTION &&
-       !innobase_need_rebuild(ha_alter_info))) {
->>>>>>> mysql-9.7.4
     if (heap) {
       ha_alter_info->handler_ctx = new (m_user_thd->mem_root)
           ha_innobase_inplace_ctx(m_prebuilt, drop_index, n_drop_index,

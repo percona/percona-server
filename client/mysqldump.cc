@@ -102,21 +102,13 @@
 
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8mb4"
 
-<<<<<<< HEAD
 /* Chars needed to store LONGLONG, excluding trailing '\0'. */
 static constexpr const auto LONGLONG_LEN = 20;
 
 enum class key_type_t { NONE, PRIMARY, UNIQUE, NON_UNIQUE, CONSTRAINT };
 
-/* Maximum number of fields per table */
-#define MAX_FIELDS 4000
-||||||| merged common ancestors
-/* Maximum number of fields per table */
-#define MAX_FIELDS 4000
-=======
 /* Maximum number of fields per table. Keep in sync with sql/sql_const.h. */
 #define MAX_FIELDS 4096
->>>>>>> mysql-9.7.4
 
 /* One year in seconds */
 #define LONG_TIMEOUT (3600UL * 24UL * 365UL)
@@ -2288,7 +2280,6 @@ static char *quote_name(char *name, char *buff, size_t buff_size, bool force) {
   return buff;
 } /* quote_name */
 
-<<<<<<< HEAD
 /**
    Unquotes char string, taking into account compatible mode
 
@@ -2328,12 +2319,6 @@ static const char *unquote_name(const char *opt_quoted_name,
   return buff;
 } /* unquote_name */
 
-static const char *quote_name(const char *name, char *buff, bool force) {
-  return quote_name(const_cast<char *>(name), buff, force);
-||||||| merged common ancestors
-static const char *quote_name(const char *name, char *buff, bool force) {
-  return quote_name(const_cast<char *>(name), buff, force);
-=======
 static void check_identifier_length(const char *identifier,
                                     const char *identifier_type) {
   if (identifier == nullptr)
@@ -2352,7 +2337,6 @@ static void check_identifier_length(const char *identifier,
   if (strlen(identifier) > NAME_LEN)
     die(EX_CONSCHECK, "%s name exceeds the maximum length of %d bytes",
         identifier_type, NAME_LEN);
->>>>>>> mysql-9.7.4
 }
 
 /*

@@ -3571,25 +3571,6 @@ SET optimizer_switch=default;
 
 DROP TABLE t;
 
-<<<<<<< HEAD
-
-
---echo #
---echo # PS-8725 : Assertion `m_opened_table != nullptr' failed in temptable::Handler::opened_table_validate()
---echo # Bug#35105404: Server crashes with signal 11 and asserts in temptable code.
---echo #
---echo # Re-execution of statements involving MIN/MAX optimization and
---echo # derived/CTE table caused assertion failures.
-SET @optimizer_switch_saved= @@optimizer_switch;
-SET optimizer_switch="derived_merge=off";
-PREPARE stmt1 FROM "WITH cte AS (VALUES ROW(1), ROW(5), ROW(3)) SELECT column_0 FROM cte WHERE cte.column_0 = (SELECT max(column_0) FROM cte WHERE column_0 < 5)";
-EXECUTE stmt1;
-EXECUTE stmt1;
-DEALLOCATE PREPARE stmt1;
-SET optimizer_switch= @optimizer_switch_saved;
-
-||||||| merged common ancestors
-=======
 --echo #
 --echo # Bug#36492739: When CTE table is materialized, automatically-created
 --echo #               keys cannot be found
@@ -3641,6 +3622,21 @@ SET max_heap_table_size = DEFAULT;
 SET tmp_table_size = DEFAULT;
 SET internal_tmp_mem_storage_engine = DEFAULT;
 
->>>>>>> mysql-9.7.4
+
+
+--echo #
+--echo # PS-8725 : Assertion `m_opened_table != nullptr' failed in temptable::Handler::opened_table_validate()
+--echo # Bug#35105404: Server crashes with signal 11 and asserts in temptable code.
+--echo #
+--echo # Re-execution of statements involving MIN/MAX optimization and
+--echo # derived/CTE table caused assertion failures.
+SET @optimizer_switch_saved= @@optimizer_switch;
+SET optimizer_switch="derived_merge=off";
+PREPARE stmt1 FROM "WITH cte AS (VALUES ROW(1), ROW(5), ROW(3)) SELECT column_0 FROM cte WHERE cte.column_0 = (SELECT max(column_0) FROM cte WHERE column_0 < 5)";
+EXECUTE stmt1;
+EXECUTE stmt1;
+DEALLOCATE PREPARE stmt1;
+SET optimizer_switch= @optimizer_switch_saved;
+
 # Restore the default for gtid_mode which is ON
 --source include/rpl/set_gtid_mode_on.inc

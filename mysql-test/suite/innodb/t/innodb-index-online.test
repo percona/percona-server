@@ -422,21 +422,7 @@ DROP TABLE t1;
 
 SET GLOBAL DEBUG = '';
 SET GLOBAL innodb_file_per_table = @global_innodb_file_per_table_orig;
-<<<<<<< HEAD
 --source include/innodb_monitor_restore.inc
-||||||| merged common ancestors
---disable_warnings
-SET GLOBAL innodb_monitor_reset = default;
-SET GLOBAL innodb_monitor_enable = default;
-SET GLOBAL innodb_monitor_disable = default;
---enable_warnings
-=======
---disable_warnings
-SET GLOBAL innodb_monitor_reset = default;
-SET GLOBAL innodb_monitor_enable = default;
-SET GLOBAL innodb_monitor_disable = default;
---enable_warnings
 connection default;
 SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
 SET SESSION innodb_ddl_threads = DEFAULT;
->>>>>>> mysql-9.7.4

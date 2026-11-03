@@ -39,6 +39,7 @@
 #include "sql/system_variables.h"
 
 #include <functional>
+#include <string>
 #include <vector>
 
 class Gtid_set;
@@ -211,6 +212,21 @@ class Session_consistency_gtids_ctx {
   virtual bool notify_after_xa_prepare(const THD *thd) {
     return notify_after_transaction_commit(thd);
   }
+
+  /**
+     This function SHALL be called after START TRANSACTION WITH CONSISTENT
+     SNAPSHOT took its snapshot of gtid_executed.
+
+     If thd->variables.session_track_gtids is ALL_GTIDS, the collected set
+     is replaced by the snapshot set, so the client gets the GTIDs visible
+     to its read view.
+
+     @param thd            The thread context.
+     @param snapshot_gtids gtid_executed captured with the snapshot.
+     @return true on error, false otherwise.
+   */
+  virtual bool notify_after_consistent_snapshot(
+      const THD *thd, const std::string &snapshot_gtids);
 
   /**
     Update session tracker (m_curr_session_track_gtids) from thd.

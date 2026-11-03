@@ -12140,6 +12140,15 @@ static const binlog_cache_mngr *get_cache_mngr(THD *thd) {
   return cache_mngr;
 }
 
+const std::string *binlog_get_snapshot_gtid_executed(THD *thd) {
+  const binlog_cache_mngr *cache_mngr = get_cache_mngr(thd);
+
+  if (cache_mngr == nullptr || !cache_mngr->has_consistent_snapshot())
+    return nullptr;
+
+  return &cache_mngr->snapshot_gtid_executed;
+}
+
 static int show_binlog_vars(THD *thd, SHOW_VAR *var,
                             char *buff [[maybe_unused]]) {
   mysql_mutex_assert_owner(&LOCK_status);

@@ -38,6 +38,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"
+#include "sql/binlog.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/handler.h"
@@ -192,6 +193,14 @@ bool trans_begin(THD *thd, uint flags) {
   if (flags & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT) {
     if (tst) tst->add_trx_state(thd, TX_WITH_SNAPSHOT);
     res = ha_start_consistent_snapshot(thd);
+
+    if (!res) {
+      const std::string *snapshot_gtids =
+          binlog_get_snapshot_gtid_executed(thd);
+      if (snapshot_gtids != nullptr)
+        res = thd->rpl_thd_ctx.session_gtids_ctx()
+                  .notify_after_consistent_snapshot(thd, *snapshot_gtids);
+    }
   }
 
   /*

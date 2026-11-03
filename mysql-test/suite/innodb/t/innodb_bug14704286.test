@@ -68,11 +68,44 @@ select * from t1 force index(value) where value=12;
 #
 # select is going to take good time so let's kill query.
 #
+# On a fast machine (e.g. a release build) the select can finish before
+# it is seen in the processlist (see also Bug#28464642). Wait until it
+# is either executing or finished. Only an executing select can be
+# killed, so the result is checked only in that case.
+#
 connection conn3;
-let $wait_condition=
-	select * from information_schema.processlist where state = 'executing' and
-	info = 'select * from t1 force index(value) where value=12';
---source include/wait_condition.inc
+let $select_query= select * from t1 force index(value) where value=12;
+let $select_running= 0;
+let $select_finished= 0;
+let $wait_counter= 300;
+--disable_query_log
+while ($wait_counter)
+{
+  let $select_running= `select count(*) from information_schema.processlist where id = $ID and state = 'executing' and info = '$select_query'`;
+  let $select_finished= `select count(*) from performance_schema.events_statements_current s join performance_schema.threads t using (thread_id) where t.processlist_id = $ID and s.sql_text = '$select_query' and s.end_event_id is not null`;
+  if ($select_running)
+  {
+    let $wait_counter= 0;
+  }
+  if ($select_finished)
+  {
+    let $wait_counter= 0;
+  }
+  if ($wait_counter)
+  {
+    sleep 0.1;
+    dec $wait_counter;
+  }
+}
+if (!$select_running)
+{
+  if (!$select_finished)
+  {
+    query_vertical select * from information_schema.processlist where id = $ID;
+    die The select is neither executing nor finished after 30 seconds;
+  }
+}
+--enable_query_log
 let $ignore= `SELECT @id := $ID`;
 kill query @id;
 
@@ -80,8 +113,17 @@ kill query @id;
 # reap the value of connection-1
 #
 connection conn1;
---error ER_QUERY_INTERRUPTED
+--disable_result_log
+--error 0,ER_QUERY_INTERRUPTED
 reap;
+--enable_result_log
+if ($select_running)
+{
+  if ($mysql_errno != 1317)
+  {
+    die The select was executing, but it was not interrupted by KILL QUERY (error $mysql_errno);
+  }
+}
 
 #
 # clean test-bed.

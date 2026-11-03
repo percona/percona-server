@@ -1,10 +1,10 @@
 # MyRocks Changelog
 
 ## MyRocks 9.7.4-1
-**This version was shipped with Percona Server 8.4.13-12 and 9.7.4-3.**
+**This version was shipped with Percona Server 8.4.x-y and 9.7.z-a.**
 * Updates RocksDB submodule to 9.7.4.
 * PS-9766 – Ported MyRocks changes from the Facebook MySQL 202407 release
-· [Jira](https://perconadev.atlassian.net/browse/PS-9766)
+· [Jira](https://perconadev.atlassian.net/browse/PS-9766) · [Changes](https://github.com/percona/percona-server/pull/6263)
 
 ### New Features:
 
@@ -31,13 +31,13 @@
 * PS-10110 – Fixed poor MyRocks query plans caused by 1-row range estimates by refining small `records_in_range()` estimates with a bounded index dive
 · [Jira](https://perconadev.atlassian.net/browse/PS-10110) · [Changes](https://github.com/percona/percona-server/commit/9c8b21e9ce52)
 * PS-11881 – Fixed a server crash on `SET rocksdb_read_free_rpl_tables` with a deeply nested pattern, and `CREATE TABLE` hanging, while blocking all other MyRocks DDL, on a pattern with catastrophic backtracking. The patterns are now compiled and matched with ICU, as the `REGEXP` functions are, under `regexp_time_limit` and `regexp_stack_limit`; a match that fails counts as no match. The dialect changes from POSIX extended to ICU; patterns made of names, `.`, `*`, alternation and character classes behave the same.
-· [Jira](https://perconadev.atlassian.net/browse/PS-11881)
+· [Jira](https://perconadev.atlassian.net/browse/PS-11881) · [Changes](https://github.com/percona/percona-server/commit/e22a8c910768)
 * PS-11903 – Fixed a replicated `UPDATE` applied with read-free replication writing a wrong TTL timestamp for a table with an implicit TTL (`ttl_duration` without `ttl_col`), which made rows expire early or late on the replica and left its primary and secondary indexes inconsistent. Replicated `UPDATE` events of such tables no longer use read-free replication.
-· [Jira](https://perconadev.atlassian.net/browse/PS-11903)
+· [Jira](https://perconadev.atlassian.net/browse/PS-11903) · [Changes](https://github.com/percona/percona-server/commit/9e028925ebf3)
 * PS-11631 – Fixed a server crash on the next statement in a session after `XA PREPARE` and `XA COMMIT` or `XA ROLLBACK` of a MyRocks transaction. A prepared XA transaction also survives the disconnect of its session, with `xa_detach_on_prepare=OFF`, instead of being rolled back.
-· [Jira](https://perconadev.atlassian.net/browse/PS-11631)
+· [Jira](https://perconadev.atlassian.net/browse/PS-11631) · [Changes](https://github.com/percona/percona-server/commit/7ce0054f5b45)
 * PS-11632 – Fixed prepared MyRocks XA transactions being rolled back at server restart, so that a later `XA COMMIT` lost their changes. A prepared XA transaction is kept, with its row locks, until `XA COMMIT` or `XA ROLLBACK`, and `TRUNCATE`, `ALTER` and `DROP TABLE` wait for it. With the binary log off and `rocksdb_flush_log_at_trx_commit=2`, `XA PREPARE`, `XA COMMIT` and `XA ROLLBACK` of such a transaction are written to the OS, so they survive a crash of the server process. `XA PREPARE` no longer raises Warning 1031.
-· [Jira](https://perconadev.atlassian.net/browse/PS-11632)
+· [Jira](https://perconadev.atlassian.net/browse/PS-11632) · [Changes](https://github.com/percona/percona-server/commit/9f1b378ac668)
 * A replicated `UPDATE` applied with read-free replication that changed the TTL column of a table with `ttl_col` could leave the secondary keys with the old TTL timestamp, so the row expired early or late in its secondary indexes.
 * Partial indexes can be created on tables with TTL. Previously this was rejected with `Partial index cannot have TTL`.
 * A read that fails inside RocksDB, for example with an I/O error during a scan, returns an error instead of ending the scan early with partial results.

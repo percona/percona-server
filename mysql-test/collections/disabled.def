@@ -77,7 +77,10 @@ encryption.upgrade                          : Bug#36312666 Several InnoDB testca
 
 # main suite tests
 main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
+main.func_in_mrr_cost : BUG#39882117 Fails sporadically in parallel runs.
+main.join_cache_bka_nobnl : BUG#39882117 Fails sporadically in parallel runs.
 main.print_stacktrace : Bug#36027494 Add mtr test for my_print_stacktrace
+main.skip_records_in_range : BUG#39882117 Fails sporadically in parallel runs.
 
 # Disabled due to InnoDB issues
 
@@ -102,6 +105,8 @@ percona.bug100352 : BUG#100352 https://bugs.mysql.com/bug.php?id=100352
 percona.backup_safe_binlog_info : BUG#0000 - PS-8897 Test for broken and unused functionality.
 
 # perfschema suite test
+perfschema.histograms : BUG#39882117 Fails sporadically under parallel test load.
+perfschema.idx_compare_metadata_locks : BUG#39882117 Fails sporadically in parallel runs.
 perfschema.threads_history      : BUG#27712231
 perfschema.idx_compare_events_waits_current : BUG#27865960
 perfschema.idx_compare_ews_by_thread_by_event_name : BUG#31041671

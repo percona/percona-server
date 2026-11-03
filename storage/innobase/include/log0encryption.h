@@ -78,6 +78,11 @@ containing the current checkpoint lsn (log.last_checkpoint_lsn).
 @return DB_SUCCESS or DB_ERROR */
 dberr_t log_encryption_generate_metadata(log_t &log);
 
+/** Generates enough dummy redo to cross a physical redo block boundary and
+waits until the barrier is written using the current value of
+srv_redo_log_encrypt. */
+void log_encryption_write_dummy_barrier();
+
 /** Re-encrypts the redo log's encryption metadata using the current master key
 and writes it encrypted to the log encryption header in the log file containing
 the current checkpoint lsn (log.last_checkpoint_lsn)).

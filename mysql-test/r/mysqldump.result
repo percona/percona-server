@@ -6484,7 +6484,7 @@ DELIMITER ;;
 CREATE LIBRARY `sp2`
     COMMENT 'Library Comment'
     LANGUAGE JAVASCRIPT
-AS $1665038795$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $1665038795$ ;;
+AS $3005184065$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $3005184065$ ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 DROP FUNCTION IF EXISTS `sp1` */;
@@ -6555,7 +6555,7 @@ AS $JAVASCRIPT$ export function f(n) {  return '$$' } $JAVASCRIPT$
 CREATE LIBRARY `sp2`
     COMMENT 'Library Comment'
     LANGUAGE JAVASCRIPT
-AS $1665038795$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $1665038795$
+AS $3005184065$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $3005184065$
 ]]>
 		</library>
 		<routine Function="sp1" sql_mode="" character_set_client="utf8mb4" collation_connection="utf8mb4_0900_ai_ci" Database_Collation="utf8mb4_0900_ai_ci">
@@ -6602,7 +6602,7 @@ Library	sql_mode	Create Library
 sp2		CREATE LIBRARY `sp2`
     COMMENT 'Library Comment'
     LANGUAGE JAVASCRIPT
-AS $1665038795$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $1665038795$
+AS $3005184065$ export function f(n) {  return '$$' + '$JAVASCRIPT$' } $3005184065$
 drop database mysqldump_test_db;
 #
 # WL#16358 Support for Libraries: test orphaned stored programs

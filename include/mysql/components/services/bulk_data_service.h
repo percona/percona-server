@@ -215,9 +215,18 @@ struct Column_mysql {
   /** If column is NULL. */
   bool m_is_null{false};
 
+  /** If column data is stored externally in InnoDB. */
+  bool m_is_ext{false};
+
   char *get_data() const { return m_is_null ? nullptr : m_data_ptr; }
 
   void set_data(char *ptr) { m_data_ptr = ptr; }
+
+  /** Mark this column as externally stored. */
+  void set_ext() { m_is_ext = true; }
+
+  /** @return true if column data is stored externally in InnoDB. */
+  bool is_ext() const { return m_is_ext; }
 
   /** Save the beginning of the row pointer in this object.  This should be
   called only when the column is null.
@@ -244,6 +253,7 @@ struct Column_mysql {
     m_type = 0;
     m_data_len = 0;
     m_is_null = false;
+    m_is_ext = false;
     m_data_ptr = nullptr;
     m_int_data = 0;
   }

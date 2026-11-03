@@ -72,7 +72,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #include "log0buf.h"
 #include "log0chkp.h"
+<<<<<<< HEAD
 #include "log0ddl.h"
+||||||| merged common ancestors
+=======
+#include "log0encryption.h"
+>>>>>>> mysql-9.7.4
 #include "log0recv.h"
 #include "log0write.h"
 #include "mem0mem.h"
@@ -1929,6 +1934,16 @@ dberr_t srv_start(bool create_new_db) {
     persistent data into redolog, if the server is not in read-only mode. */
     if (!srv_read_only_mode) {
       log_start_background_threads(*log_sys);
+
+      if (srv_recovered_redo_block_was_encrypted != srv_redo_log_encrypt) {
+        /* Seal the recovered partial block using its physical encryption mode
+        before dictionary startup can generate new redo. */
+        const bool configured_encryption = srv_redo_log_encrypt;
+
+        srv_redo_log_encrypt = srv_recovered_redo_block_was_encrypted;
+        log_encryption_write_dummy_barrier();
+        srv_redo_log_encrypt = configured_encryption;
+      }
     }
 
     /* We could possibly execute it much later if not the current dict_persist

@@ -55,6 +55,7 @@ SET (DEB_INSTALL_DEBUG_SERVER_PLUGINS
 # debug plugins
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
+usr/lib/mysql/plugin/debug/authentication_webauthn.so
 usr/lib/mysql/plugin/debug/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/debug/component_log_sink_json.so
 usr/lib/mysql/plugin/debug/component_log_sink_syseventlog.so
@@ -232,7 +233,6 @@ usr/lib/mysql/plugin/debug/component_mle.so
 usr/lib/mysql/plugin/debug/component_scheduler.so
 usr/lib/mysql/plugin/debug/component_option_tracker.so
 usr/lib/mysql/plugin/debug/component_firewall.so
-usr/lib/mysql/plugin/debug/authentication_webauthn.so
 usr/lib/mysql/plugin/debug/component_object_policy.so
 ")
 

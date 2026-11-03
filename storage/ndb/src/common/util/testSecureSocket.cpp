@@ -174,11 +174,20 @@ class EchoSession : public SocketServer::Session {
   MY_COMPILER_DIAGNOSTIC_PUSH()
   MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wmaybe-uninitialized")
   EchoSession(NdbSocket &&s, bool sink, SSL_CTX *ctx)
+<<<<<<< HEAD
       : SocketServer::Session(m_secure_socket),
         m_sink(sink),
         m_ssl_ctx(ctx),
         m_secure_socket(std::move(s)) {}
   MY_COMPILER_DIAGNOSTIC_POP()
+||||||| merged common ancestors
+      : SocketServer::Session(m_secure_socket),
+        m_sink(sink),
+        m_ssl_ctx(ctx),
+        m_secure_socket(std::move(s)) {}
+=======
+      : m_sink(sink), m_ssl_ctx(ctx), m_secure_socket(std::move(s)) {}
+>>>>>>> mysql-9.7.4
   void runSession() override;
 
  private:

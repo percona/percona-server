@@ -1182,6 +1182,10 @@ handle_new_error:
         or update */
 
         trx_rollback_to_savepoint(trx, savept);
+        if (trx->fts_trx != nullptr) {
+          fts_savepoint_rollback_last_stmt(trx);
+          fts_savepoint_laststmt_refresh(trx);
+        }
       }
       /* MySQL will roll back the latest SQL statement */
       break;
@@ -5014,7 +5018,7 @@ dberr_t row_mysql_parallel_select_count_star(
   }
 
   if (err == DB_SUCCESS) {
-    err = reader.run(n_threads);
+    err = reader.run();
   }
 
   if (err == DB_OUT_OF_RESOURCES) {
@@ -5024,7 +5028,7 @@ dberr_t row_mysql_parallel_select_count_star(
         << "Resource not available to create threads for parallel scan."
         << " Falling back to single thread mode.";
 
-    err = reader.run(0);
+    err = reader.run_sync();
   }
 
   if (err == DB_SUCCESS) {
@@ -5145,7 +5149,7 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
     prev_tuples.resize(n_threads);
     prev_blocks.resize(n_threads);
 
-    err = reader.run(n_threads);
+    err = reader.run();
   }
 
   if (err == DB_OUT_OF_RESOURCES) {
@@ -5154,7 +5158,7 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
         << "Resource not available to create threads for parallel scan."
         << " Falling back to single thread mode.";
 
-    err = reader.run(0);
+    err = reader.run_sync();
   }
 
   for (auto heap : heaps) {
@@ -5212,9 +5216,7 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
       prebuilt->select_lock_type == LOCK_NONE && index->is_clustered() &&
       (check_keys || prebuilt->trx->mysql_n_tables_locked == 0) &&
       !prebuilt->ins_sel_stmt) {
-    auto n_threads = Parallel_reader::available_threads(max_threads, false);
-
-    if (n_threads > 1) {
+    if (max_threads > 1) {
       /* No INSERT INTO  ... SELECT  and non-locking selects only. */
       trx_start_if_not_started_xa(prebuilt->trx, false, UT_LOCATION_HERE);
 
@@ -5229,14 +5231,11 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
       indexes.push_back(index);
 
       if (!check_keys) {
-        return row_mysql_parallel_select_count_star(trx, indexes, n_threads,
+        return row_mysql_parallel_select_count_star(trx, indexes, max_threads,
                                                     n_rows);
       }
 
-      return parallel_check_table(trx, index, n_threads, n_rows);
-    } else if (n_threads == 1) {
-      /* If there is a single thread available then we do a sync scan. */
-      Parallel_reader::release_threads(n_threads);
+      return parallel_check_table(trx, index, max_threads, n_rows);
     }
   }
 

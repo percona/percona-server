@@ -1061,10 +1061,10 @@ void ndbd_run(bool foreground, int report_fd, const char *connect_str,
   ndb_mgm_get_int_parameter(p, CFG_NODE_REQUIRE_CERT, &requireCert);
   ndb_mgm_get_int_parameter(p, CFG_DB_REQUIRE_TLS, &requireTls);
 
-  if ((requireCert || requireTls) && !globalTransporterRegistry.hasTlsCert()) {
+  if ((requireCert || requireTls) && !globalTransporterRegistry.canUseTls()) {
     if (openssl_version_ok)
       g_eventLogger->error(
-          "Shutting down. This node does not have a valid TLS certificate.");
+          "Shutting down. Configuration requires TLS, but TLS setup failed.");
     else
       g_eventLogger->error(
           "Shutting down. This version of OpenSSL is not supported.");

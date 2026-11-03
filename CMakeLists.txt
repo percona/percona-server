@@ -950,7 +950,7 @@ OPTION(WITH_AUTHENTICATION_KERBEROS
   "Report error if the Kerberos authentication plugin cannot be built."
   ${WITH_AUTHENTICATION_KERBEROS_DEFAULT})
 
-IF(WITH_INTERNAL AND (NOT SOLARIS))
+IF(NOT SOLARIS)
   SET(WITH_AUTHENTICATION_WEBAUTHN_DEFAULT ON)
 ELSE()
   SET(WITH_AUTHENTICATION_WEBAUTHN_DEFAULT OFF)
@@ -2593,6 +2593,10 @@ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in
 
 # depends on mysql_version.h to exist
 IF(NOT WITHOUT_SERVER AND WITH_ROUTER)
+  MESSAGE(WARNING
+    "MySQL Router packages for this MySQL release line are discontinued. "
+    "Build and/or use the latest MySQL Router release instead. "
+    "For source builds, use the trunk branch.")
   ADD_SUBDIRECTORY(router)
 ELSE()
   # Define harness_net_ts target and public include directories.

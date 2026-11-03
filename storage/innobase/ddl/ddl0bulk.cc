@@ -822,7 +822,7 @@ void fill_index_entry(dtuple_t *entry, const dtuple_t *tuple,
 dberr_t setup_dfield(const row_prebuilt_t *prebuilt, Field *field,
                      const Column_mysql &sql_col, dfield_t *src_dfield,
                      dfield_t *dst_dfield) {
-  const space_id_t space_id = prebuilt->space_id();
+  ut_d(const space_id_t space_id = prebuilt->space_id());
   auto dtype = dfield_get_type(src_dfield);
   auto data_ptr = (byte *)sql_col.get_data();
   size_t data_len = sql_col.m_data_len;
@@ -846,8 +846,6 @@ dberr_t setup_dfield(const row_prebuilt_t *prebuilt, Field *field,
     }
     dfield_set_data(dst_dfield, data_ptr, data_len);
   } else if (dtype->mtype == DATA_BLOB || dtype->mtype == DATA_GEOMETRY) {
-    auto field_str = (const Field_str *)field;
-    const CHARSET_INFO *field_charset = field_str->charset();
     size_t length_size{0};
     switch (sql_col.m_type) {
       case MYSQL_TYPE_TINY_BLOB:
@@ -874,41 +872,19 @@ dberr_t setup_dfield(const row_prebuilt_t *prebuilt, Field *field,
     }
     byte *field_data = data_ptr + length_size;
     dfield_set_data(dst_dfield, field_data, data_len);
-    if (data_len == lob::ref_t::SIZE) {
-      lob::ref_t ref(field_data);
-      if (ref.space_id() == space_id) {
-        dfield_set_ext(dst_dfield);
-      } else {
-        /* Not an externally stored field.  So, validate the string. */
-        size_t valid_length{0};
-        bool length_error;
-
-        char *tmp = reinterpret_cast<char *>(field_data);
-
-        const bool failure = validate_string(field_charset, tmp, data_len,
-                                             &valid_length, &length_error);
-        if (failure) {
-          my_error(ER_INVALID_CHARACTER_STRING, MYF(0), field_charset->csname,
-                   field_data);
-          return DB_ERROR;
-        }
-      }
-    }
-  } else if ((dtype->mtype == DATA_VARMYSQL || dtype->mtype == DATA_BINARY) &&
-             data_len == lob::ref_t::SIZE) {
-    byte *field_data = data_ptr;
-    dfield_set_data(dst_dfield, field_data, data_len);
-    lob::ref_t ref(field_data);
-    if (ref.space_id() == space_id) {
-      dfield_set_ext(dst_dfield);
-    } else {
-      /* Not an externally stored field. */
+    if (sql_col.is_ext()) {
+      lob::ref_t ref(field_data + data_len - BTR_EXTERN_FIELD_REF_SIZE);
+      ut_ad(ref.space_id() == space_id);
     }
   } else if (dtype->mtype == DATA_SYS) {
     ut_ad(0);
   } else {
     assert(data_len <= dtype->len);
     dfield_set_data(dst_dfield, data_ptr, data_len);
+  }
+
+  if (sql_col.is_ext()) {
+    dfield_set_ext(dst_dfield);
   }
 
   return DB_SUCCESS;
@@ -923,7 +899,7 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
                                 mem_heap_t *gcol_heap, bool &gcol_blobs_flushed,
                                 bool validate_gcols) {
   ut_ad(prebuilt->mysql_template);
-  const space_id_t space_id = prebuilt->space_id();
+  ut_d(const space_id_t space_id = prebuilt->space_id());
   TABLE *mysql_table = prebuilt->m_mysql_table;
   THD *thd = prebuilt->m_thd;
   auto share = mysql_table->s;
@@ -1012,8 +988,6 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
       }
       dfield_set_data(dfield, data_ptr, data_len);
     } else if (dtype->mtype == DATA_BLOB || dtype->mtype == DATA_GEOMETRY) {
-      auto field_str = (const Field_str *)field;
-      const CHARSET_INFO *field_charset = field_str->charset();
       size_t length_size{0};
       switch (sql_col.m_type) {
         case MYSQL_TYPE_TINY_BLOB:
@@ -1040,35 +1014,10 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
       }
       byte *field_data = data_ptr + length_size;
       dfield_set_data(dfield, field_data, data_len);
-      if (data_len == lob::ref_t::SIZE) {
-        lob::ref_t ref(field_data);
-        if (ref.space_id() == space_id) {
-          dfield_set_ext(dfield);
-        } else {
-          /* Not an externally stored field.  So, validate the string. */
-          size_t valid_length{0};
-          bool length_error;
-
-          char *tmp = reinterpret_cast<char *>(field_data);
-
-          const bool failure = validate_string(field_charset, tmp, data_len,
-                                               &valid_length, &length_error);
-          if (failure) {
-            my_error(ER_INVALID_CHARACTER_STRING, MYF(0), field_charset->csname,
-                     field_data);
-            return DB_ERROR;
-          }
-        }
-      }
-    } else if ((dtype->mtype == DATA_VARMYSQL || dtype->mtype == DATA_BINARY) &&
-               data_len == lob::ref_t::SIZE) {
-      byte *field_data = data_ptr;
-      dfield_set_data(dfield, field_data, data_len);
-      lob::ref_t ref(field_data);
-      if (ref.space_id() == space_id) {
-        dfield_set_ext(dfield);
-      } else {
-        /* Not an externally stored field. */
+      if (sql_col.is_ext()) {
+        byte *tmp = field_data + data_len - BTR_EXTERN_FIELD_REF_SIZE;
+        lob::ref_t ref(tmp);
+        ut_ad(ref.space_id() == space_id);
       }
     } else if (dtype->mtype == DATA_SYS) {
       ut_ad(!prebuilt->index->is_clustered());
@@ -1077,6 +1026,10 @@ dberr_t fill_tuple_up_to_n_cols(dtuple_t *tuple, const row_prebuilt_t *prebuilt,
     } else {
       assert(data_len <= dtype->len);
       dfield_set_data(dfield, data_ptr, data_len);
+    }
+
+    if (sql_col.is_ext()) {
+      dfield_set_ext(dfield);
     }
   }
 

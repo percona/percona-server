@@ -48,6 +48,7 @@
 EVP_PKEY *EVP_RSA_gen(unsigned int bits);
 int EVP_PKEY_eq(const EVP_PKEY *a, const EVP_PKEY *b);
 EVP_PKEY *EVP_EC_generate(const char *curve);
+int X509_self_signed(X509 *cert, int verify_signature);
 
 #else
 

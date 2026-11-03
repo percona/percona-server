@@ -189,6 +189,7 @@ static int format_blob_column(Field *field, const CHARSET_INFO *from_cs,
 
   if (text_col.is_ext()) {
     /* Column data stored externally. */
+    sql_col.set_ext();
     memcpy(field_data, text_col.m_data_ptr, copy_size);
 
   } else {
@@ -386,6 +387,7 @@ static int format_char_column(const Column_text &text_col,
   }
 
   if (text_col.is_ext()) {
+    sql_col.set_ext();
     assert(text_col.m_data_len == 20);
     memcpy(field_data, text_col.m_data_ptr, text_col.m_data_len);
     copy_size = text_col.m_data_len;
@@ -775,19 +777,31 @@ class Row_header {
   @param[in]  col_meta  column metadata */
   void set_column_null(const Column_meta &col_meta);
 
+  /** Set the column value as externally stored in header.
+  @param[in]  col_meta  column metadata */
+  void set_column_ext(const Column_meta &col_meta);
+
   /** check if column value is NULL in header.
   @param[in]  col_meta  column metadata
   @return true iff NULL */
   bool is_column_null(const Column_meta &col_meta) const;
 
+  /** check if column value is externally stored in header.
+  @param[in]  col_meta  column metadata
+  @return true iff externally stored */
+  bool is_column_ext(const Column_meta &col_meta) const;
+
   /** @return total header length. */
   size_t header_length() const {
-    return m_null_bitmap_length + sizeof(m_row_length) + sizeof(m_flags);
+    return (m_null_bitmap_length * 2) + sizeof(m_row_length) + sizeof(m_flags);
   }
 
  private:
   /** NULL bitmap for the row. Needed only while sorting by key. */
   std::array<unsigned char, MAX_NULLABLE_BYTES> m_null_bitmap;
+
+  /** Bitmap to indicate if a column has been externally stored. */
+  std::array<unsigned char, MAX_NULLABLE_BYTES> m_ext_bitmap;
 
   /** Actual length of bitmap in bytes. Must be less than or equal to
   MAX_NULLABLE_BYTES. */
@@ -803,6 +817,7 @@ class Row_header {
 Row_header::Row_header(const Row_meta &metadata) {
   m_null_bitmap_length = metadata.m_bitmap_length;
   memset(m_null_bitmap.data(), 0, m_null_bitmap_length);
+  memset(m_ext_bitmap.data(), 0, m_null_bitmap_length);
   m_row_length = 0;
   m_flags = 0;
 }
@@ -820,6 +835,17 @@ bool Row_header::is_column_null(const Column_meta &col_meta) const {
           0);
 }
 
+void Row_header::set_column_ext(const Column_meta &col_meta) {
+  unsigned char &ext_byte = m_ext_bitmap[col_meta.m_null_byte];
+  ext_byte |= static_cast<unsigned char>(1 << col_meta.m_null_bit);
+}
+
+bool Row_header::is_column_ext(const Column_meta &col_meta) const {
+  const unsigned char &ext_byte = m_ext_bitmap[col_meta.m_null_byte];
+  return ((ext_byte & static_cast<unsigned char>(1 << col_meta.m_null_bit)) !=
+          0);
+}
+
 bool Row_header::serialize(char *buffer, size_t length) {
   if (length < header_length()) {
     return false;
@@ -832,6 +858,9 @@ bool Row_header::serialize(char *buffer, size_t length) {
   buffer += sizeof(uint16_t);
 
   memcpy(buffer, m_null_bitmap.data(), m_null_bitmap_length);
+  buffer += m_null_bitmap_length;
+
+  memcpy(buffer, m_ext_bitmap.data(), m_null_bitmap_length);
   return true;
 }
 
@@ -847,6 +876,10 @@ bool Row_header::deserialize(const char *buffer, size_t length) {
 
   auto dest = m_null_bitmap.data();
   memcpy(dest, buffer, m_null_bitmap_length);
+  buffer += m_null_bitmap_length;
+
+  auto ext_bitmap = m_ext_bitmap.data();
+  memcpy(ext_bitmap, buffer, m_null_bitmap_length);
   return true;
 }
 
@@ -1345,9 +1378,9 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
     }
     size_t length_size = 0;
 
+    sql_col.init();
     sql_col.set_data(buffer);
     sql_col.m_data_len = field_size;
-    sql_col.m_int_data = 0;
 
     /* If field is a nullptr, then it is generated rowid column */
     sql_col.m_is_null =
@@ -1510,6 +1543,10 @@ static int format_row(THD *thd, const TABLE_SHARE *table_share,
       break;
     }
 
+    if (sql_col.is_ext()) {
+      header.set_column_ext(col_meta);
+    }
+
     auto total_data_length = sql_col.m_data_len + length_size;
     assert(total_data_length <= buffer_length);
 
@@ -1563,6 +1600,7 @@ static int fill_column_data(char *row_begin, char *buffer, size_t buffer_length,
                             size_t &col_length, Column_mysql &sql_col) {
   sql_col.m_type = col_meta.m_type;
   sql_col.m_is_null = header.is_column_null(col_meta);
+  sql_col.m_is_ext = header.is_column_ext(col_meta);
   sql_col.m_int_data = 0;
   sql_col.set_data(nullptr);
   sql_col.m_data_len = 0;

@@ -185,12 +185,18 @@ dberr_t Parallel_reader::Ctx::split() {
   return err;
 }
 
-Parallel_reader::Parallel_reader(size_t max_threads)
-    : m_max_threads(max_threads),
-      m_n_threads(max_threads),
+Parallel_reader::Parallel_reader(size_t max_threads, bool use_reserved_threads)
+    : m_max_threads(available_threads(max_threads, use_reserved_threads)),
+      m_n_threads(m_max_threads),
       m_ctxs(),
+<<<<<<< HEAD
       m_sync(max_threads == 0),
       m_trx_for_slow_log(innobase_get_trx_for_slow_log()) {
+||||||| merged common ancestors
+      m_sync(max_threads == 0) {
+=======
+      m_sync(m_max_threads == 0) {
+>>>>>>> mysql-9.7.4
   m_n_completed = 0;
 
   mutex_create(LATCH_ID_PARALLEL_READ, &m_mutex);
@@ -1536,6 +1542,17 @@ dberr_t Parallel_reader::spawn(size_t n_threads) noexcept {
 
   return DB_SUCCESS;
 }
+
+dberr_t Parallel_reader::run() {
+  /*
+  A single worker must still run on a separate thread.  In particular,
+  Parallel_reader_adapter clients can require worker-local thread state;
+  Rapid's load callback expects current_thd to be unset when it is invoked.
+  */
+  return m_n_threads == 0 ? run_sync() : run(m_n_threads);
+}
+
+dberr_t Parallel_reader::run_sync() { return run(0); }
 
 dberr_t Parallel_reader::run(size_t n_threads) {
   /* In case this is a retry after a DB_OUT_OF_RESOURCES error. */

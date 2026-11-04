@@ -21,20 +21,6 @@ include(CheckCXXSourceCompiles)
 include(CheckCXXSymbolExists)
 
 
-# usage: CHECK_X86_CPU_FEATURE(sse4.2 HAVE_SSE42)
-# it ignores -march=ARCH
-function (CHECK_X86_CPU_FEATURE FEATURE PARAM_OUT)
-  set(CMAKE_REQUIRED_FLAGS "-Wno-error")
-  CHECK_CXX_SOURCE_RUNS("
-  int main() {
-    return !__builtin_cpu_supports(\"${FEATURE}\");
-  }
-  " HAVE_X86_CPU_FEATURE_${FEATURE})
-  unset(CMAKE_REQUIRED_FLAGS)
-  set(${PARAM_OUT} ${HAVE_X86_CPU_FEATURE_${FEATURE}} PARENT_SCOPE)
-endfunction (CHECK_X86_CPU_FEATURE)
-
-
 # usage: CHECK_VARIABLE_DEFINED(__AVX2__ HAVE_AVX2)
 # it depends on -march=ARCH
 function (CHECK_VARIABLE_DEFINED VARIABLE PARAM_OUT)
@@ -197,24 +183,12 @@ endfunction (CHECK_SYNC_FILE_RANGE_WRITE_SUPPORT)
 
 macro (ROCKSDB_SET_X86_DEFINTIONS)
   CHECK_VARIABLE_DEFINED(__SSE4_2__ HAVE_SSE42)
-  if (HAVE_SSE42)
-    add_definitions(-DHAVE_SSE42)
-  else()
+  if (NOT HAVE_SSE42)
     IF (ALLOW_NO_SSE42)
       MESSAGE(WARNING "No SSE42 support found and ALLOW_NO_SSE42 specified, building MyRocks but without SSE42/FastCRC32 support")
     ELSE()
       MESSAGE(FATAL_ERROR "No SSE42 support found. Not building MyRocks. Set ALLOW_NO_SSE42 to build MyRocks with slow CRC32.")
     ENDIF()
-  endif()
-
-  CHECK_VARIABLE_DEFINED(__PCLMUL__ HAVE_PCLMUL)
-  if (HAVE_PCLMUL)
-    add_definitions(-DHAVE_PCLMUL)
-  endif()
-
-  CHECK_VARIABLE_DEFINED(__AVX2__ HAVE_AVX2)
-  if (HAVE_AVX2 AND NOT ROCKSDB_DISABLE_AVX2)
-    add_definitions(-DHAVE_AVX2)
   endif()
 
   CHECK_VARIABLE_DEFINED(__AVX512F__ HAVE_AVX512F)
@@ -299,9 +273,7 @@ macro (ROCKSDB_SET_DEFINTIONS)
   endif()
 
   CHECK_THREAD_LOCAL_SUPPORT(HAVE_THREAD_LOCAL)
-  if (HAVE_THREAD_LOCAL)
-    add_definitions(-DROCKSDB_SUPPORT_THREAD_LOCAL)
-  else()
+  if (NOT HAVE_THREAD_LOCAL)
     MESSAGE(FATAL_ERROR "No '__thread' support found. Not building MyRocks")
   endif()
 

@@ -8470,34 +8470,16 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
   TABLE *table = this->m_table;
   uint event_type = this->get_general_type_code();
   MY_BITMAP *cols = &this->m_local_cols;
-  bool delete_update_lookup_condition = false;
   this->m_rows_lookup_algorithm = ROW_LOOKUP_NOT_NEEDED;
   this->m_key_index = MAX_KEY;
   this->m_key_info = nullptr;
 
   // row lookup not needed
   if (event_type == mysql::binlog::event::WRITE_ROWS_EVENT ||
-      (delete_update_lookup_condition =
-           ((event_type == mysql::binlog::event::DELETE_ROWS_EVENT ||
-             event_type == mysql::binlog::event::UPDATE_ROWS_EVENT) &&
-            get_flags(COMPLETE_ROWS_F) && !m_table->file->rpl_lookup_rows()))) {
-    /**
-       Only the RocksDB engine can satisfy delete/update row lookup
-       optimization, so we don't need to check engine type here.
-    */
-    if (delete_update_lookup_condition && table->s->primary_key == MAX_KEY) {
-      if (!table->s->rfr_lookup_warning) {
-        sql_print_warning(
-            "Slave: read free replication is disabled "
-            "for RocksDB table `%s.%s` "
-            "as it does not have implicit primary key, "
-            "continue with rows lookup",
-            print_slave_db_safe(table->s->db.str), m_table->s->table_name.str);
-        table->s->rfr_lookup_warning = true;
-      }
-    } else
-      return;
-  }
+      ((event_type == mysql::binlog::event::DELETE_ROWS_EVENT ||
+        event_type == mysql::binlog::event::UPDATE_ROWS_EVENT) &&
+       get_flags(COMPLETE_ROWS_F) && !m_table->file->rpl_lookup_rows()))
+    return;
 
   /* PK or UK => use LOOKUP_INDEX_SCAN */
   this->m_key_index =

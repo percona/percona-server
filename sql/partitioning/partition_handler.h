@@ -450,14 +450,11 @@ class Partition_helper {
     new_data is always record[0]
     old_data is always record[1]
 
-    @param lookup_rows Indicator for MyRocks read free replication.
-
     @return Operation status.
       @returns    0 Success
       @returns != 0 Error code
   */
-  int ph_update_row(const uchar *old_data, uchar *new_data,
-                    bool lookup_rows = true);
+  int ph_update_row(const uchar *old_data, uchar *new_data);
   /**
     Delete an existing row in the partitioned table.
 
@@ -472,13 +469,12 @@ class Partition_helper {
     buf is either record[0] or record[1]
 
     @param buf  The record in MySQL Row Format.
-    @param lookup_rows Indicator for MyRocks read free replication.
 
     @return Operation status.
       @retval    0 Success
       @retval != 0 Error code
   */
-  int ph_delete_row(const uchar *buf, bool lookup_rows = true);
+  int ph_delete_row(const uchar *buf);
 
   /** @} */
 

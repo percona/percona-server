@@ -45,6 +45,7 @@ Atomic writes handling. */
 
 #include <iomanip>
 #include <iostream>
+#include <map>
 #include <regex>
 #include <vector>
 
@@ -334,6 +335,21 @@ class Pages {
                      and recovery all. */
   void recover(fil_space_t *space) noexcept;
 
+  /** Copies of a page that share the highest LSN of all its copies */
+  struct Copies {
+    /** The copies, in the order they are in the doublewrite files */
+    std::vector<const Page *> pages;
+
+    /** The one to restore the page from; nullptr until chosen */
+    const Page *chosen{nullptr};
+  };
+
+  /** Of the copies of a page in the doublewrite files, find the newest
+  ones, by their LSN; only these may be used to restore the page.
+  Computed on the first call and cached; add() invalidates the cache.
+  @return the newest copies of every page found in the doublewrite files */
+  [[nodiscard]] std::map<page_id_t, Copies> &newest_copies() noexcept;
+
   /** Check if some pages could be restored because of missing
   tablespace IDs */
   void check_missing_tablespaces() const noexcept;
@@ -356,6 +372,9 @@ class Pages {
 
   /** Page entries from reduced doublewrite buffer */
   Page_entries m_page_entries;
+
+  /** Cache of newest_copies(). */
+  std::map<page_id_t, Copies> m_newest;
 
   // Disable copying
   Pages(const Pages &) = delete;
@@ -3186,6 +3205,8 @@ void recv::Pages::recover(fil_space_t *space) noexcept {
 
   auto recover_all = (space == nullptr);
 
+  auto &newest = newest_copies();
+
   for (const auto &page : m_pages) {
     if (page->m_recovered) {
       continue;
@@ -3205,6 +3226,44 @@ void recv::Pages::recover(fil_space_t *space) noexcept {
       }
 
     } else if (space->id != space_id) {
+      continue;
+    }
+
+    /* The doublewrite files usually hold several copies of a page: a batch
+    overwrites only as many slots of its segment as it has pages, and the
+    copies left behind by earlier batches stay in the other slots.  The copy
+    made for the write that was interrupted is the newest one.  An older
+    copy misses the changes between its LSN and the checkpoint, which are
+    not in the redo log any more, so it must not be used to restore the
+    page, even if it comes first in the files.  Should the newest copy turn
+    out to be torn as well, dblwr_recover_page() reports that the page
+    cannot be recovered; falling back to an older copy would silently
+    lose committed changes instead.  Several copies with the same LSN are
+    the same page written more than once; prefer one that is intact, so
+    that a copy torn while being written does not hide an intact one. */
+    auto &copies = newest.find(page_id_t(space_id, page_no))->second;
+
+    if (copies.chosen == nullptr) {
+      copies.chosen = copies.pages.front();
+
+      if (copies.pages.size() > 1) {
+        const page_size_t page_size(space->flags);
+
+        for (const Page *copy : copies.pages) {
+          BlockReporter reporter(true, copy->m_buffer.begin(), page_size,
+                                 fsp_is_checksum_disabled(space_id));
+
+          /* is_corrupted() reports an encrypted copy as corrupted, as it
+          cannot be verified here; the first one is used in that case. */
+          if (!reporter.is_corrupted()) {
+            copies.chosen = copy;
+            break;
+          }
+        }
+      }
+    }
+
+    if (copies.chosen != page) {
       continue;
     }
 
@@ -3322,6 +3381,40 @@ bool recv::Pages::is_recovered(const page_id_t &page_id) const noexcept {
   return (false);
 }
 
+std::map<page_id_t, recv::Pages::Copies> &
+recv::Pages::newest_copies() noexcept {
+  auto &newest = m_newest;
+
+  if (!newest.empty() || m_pages.empty()) {
+    return newest;
+  }
+
+  for (const auto &page : m_pages) {
+    const byte *ptr = page->m_buffer.begin();
+    const page_id_t page_id(page_get_space_id(ptr), page_get_page_no(ptr));
+    const lsn_t lsn = mach_read_from_8(ptr + FIL_PAGE_LSN);
+
+    auto &copies = newest[page_id].pages;
+
+    if (copies.empty()) {
+      copies.push_back(page);
+      continue;
+    }
+
+    const lsn_t newest_lsn =
+        mach_read_from_8(copies.front()->m_buffer.begin() + FIL_PAGE_LSN);
+
+    if (lsn > newest_lsn) {
+      copies.clear();
+      copies.push_back(page);
+    } else if (lsn == newest_lsn) {
+      copies.push_back(page);
+    }
+  }
+
+  return newest;
+}
+
 void recv::Pages::add(page_no_t page_no, const byte *page,
                       uint32_t n_bytes) noexcept {
   if (!dblwr::is_enabled()) {
@@ -3332,6 +3425,7 @@ void recv::Pages::add(page_no_t page_no, const byte *page,
       ut::new_withkey<Page>(UT_NEW_THIS_FILE_PSI_KEY, page_no, page, n_bytes);
 
   m_pages.push_back(dblwr_page);
+  m_newest.clear();
 }
 
 void recv::Pages::check_missing_tablespaces() const noexcept {

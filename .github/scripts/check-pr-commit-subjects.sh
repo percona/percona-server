@@ -20,7 +20,8 @@
 #
 # Exit 0 when the pull request conforms or is out of scope (non-version base
 # branch, or a pull request that carries a merge commit). Exit 1 with one
-# ::error:: line per violation otherwise.
+# ::error:: line per violation otherwise. The same verdicts go to the job
+# summary as a Markdown table when GITHUB_STEP_SUMMARY is set.
 
 # has_key is a predicate, so it runs inside an if condition on purpose.
 # shellcheck disable=SC2310
@@ -76,6 +77,47 @@ fail() { printf '::error::%s\n' "$(escape_annotation "$*")"; }
 
 has_key() { LC_ALL=C grep -Eq "${KEY_RE}" <<<"$1"; }
 
+# Appends its arguments as lines of the job summary, the Markdown page next to
+# the log on the run. A no-op without a runner, so a local run and the test
+# suite see the annotations alone.
+summary() {
+  if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+    printf '%s\n' "$@" >>"${GITHUB_STEP_SUMMARY}"
+  fi
+}
+
+# Renders text as a Markdown code span, so a subject cannot open a link, a tag
+# or emphasis in the summary. A pipe would still end the table cell, so it is
+# escaped, the fence is one backtick longer than any run inside the text, and a
+# carriage return, which a CRLF commit message leaves on its subject, is shown
+# as \r rather than written to the page.
+md_code() {
+  local text="$1" fence='`'
+  text="${text//'|'/\\|}"
+  text="${text//$'\r'/\\r}"
+  while [[ "${text}" == *"${fence}"* ]]; do
+    fence+='`'
+  done
+  printf '%s %s %s' "${fence}" "${text}" "${fence}"
+}
+
+# One row of the summary table: what was checked, its subject, the verdict.
+summary_row() {
+  summary "| $1 | $(md_code "$2") | $3 |"
+}
+
+# The verdict of a title or subject that does not carry the expected tag, as a
+# table cell: the tag it carries instead, or the one it lacks.
+tag_verdict() {
+  local subject="$1" tag="$2" found
+  found="$(other_tag "${subject}" "${tag}")"
+  if [[ -n "${found}" ]]; then
+    printf 'carries %s, needs %s' "$(md_code "${found}")" "$(md_code "${tag}")"
+  else
+    printf 'lacks %s' "$(md_code "${tag}")"
+  fi
+}
+
 # Reports a title or subject that does not carry the expected tag.
 fail_tag() {
   local what="$1" subject="$2" base_ref="$3" tag="$4" found
@@ -104,10 +146,13 @@ main() {
     return 1
   fi
 
+  summary '### PR title and commit subjects' ''
+
   local tag
   tag="$(tag_for_base "${base_ref}")"
   if [[ -z "${tag}" ]]; then
     note "base branch ${base_ref} is not a version branch, nothing to check"
+    summary "Base branch $(md_code "${base_ref}") is not a version branch, nothing to check."
     return 0
   fi
   local expected="<KEY>-<n> ${tag} <what changed>"
@@ -119,6 +164,7 @@ main() {
     --jq '.[] | "\(.sha[0:12])\u001f\(.parents | length)\u001f\(.commit.message | split("\n")[0])"')"
   if [[ -z "${commits}" ]]; then
     fail "no commits found on PR ${PR_NUMBER}"
+    summary "No commits found on PR ${PR_NUMBER}."
     return 1
   fi
 
@@ -132,6 +178,7 @@ main() {
   # exemption is a warning rather than a silent pass.
   if awk -F$'\x1f' '$2 > 1 { found = 1 } END { exit !found }' <<<"${commits}"; then
     warn "PR contains a merge commit (upstream or null merge), subjects not checked"
+    summary 'The pull request carries a merge commit (an upstream or null merge), so its subjects are not checked.'
     return 0
   fi
 
@@ -142,20 +189,27 @@ main() {
   fetched="$(wc -l <<<"${commits}")"
   if (( fetched < 10#${total} )); then
     fail "PR has ${total} commits but only ${fetched} could be listed, split it or check the subjects by hand"
+    summary "The pull request has ${total} commits but only ${fetched} could be listed. Split it or check the subjects by hand."
     return 1
   fi
 
-  local violations=0
+  summary "Pull request to $(md_code "${base_ref}"), expected subject form $(md_code "${expected}")." '' \
+    '| checked | subject | verdict |' '|---|---|---|'
+
+  local violations=0 verdict=''
   # A squash merge of several commits takes the PR title as its subject, and the
   # title is the convention's own record either way, so it is checked too.
   if ! has_key "${title}"; then
     fail "PR title lacks a ticket key (PS-<n>, PXB-<n>, PXC-<n> or DISTMYSQL-<n>): ${title}"
     violations=$((violations + 1))
+    verdict='lacks a ticket key'
   fi
   if [[ "${title}" != *"${tag}"* ]]; then
     fail_tag "PR title" "${title}" "${base_ref}" "${tag}"
     violations=$((violations + 1))
+    verdict="${verdict:+${verdict}, }$(tag_verdict "${title}" "${tag}")"
   fi
+  summary_row 'PR title' "${title}" "${verdict:-ok}"
 
   local sha subject
   while IFS=$'\x1f' read -r sha _ subject; do
@@ -164,17 +218,22 @@ main() {
     # revert cannot be required to conform. Announced, so it is visible in review.
     if [[ "${subject}" == 'Revert "'* ]]; then
       note "${sha}: revert, subject checks skipped: ${subject}"
+      summary_row "${sha}" "${subject}" 'revert, not checked'
       continue
     fi
     if ! has_key "${subject}"; then
       fail "${sha}: subject lacks a ticket key: ${subject}"
       violations=$((violations + 1))
+      summary_row "${sha}" "${subject}" 'lacks a ticket key'
       continue
     fi
     if [[ "${subject}" != *"${tag}"* ]]; then
       fail_tag "${sha}: subject" "${subject}" "${base_ref}" "${tag}"
       violations=$((violations + 1))
+      summary_row "${sha}" "${subject}" "$(tag_verdict "${subject}" "${tag}")"
+      continue
     fi
+    summary_row "${sha}" "${subject}" 'ok'
   done <<<"${commits}"
 
   if (( violations > 0 )); then
@@ -182,9 +241,16 @@ main() {
     echo "Expected subject form: ${expected}"
     echo "Reword the commits (git rebase -i, reword) and force-push the PR branch."
     echo "A ticket's second commit is numbered: <KEY>-<n> (2) ${tag} <what changed>."
+    local noun='violations'
+    if (( violations == 1 )); then
+      noun='violation'
+    fi
+    summary '' "**${violations} ${noun}.** Reword the commits (\`git rebase -i\`, reword) and force-push the branch." \
+      "A ticket's second commit is numbered $(md_code "<KEY>-<n> (2) ${tag} <what changed>")."
     return 1
   fi
   note "PR title and every commit subject carry a ticket key and the ${tag} tag"
+  summary '' "Every subject carries a ticket key and the $(md_code "${tag}") tag."
 }
 
 main "$@"

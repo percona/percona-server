@@ -31,14 +31,20 @@ export PATH="${BIN}:${PATH}"
 pass=0
 fail=0
 
-# run_case <name> <want_exit> <want_grep> ; reads CASE_* from the environment.
+# run_case <name> <want_exit> <want_grep> [<want_summary>] ; reads CASE_* from
+# the environment. With CASE_SUMMARY set, the checker writes its job summary to
+# that file, emptied first, and want_summary is a fixed string it must contain.
 run_case() {
-  local name="$1" want_exit="$2" want_grep="$3"
+  local name="$1" want_exit="$2" want_grep="$3" want_summary="${4-}"
   local meta out rc
   meta="${CASE_META-${CASE_BASE}${US}${CASE_TOTAL}${US}${CASE_TITLE}}"
+  if [[ -n "${CASE_SUMMARY:-}" ]]; then
+    : >"${CASE_SUMMARY}"
+  fi
   out="$(PR_NUMBER=1 REPO=percona/percona-server \
     FIXTURE_META="${meta}" FIXTURE_COMMITS="${CASE_COMMITS}" \
     FIXTURE_RC="${CASE_RC:-0}" LC_ALL="${CASE_LOCALE:-C.utf8}" \
+    GITHUB_STEP_SUMMARY="${CASE_SUMMARY:-}" \
     bash "${SCRIPT}" 2>&1)"
   rc=$?
   if [[ "${rc}" -ne "${want_exit}" ]]; then
@@ -50,6 +56,12 @@ run_case() {
   if [[ -n "${want_grep}" ]] && ! grep -q "${want_grep}" <<<"${out}"; then
     echo "FAIL ${name}: output lacks '${want_grep}'"
     indent "${out}"
+    fail=$((fail + 1))
+    return
+  fi
+  if [[ -n "${want_summary}" ]] && ! grep -qF -- "${want_summary}" "${CASE_SUMMARY}"; then
+    echo "FAIL ${name}: summary lacks '${want_summary}'"
+    indent "$(cat "${CASE_SUMMARY}")"
     fail=$((fail + 1))
     return
   fi
@@ -386,6 +398,72 @@ else
   indent "${out}"
   fail=$((fail + 1))
 fi
+
+# ------------------------------------------------------------------ job summary
+section 'the job summary'
+
+# The expected rows quote Markdown code spans, so their backticks are literal.
+# shellcheck disable=SC2016
+summary_cases() {
+CASE_SUMMARY="$(mktemp)"
+
+CASE_BASE=8.4 CASE_TITLE='PS-1 [8.4] Two commits' CASE_TOTAL=2
+CASE_COMMITS="$(commit abc123abc123 1 'PS-1 [8.4] one'; commit def456def456 1 'PS-1 [8.4] two')"
+run_case 'a conforming PR gets an ok row per subject' 0 'carry a ticket key' '| def456def456 | ` PS-1 [8.4] two ` | ok |'
+run_case 'the title has its own row' 0 'carry a ticket key' '| PR title | ` PS-1 [8.4] Two commits ` | ok |'
+run_case 'a conforming PR ends on the passing verdict' 0 'carry a ticket key' 'Every subject carries a ticket key and the ` [8.4] ` tag.'
+
+CASE_BASE=8.4 CASE_TITLE='no key no tag' CASE_TOTAL=3
+CASE_COMMITS="$(commit abc123abc123 1 'first bad'
+                commit def456def456 1 'PS-1 [8.0] wrong tag'
+                commit 789789789789 1 'Revert "anything"')"
+run_case 'a title with both problems lists both' 1 'PR title lacks a ticket key' '| PR title | ` no key no tag ` | lacks a ticket key, lacks ` [8.4] ` |'
+run_case 'a keyless subject is a row' 1 'subject lacks a ticket key' '| abc123abc123 | ` first bad ` | lacks a ticket key |'
+run_case 'a wrong tag names both tags' 1 'carries \[8.0\]' '| def456def456 | ` PS-1 [8.0] wrong tag ` | carries ` [8.0] `, needs ` [8.4] ` |'
+run_case 'a revert is a row too' 1 'revert, subject checks skipped' '| 789789789789 | ` Revert "anything" ` | revert, not checked |'
+run_case 'the violation count closes the table' 1 'Expected subject form' '**4 violations.**'
+
+CASE_BASE=8.4 CASE_TITLE='PS-1 [8.4] One' CASE_TOTAL=1
+CASE_COMMITS="$(commit abc123abc123 1 'PS-1 One')"
+run_case 'one violation is singular' 1 'lacks the \[8.4\] branch tag' '**1 violation.**'
+
+# A subject cannot break out of its table cell or its code span.
+CASE_BASE=8.4 CASE_TITLE='PS-1 [8.4] Markdown' CASE_TOTAL=1
+CASE_COMMITS="$(commit abc123abc123 1 'PS-1 [8.4] a|b `c` ``d`` <b>e</b> [f](g)')"
+run_case 'a pipe is escaped and the fence outgrows the backticks' 0 'carry a ticket key' '| abc123abc123 | ``` PS-1 [8.4] a\|b `c` ``d`` <b>e</b> [f](g) ``` | ok |'
+
+CASE_BASE=8.4 CASE_TITLE='PS-1 [8.4] CR' CASE_TOTAL=1
+CASE_COMMITS="$(commit abc123abc123 1 $'PS-1 [8.4] crlf\r')"
+run_case 'a carriage return is spelled out' 0 'carry a ticket key' '| abc123abc123 | ` PS-1 [8.4] crlf\r ` | ok |'
+if grep -q $'\r' "${CASE_SUMMARY}"; then
+  echo "FAIL no raw CR reaches the summary"
+  fail=$((fail + 1))
+else
+  echo "ok   no raw CR reaches the summary"
+  pass=$((pass + 1))
+fi
+
+CASE_BASE=release-8.4.0 CASE_TITLE='anything at all' CASE_TOTAL=1
+CASE_COMMITS="$(commit abc123abc123 1 'no key no tag')"
+run_case 'an out-of-scope base is explained in the summary' 0 'not a version branch' 'Base branch ` release-8.4.0 ` is not a version branch, nothing to check.'
+
+CASE_BASE=8.4 CASE_TITLE='Merge remote-tracking branch' CASE_TOTAL=2
+CASE_COMMITS="$(commit abc123abc123 1 'upstream commit with no key'; commit def456def456 2 'Merge branch 8.0 into 8.4')"
+run_case 'the merge exemption is explained in the summary' 0 'contains a merge commit' 'carries a merge commit'
+
+CASE_BASE=8.4 CASE_TITLE='PS-1 [8.4] Big' CASE_TOTAL=300
+CASE_COMMITS="$(commit abc123abc123 1 'PS-1 [8.4] one')"
+run_case 'a truncated listing is explained in the summary' 1 'only 1 could be listed' 'has 300 commits but only 1 could be listed'
+
+rm -f "${CASE_SUMMARY}"
+unset CASE_SUMMARY
+
+# Without a runner there is no summary file and nothing is written anywhere.
+CASE_BASE=8.4 CASE_TITLE='PS-1 [8.4] Local' CASE_TOTAL=1
+CASE_COMMITS="$(commit abc123abc123 1 'PS-1 [8.4] one')"
+run_case 'an unset GITHUB_STEP_SUMMARY is a no-op' 0 'carry a ticket key'
+}
+summary_cases
 
 # ------------------------------------------------------------------ inputs
 section 'required inputs'

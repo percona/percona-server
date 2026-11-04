@@ -60,8 +60,7 @@ Loader::Task_queue::mt_execute(). An ALTER that builds several indexes
 therefore runs setup_sort()/btree_build()/finalize() for different builders at
 the same time, on different threads, and the sort tasks of a single builder
 are parallel by design. All of those threads pass the *same* THD - the owning
-connection's, m_ctx.thd() - to DEBUG_SYNC, and the worker threads do not even
-have a current_thd (Loader::load() clears it).
+connection's, m_ctx.thd() - to DEBUG_SYNC.
 
 debug_sync() does no locking of its own: the facility assumes a sync point is
 only ever hit by the thread owning the THD. It tests action->activation_count
@@ -82,13 +81,31 @@ must stay that way: a DDL parked inside a sync point may only be released by
 a signal that arrives after another connection's DDL has reached the same
 sync point, so a lock shared between statements would deadlock them.
 
+Since upstream Bug#38987922 each parallel DDL worker has a THD of its own as
+current_thd (Runnable::setup_thd() in Loader::load()). debug_sync() expects the
+control block it changes to belong to current_thd, and
+debug_sync_remove_action() asserts it:
+
+  sql/debug_sync.cc: Assertion `current_thd == nullptr ||
+                     ds_control == current_thd->debug_sync_control' failed
+
+Upstream avoids that by running its online-DDL debug sync tests with
+innodb_ddl_threads=1. Here several threads must be able to meet in one sync
+point, so a worker thread executes the sync point with current_thd cleared,
+as all DDL worker threads did before that change, and restores its own THD
+right after. This happens under the mutex, so only one thread at a time acts
+on the context's THD.
+
 The mutex is only taken when debug sync is armed, mirroring the DEBUG_SYNC
 macro's own fast path, and the whole thing compiles away without DEBUG_SYNC. */
 #define DDL_DEBUG_SYNC(_ctx_, _sync_point_name_)                           \
   do {                                                                     \
     if (unlikely(opt_debug_sync_timeout)) {                                \
       const std::lock_guard<std::mutex> guard{(_ctx_).m_debug_sync_mutex}; \
+      THD *const ddl_thread_thd = current_thd;                             \
+      if (ddl_thread_thd != (_ctx_).thd()) current_thd = nullptr;          \
       DEBUG_SYNC((_ctx_).thd(), _sync_point_name_);                        \
+      current_thd = ddl_thread_thd;                                        \
     }                                                                      \
   } while (false)
 #else

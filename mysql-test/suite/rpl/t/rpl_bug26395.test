@@ -97,14 +97,12 @@ if ($count) {
 
 # Stopping the applier in the middle of the incomplete transaction can report
 # ER_MTA_INCONSISTENT_DATA in the non-compression case.
+# Percona Server: sql_slave_killed() accepts STOP REPLICA without that error
+# when all workers are done and the partial transaction can be safely rolled
+# back (InnoDB only, as here), so no applier error is expected.
 --let $slave_sql_errno=1756
 source include/rpl/stop_replica.inc;
-
-if ($count) {
-  --let $include_silent=1
-  source include/rpl/wait_for_applier_error.inc;
-  --let $include_silent=0
-}
+--let $count = 0
 
 --let $assert_text = Assert that receiver status is off
 --let $assert_cond = `SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = '' AND SERVICE_STATE='OFF'`

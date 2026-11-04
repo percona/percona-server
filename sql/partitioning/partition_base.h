@@ -252,11 +252,10 @@ class Partition_base : public handler,
     return Partition_helper::ph_write_row(buf);
   }
   int update_row(const uchar *old_data, uchar *new_data) override {
-    return Partition_helper::ph_update_row(old_data, new_data,
-                                           rpl_lookup_rows());
+    return Partition_helper::ph_update_row(old_data, new_data);
   }
   int delete_row(const uchar *buf) override {
-    return Partition_helper::ph_delete_row(buf, rpl_lookup_rows());
+    return Partition_helper::ph_delete_row(buf);
   }
   int delete_all_rows(void) override;
   int truncate(dd::Table *) override;
@@ -910,7 +909,6 @@ class Partition_base : public handler,
   void rpl_after_delete_rows() override;
   void rpl_before_update_rows() override;
   void rpl_after_update_rows() override;
-  bool rpl_lookup_rows() override = 0;
 
   /* For MyRocks Writebatch Replication validation */
   bool rpl_can_handle_stm_event() const noexcept override {

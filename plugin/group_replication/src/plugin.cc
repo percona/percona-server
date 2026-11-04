@@ -21,12 +21,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <algorithm>
 #include <cassert>
+#include <cstring>
 #include <memory>
 #include <sstream>
 
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/service_rpl_transaction_write_set.h>
+#include <mysql/status_var.h>
 #include "mutex_lock.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -55,6 +58,7 @@
 #include "plugin/group_replication/include/thread/mysql_thread.h"
 #include "plugin/group_replication/include/udf/udf_registration.h"
 #include "plugin/group_replication/include/udf/udf_utils.h"
+#include "scope_guard.h"
 #include "string_with_len.h"
 
 #ifndef NDEBUG
@@ -72,9 +76,6 @@ static struct plugin_local_variables lv;
   Plugin options variables that are only accessible inside plugin.cc.
 */
 static struct plugin_options_variables ov;
-
-/* Flow Control Status variables that are only accessible inside plugin.cc */
-static struct group_replication_fc_stats fc_stats;
 
 /*
   Log service log_bi and log_bs are extern variables.
@@ -5596,38 +5597,102 @@ static SYS_VAR *group_replication_system_vars[] = {
     nullptr,
 };
 
-#define DEF_GR_FC_STATUS_VAR_PTR(name, ptr, option) \
-  { name, (char *)ptr, option, SHOW_SCOPE_GLOBAL }
+/*
+  Flow Control status variables.
+
+  Each variable is a SHOW_FUNC which copies its value into the buffer
+  provided by the caller. The values are std::string, which must not be
+  exposed as SHOW_CHAR_PTR: that type expects a 'char *' at the given
+  address, and the layout of std::string is implementation defined (with
+  libc++ a short string is stored inline, so its characters were read as a
+  pointer). Each variable takes its own snapshot of the stats, so within one
+  SHOW STATUS the three values may come from slightly different moments.
+  They are kept in a static SHOW_ARRAY, rather than a single SHOW_FUNC
+  returning a SHOW_ARRAY, so that they can also be looked up by name
+  (get_recursive_status_var()).
+
+  `applier_module` may be destroyed concurrently by START/STOP
+  GROUP_REPLICATION or by an auto-rejoin attempt, so it is accessed under
+  `plugin_running_lock` and `plugin_applier_module_initialize_terminate_mutex`.
+  Both are only try-locked, and empty values are returned while either is
+  held by someone else:
+  - START/STOP GROUP_REPLICATION hold `plugin_running_lock`, so SHOW STATUS
+    does not wait for them to complete.
+  - The caller holds LOCK_status. An auto-rejoin attempt holds
+    `plugin_applier_module_initialize_terminate_mutex` (but not
+    `plugin_running_lock`) while it waits for the applier thread to end,
+    and the ending applier thread needs LOCK_status to release its THD.
+    Waiting for the mutex here would stall both until the
+    components stop timeout.
+*/
+static group_replication_fc_stats get_gr_flow_control_stats() {
+  group_replication_fc_stats stats;
+
+  Checkable_rwlock::Guard plugin_running_guard(*lv.plugin_running_lock,
+                                               Checkable_rwlock::TRY_READ_LOCK);
+  if (!plugin_running_guard.is_rdlocked()) return stats;
+
+  if (mysql_mutex_trylock(
+          &lv.plugin_applier_module_initialize_terminate_mutex) != 0)
+    return stats;
+  auto unlock_guard = create_scope_guard([] {
+    mysql_mutex_unlock(&lv.plugin_applier_module_initialize_terminate_mutex);
+  });
+
+  if (!lv.plugin_is_stopping && applier_module != nullptr &&
+      plugin_is_group_replication_running()) {
+    applier_module->get_flow_control_stats(stats);
+  }
+  return stats;
+}
+
+static void set_gr_flow_control_string_status_var(SHOW_VAR *var, char *buff,
+                                                  const std::string &value) {
+  const size_t len =
+      std::min(value.size(), static_cast<size_t>(SHOW_VAR_FUNC_BUFF_SIZE - 1));
+  memcpy(buff, value.data(), len);
+  buff[len] = '\0';
+
+  var->type = SHOW_CHAR;
+  var->value = buff;
+}
+
+static int show_gr_flow_control_active(MYSQL_THD, SHOW_VAR *var, char *buff) {
+  set_gr_flow_control_string_status_var(var, buff,
+                                        get_gr_flow_control_stats().active);
+  return 0;
+}
+
+static int show_gr_flow_control_threshold_nodes(MYSQL_THD, SHOW_VAR *var,
+                                                char *buff) {
+  set_gr_flow_control_string_status_var(var, buff,
+                                        get_gr_flow_control_stats().nodes);
+  return 0;
+}
+
+static int show_gr_flow_control_throttle_quota(MYSQL_THD, SHOW_VAR *var,
+                                               char *buff) {
+  var->type = SHOW_LONGLONG;
+  var->value = buff;
+  *reinterpret_cast<longlong *>(buff) = get_gr_flow_control_stats().quota;
+  return 0;
+}
 
 static SHOW_VAR gr_flow_control_status_variables[] = {
-    DEF_GR_FC_STATUS_VAR_PTR("active", &fc_stats.active, SHOW_CHAR_PTR),
-    DEF_GR_FC_STATUS_VAR_PTR("threshold_nodes", &fc_stats.nodes, SHOW_CHAR_PTR),
-    DEF_GR_FC_STATUS_VAR_PTR("throttle_quota", &fc_stats.quota, SHOW_LONGLONG),
+    {"active", reinterpret_cast<char *>(&show_gr_flow_control_active),
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"threshold_nodes",
+     reinterpret_cast<char *>(&show_gr_flow_control_threshold_nodes), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"throttle_quota",
+     reinterpret_cast<char *>(&show_gr_flow_control_throttle_quota), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     // end of the array marker
-    {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
-
-static void update_gr_flow_control_status_vars(THD *thd, SHOW_VAR *var,
-                                               char *buff) {
-  if (applier_module && plugin_is_group_replication_running()) {
-    group_replication_fc_stats tmp;
-    applier_module->get_flow_control_stats(tmp);
-    fc_stats = tmp;
-  } else {
-    fc_stats.active.clear();
-    fc_stats.nodes.clear();
-    fc_stats.quota = 0;
-  }
-}
-
-static void show_flow_control_status_vars(THD *thd, SHOW_VAR *var, char *buff) {
-  update_gr_flow_control_status_vars(thd, var, buff);
-  var->type = SHOW_ARRAY;
-  var->value = reinterpret_cast<char *>(&gr_flow_control_status_variables);
-}
+    {nullptr, nullptr, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
 static SHOW_VAR group_replication_status_vars[] = {
     {"group_replication_flow_control",
-     reinterpret_cast<char *>(&show_flow_control_status_vars), SHOW_FUNC,
+     reinterpret_cast<char *>(&gr_flow_control_status_variables), SHOW_ARRAY,
      SHOW_SCOPE_GLOBAL},
     {"Gr_control_messages_sent_count",
      (char *)&Plugin_status_variables::get_control_messages_sent_count,

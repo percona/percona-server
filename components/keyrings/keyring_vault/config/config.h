@@ -54,6 +54,7 @@ class Config_pod {
   pfs_string vault_ca;
   pfs_string token;
   Vault_version_type secret_mount_point_version = Vault_version_unknown;
+  pfs_string vault_namespace;
 };
 
 /**

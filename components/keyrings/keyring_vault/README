@@ -9,6 +9,7 @@ MTR_VAULT_ADDRESS=<vault_url> \
 MTR_VAULT_CA=<ca_path> \
 MTR_VAULT_ADMIN_TOKEN=<admin_token> \
 MTR_VAULT_PLUGIN_TOKEN=<plugin_token> \
+[MTR_VAULT_NAMESPACE=<vault_namespace>] \
 ./mysql-test/mtr ... --suite=keyring_vault
 
 '<vault_version>' - the version of the secret engine used in Vault Server
@@ -29,3 +30,7 @@ MTR_VAULT_PLUGIN_TOKEN=<plugin_token> \
 '<plugin_token>'  - Vault Server token that will be used to run the tests,
                     will be translated into 'token' parameter in the component
                     configuration file
+'<vault_namespace>' - (optional) Vault namespace, will be sent as the
+                    'X-Vault-Namespace' HTTP header on every request and
+                    translated into 'vault_namespace' in the component
+                    configuration file (e.g. 'myorg/myteam')

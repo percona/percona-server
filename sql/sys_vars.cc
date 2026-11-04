@@ -156,6 +156,7 @@
 #endif /* WITH_LOCK_ORDER */
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#include "storage/perfschema/pfs_latch_source.h" /* Percona */
 #include "storage/perfschema/pfs_server.h"
 #include "storage/perfschema/terminology_use_previous.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -699,6 +700,27 @@ static Sys_var_bool Sys_pfs_consumer_statement_digest(
         GLOBAL_VAR(pfs_param.m_consumer_statement_digest_enabled),
     CMD_LINE(OPT_ARG), DEFAULT(true), PFS_TRAILING_PROPERTIES);
 
+/* Percona */
+static bool pfs_latch_source_summary_update(sys_var *, THD *, enum_var_type) {
+  update_latch_source_summary_flag();
+  return false;
+}
+
+/* Percona */
+static const char *pfs_latch_source_summary_names[] = {"OFF", "SOURCE",
+                                                       nullptr};
+
+/* Percona */
+static Sys_var_enum Sys_pfs_latch_source_summary(
+    "performance_schema_latch_source_summary",
+    "Collect mutex and rwlock wait and hold statistics in table "
+    "EVENTS_WAITS_SUMMARY_BY_SOURCE: OFF collects nothing, SOURCE aggregates "
+    "per acquire source line.",
+    GLOBAL_VAR(latch_source_summary), CMD_LINE(REQUIRED_ARG),
+    pfs_latch_source_summary_names, DEFAULT(LATCH_SOURCE_SUMMARY_OFF),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(pfs_latch_source_summary_update), nullptr, sys_var::PARSE_EARLY);
+
 static Sys_var_long Sys_pfs_events_waits_history_long_size(
     "performance_schema_events_waits_history_long_size",
     "Number of rows in EVENTS_WAITS_HISTORY_LONG."
@@ -1005,6 +1027,15 @@ static Sys_var_long Sys_pfs_digest_size(
     READ_ONLY GLOBAL_VAR(pfs_param.m_digest_sizing), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(-1, 1024 * 1024), DEFAULT(PFS_AUTOSIZE_VALUE), BLOCK_SIZE(1),
     PFS_TRAILING_PROPERTIES);
+
+/* Percona */
+static Sys_var_long Sys_pfs_max_latch_source_summaries(
+    "performance_schema_max_latch_source_summaries",
+    "Maximum number of rows in EVENTS_WAITS_SUMMARY_BY_SOURCE."
+    " Use 0 to disable, -1 for automated sizing.",
+    READ_ONLY GLOBAL_VAR(pfs_param.m_latch_source_sizing),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024 * 1024),
+    DEFAULT(PFS_AUTOSIZE_VALUE), BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_transactions_history_long_size(
     "performance_schema_events_transactions_history_long_size",

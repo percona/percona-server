@@ -475,6 +475,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
   LF_PINS *m_account_hash_pins;
   /** Pins for digest_hash. */
   LF_PINS *m_digest_hash_pins;
+  /** Percona: pins for latch_source_hash. */
+  LF_PINS *m_latch_source_hash_pins;
   /** Pins for routine_hash. */
   LF_PINS *m_program_hash_pins;
   /** Internal thread identifier, unique. */

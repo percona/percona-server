@@ -126,6 +126,8 @@ extern PFS_builtin_memory_class builtin_memory_setup_actor;
 extern PFS_builtin_memory_class builtin_memory_setup_object;
 
 extern PFS_builtin_memory_class builtin_memory_digest;
+/* Percona */
+extern PFS_builtin_memory_class builtin_memory_latch_source;
 extern PFS_builtin_memory_class builtin_memory_digest_tokens;
 extern PFS_builtin_memory_class builtin_memory_digest_sample_sqltext;
 

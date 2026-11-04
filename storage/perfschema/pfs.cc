@@ -89,6 +89,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/psi_rwlock_bits.h" /* Percona */
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_metric.h"
@@ -129,6 +130,7 @@
 #include "storage/perfschema/pfs_host.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_latch_source.h" /* Percona */
 #include "storage/perfschema/pfs_metrics_service_imp.h"
 #include "storage/perfschema/pfs_plugin_table.h"
 #include "storage/perfschema/pfs_prepared_stmt.h"
@@ -3904,6 +3906,20 @@ PSI_mutex_locker *pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
 
   state->m_flags = flags;
   state->m_mutex = mutex;
+
+  /* Percona: EVENTS_WAITS_SUMMARY_BY_SOURCE */
+  if (flag_latch_source_summary && (flags & STATE_FLAG_TIMED)) {
+    latch_source_start_wait(state, pfs_mutex->m_class,
+                            mutex_operation_map[(int)op], src_file, src_line);
+    /* The wait starts after the lookup, keep it out of the wait time. */
+    timer_start = get_wait_timer();
+    state->m_timer_start = timer_start;
+    if (flags & STATE_FLAG_EVENT) {
+      reinterpret_cast<PFS_events_waits *>(state->m_wait)->m_timer_start =
+          timer_start;
+    }
+  }
+
   return reinterpret_cast<PSI_mutex_locker *>(state);
 }
 
@@ -4012,6 +4028,21 @@ static PSI_rwlock_locker *pfs_start_rwlock_wait_v2(
   state->m_flags = flags;
   state->m_rwlock = rwlock;
   state->m_operation = op;
+
+  /* Percona: EVENTS_WAITS_SUMMARY_BY_SOURCE */
+  if (flag_latch_source_summary && (flags & STATE_FLAG_TIMED)) {
+    latch_source_start_wait(state, pfs_rwlock->m_class,
+                            rwlock_operation_map[static_cast<int>(op)],
+                            src_file, src_line);
+    /* The wait starts after the lookup, keep it out of the wait time. */
+    timer_start = get_wait_timer();
+    state->m_timer_start = timer_start;
+    if (flags & STATE_FLAG_EVENT) {
+      reinterpret_cast<PFS_events_waits *>(state->m_wait)->m_timer_start =
+          timer_start;
+    }
+  }
+
   return reinterpret_cast<PSI_rwlock_locker *>(state);
 }
 
@@ -4128,18 +4159,27 @@ PSI_cond_locker *pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
       state->m_timer_start = timer_start;
       flags = STATE_FLAG_TIMED;
     } else {
-      /*
-        Complete shortcut.
-      */
-      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-      pfs_cond->m_cond_stat.m_wait_stat.aggregate_counted();
-      return nullptr;
+      if (!flag_latch_source_summary || mutex == nullptr) {
+        /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+        pfs_cond->m_cond_stat.m_wait_stat.aggregate_counted();
+        return nullptr;
+      }
+
+      /* Keep both callbacks to suspend and resume mutex hold timing.
+      The untimed condition wait is counted by pfs_end_cond_wait_v1(). */
+      flags = 0;
     }
   }
 
   state->m_flags = flags;
   state->m_cond = cond;
   state->m_mutex = mutex;
+
+  /* Percona: the mutex is not held while waiting on the condition. */
+  if (flag_latch_source_summary && mutex != nullptr) {
+    latch_source_cond_wait_start(mutex);
+  }
+
   return reinterpret_cast<PSI_cond_locker *>(state);
 }
 
@@ -4879,6 +4919,11 @@ void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
 
   pfs_mutex->m_owner = nullptr;
 
+  /* Percona: EVENTS_WAITS_SUMMARY_BY_SOURCE */
+  if (flag_latch_source_summary) {
+    latch_source_unlock(pfs_mutex, PFS_latch_mode::ANY);
+  }
+
 #ifdef LATER_WL2333
   /*
     See WL#2333: SHOW ENGINE ... LOCK STATUS.
@@ -4900,8 +4945,7 @@ void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
   Implementation of the rwlock instrumentation interface.
   @sa PSI_v1::unlock_rwlock.
 */
-void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
-                          PSI_rwlock_operation op [[maybe_unused]]) {
+void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock, PSI_rwlock_operation op) {
   auto *pfs_rwlock = reinterpret_cast<PFS_rwlock *>(rwlock);
   assert(pfs_rwlock != nullptr);
   assert(pfs_rwlock == sanitize_rwlock(pfs_rwlock));
@@ -4953,6 +4997,26 @@ void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
       No further action is taken here, the next
       write lock will put the statistics is a valid state.
     */
+  }
+
+  /* Percona: EVENTS_WAITS_SUMMARY_BY_SOURCE */
+  if (flag_latch_source_summary) {
+    PFS_latch_mode mode;
+    switch (op) {
+      case PSI_RWLOCK_SHAREDUNLOCK:
+        mode = PFS_latch_mode::SHARED;
+        break;
+      case PSI_RWLOCK_SHAREDEXCLUSIVEUNLOCK:
+        mode = PFS_latch_mode::SHARED_EXCLUSIVE;
+        break;
+      case PSI_RWLOCK_EXCLUSIVEUNLOCK:
+        mode = PFS_latch_mode::EXCLUSIVE;
+        break;
+      default:
+        mode = PFS_latch_mode::ANY;
+        break;
+    }
+    latch_source_unlock(pfs_rwlock, mode);
   }
 
 #ifdef LATER_WL2333
@@ -5178,6 +5242,12 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc) {
 #endif /* LATER_WL2333 */
   }
 
+  /* Percona: EVENTS_WAITS_SUMMARY_BY_SOURCE */
+  if (flag_latch_source_summary && (flags & STATE_FLAG_TIMED)) {
+    latch_source_end_wait(state, mutex, PFS_latch_mode::ANY, rc,
+                          state->m_timer_start, timer_end);
+  }
+
   if (flags & STATE_FLAG_THREAD) {
     PFS_single_stat *event_name_array;
     event_name_array = thread->write_instr_class_waits_stats();
@@ -5252,6 +5322,12 @@ void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc) {
 #endif /* LATER_WL2333 */
     rwlock->m_writer = nullptr;
     rwlock->m_readers++;
+  }
+
+  /* Percona: EVENTS_WAITS_SUMMARY_BY_SOURCE */
+  if (flag_latch_source_summary && (state->m_flags & STATE_FLAG_TIMED)) {
+    latch_source_end_wait(state, rwlock, PFS_latch_mode::SHARED, rc,
+                          state->m_timer_start, timer_end);
   }
 
   if (state->m_flags & STATE_FLAG_THREAD) {
@@ -5331,6 +5407,16 @@ void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc) {
     }
   }
 
+  /* Percona: EVENTS_WAITS_SUMMARY_BY_SOURCE */
+  if (flag_latch_source_summary && (state->m_flags & STATE_FLAG_TIMED)) {
+    const bool sx = (state->m_operation == PSI_RWLOCK_SHAREDEXCLUSIVELOCK) ||
+                    (state->m_operation == PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK);
+    latch_source_end_wait(
+        state, rwlock,
+        sx ? PFS_latch_mode::SHARED_EXCLUSIVE : PFS_latch_mode::EXCLUSIVE, rc,
+        state->m_timer_start, timer_end);
+  }
+
   if (state->m_flags & STATE_FLAG_THREAD) {
     PFS_single_stat *event_name_array;
     event_name_array = thread->write_instr_class_waits_stats();
@@ -5376,6 +5462,11 @@ void pfs_end_cond_wait_v1(PSI_cond_locker *locker, int) {
 
   auto *cond = reinterpret_cast<PFS_cond *>(state->m_cond);
   /* auto *mutex= reinterpret_cast<PFS_mutex *> (state->m_mutex); */
+
+  /* Percona: the mutex is held again. */
+  if (flag_latch_source_summary && state->m_mutex != nullptr) {
+    latch_source_cond_wait_end(state->m_mutex);
+  }
 
   if (state->m_flags & STATE_FLAG_TIMED) {
     timer_end = get_wait_timer();

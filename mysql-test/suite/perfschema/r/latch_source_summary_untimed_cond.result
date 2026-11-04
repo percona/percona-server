@@ -1,0 +1,26 @@
+UPDATE performance_schema.setup_instruments SET ENABLED = 'YES', TIMED = 'YES'
+  WHERE NAME = 'wait/synch/mutex/sql/DEBUG_SYNC::mutex';
+UPDATE performance_schema.setup_instruments SET ENABLED = 'YES', TIMED = 'NO'
+  WHERE NAME = 'wait/synch/cond/sql/DEBUG_SYNC::cond';
+UPDATE performance_schema.setup_consumers SET ENABLED = 'NO'
+  WHERE NAME = 'thread_instrumentation';
+SET GLOBAL performance_schema_latch_source_summary = SOURCE;
+TRUNCATE TABLE performance_schema.events_waits_summary_by_source;
+SET DEBUG_SYNC = 'now SIGNAL parked WAIT_FOR go';
+SET DEBUG_SYNC = 'now WAIT_FOR parked';
+SET DEBUG_SYNC = 'now SIGNAL go';
+# The condition wait releases the mutex despite being untimed.
+SELECT COUNT(*) > 0 AS HAS_ROWS,
+MAX(MAX_TIMER_HOLD) < 1000000000000 AS NOT_HELD_WHILE_WAITING,
+SUM(COUNT_HOLD) > SUM(COUNT_STAR) AS RESUMED_AFTER_WAIT
+FROM performance_schema.events_waits_summary_by_source
+WHERE EVENT_NAME = 'wait/synch/mutex/sql/DEBUG_SYNC::mutex';
+HAS_ROWS	NOT_HELD_WHILE_WAITING	RESUMED_AFTER_WAIT
+1	1	1
+SET DEBUG_SYNC = 'RESET';
+SET GLOBAL performance_schema_latch_source_summary = OFF;
+UPDATE performance_schema.setup_consumers SET ENABLED = 'YES'
+  WHERE NAME = 'thread_instrumentation';
+UPDATE performance_schema.setup_instruments SET ENABLED = 'YES', TIMED = 'YES'
+  WHERE NAME = 'wait/synch/cond/sql/DEBUG_SYNC::cond';
+TRUNCATE TABLE performance_schema.events_waits_summary_by_source;

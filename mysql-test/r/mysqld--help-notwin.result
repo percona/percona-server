@@ -1013,6 +1013,10 @@ The following options may be given as the first argument:
  --performance-schema-instrument[=name] 
  Default startup value for a performance schema
  instrument.
+ --performance-schema-latch-source-summary=name 
+ Collect mutex and rwlock wait and hold statistics in
+ table EVENTS_WAITS_SUMMARY_BY_SOURCE: OFF collects
+ nothing, SOURCE aggregates per acquire source line.
  --performance-schema-logger[=name] 
  Default startup value for a performance schema logger.
  --performance-schema-max-cond-classes=# 
@@ -1039,6 +1043,9 @@ The following options may be given as the first argument:
  --performance-schema-max-index-stat=# 
  Maximum number of index statistics for instrumented
  tables. Use 0 to disable, -1 for automated scaling.
+ --performance-schema-max-latch-source-summaries=# 
+ Maximum number of rows in EVENTS_WAITS_SUMMARY_BY_SOURCE.
+ Use 0 to disable, -1 for automated sizing.
  --performance-schema-max-logger-classes=# 
  Maximum number of logger source instruments.
  --performance-schema-max-memory-classes=# 
@@ -2041,6 +2048,7 @@ performance-schema-events-waits-history-long-size -1
 performance-schema-events-waits-history-size -1
 performance-schema-hosts-size -1
 performance-schema-instrument 
+performance-schema-latch-source-summary OFF
 performance-schema-logger 
 performance-schema-max-cond-classes 150
 performance-schema-max-cond-instances -1
@@ -2050,6 +2058,7 @@ performance-schema-max-file-classes 80
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
+performance-schema-max-latch-source-summaries -1
 performance-schema-max-logger-classes 80
 performance-schema-max-memory-classes 530
 performance-schema-max-metadata-locks -1

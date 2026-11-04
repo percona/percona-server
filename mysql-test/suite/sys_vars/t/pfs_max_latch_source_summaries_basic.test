@@ -1,0 +1,33 @@
+# Percona: PS-11822 performance_schema_max_latch_source_summaries.
+
+#
+# Only global
+#
+
+select @@global.performance_schema_max_latch_source_summaries;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.performance_schema_max_latch_source_summaries;
+
+show global variables like 'performance_schema_max_latch_source_summaries';
+
+show session variables like 'performance_schema_max_latch_source_summaries';
+
+--disable_warnings
+select * from performance_schema.global_variables
+  where variable_name='performance_schema_max_latch_source_summaries';
+
+select * from performance_schema.session_variables
+  where variable_name='performance_schema_max_latch_source_summaries';
+--enable_warnings
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global performance_schema_max_latch_source_summaries=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session performance_schema_max_latch_source_summaries=1;
+

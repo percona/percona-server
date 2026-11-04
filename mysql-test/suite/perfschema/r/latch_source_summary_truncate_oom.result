@@ -1,0 +1,27 @@
+UPDATE performance_schema.setup_instruments SET ENABLED = 'YES', TIMED = 'YES'
+  WHERE NAME = 'wait/synch/mutex/sql/LOCK_status';
+TRUNCATE TABLE performance_schema.events_waits_summary_by_source;
+SET GLOBAL performance_schema_latch_source_summary = SOURCE;
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+SET GLOBAL performance_schema_latch_source_summary = OFF;
+HAS_ROWS
+1
+# Hash delete fails: rows stay.
+SET SESSION debug = '+d,latch_source_hash_delete_oom';
+TRUNCATE TABLE performance_schema.events_waits_summary_by_source;
+SET SESSION debug = '-d,latch_source_hash_delete_oom';
+ROWS_KEPT
+1
+# Collection still works and finds the kept rows.
+SET GLOBAL performance_schema_latch_source_summary = SOURCE;
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+SET GLOBAL performance_schema_latch_source_summary = OFF;
+ROWS_REUSED
+1
+COUNTED
+1
+# Normal TRUNCATE removes them.
+TRUNCATE TABLE performance_schema.events_waits_summary_by_source;
+SELECT COUNT(*) FROM performance_schema.events_waits_summary_by_source;
+COUNT(*)
+0

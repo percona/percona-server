@@ -1,0 +1,63 @@
+select @@global.performance_schema_latch_source_summary into @save;
+select @@global.performance_schema_latch_source_summary;
+@@global.performance_schema_latch_source_summary
+OFF
+select @@session.performance_schema_latch_source_summary;
+ERROR HY000: Variable 'performance_schema_latch_source_summary' is a GLOBAL variable
+show global variables like 'performance_schema_latch_source_summary';
+Variable_name	Value
+performance_schema_latch_source_summary	OFF
+show session variables like 'performance_schema_latch_source_summary';
+Variable_name	Value
+performance_schema_latch_source_summary	OFF
+select * from performance_schema.global_variables
+where variable_name='performance_schema_latch_source_summary';
+VARIABLE_NAME	VARIABLE_VALUE
+performance_schema_latch_source_summary	OFF
+select * from performance_schema.session_variables
+where variable_name='performance_schema_latch_source_summary';
+VARIABLE_NAME	VARIABLE_VALUE
+performance_schema_latch_source_summary	OFF
+set session performance_schema_latch_source_summary = SOURCE;
+ERROR HY000: Variable 'performance_schema_latch_source_summary' is a GLOBAL variable and should be set with SET GLOBAL
+set global performance_schema_latch_source_summary = 2;
+ERROR 42000: Variable 'performance_schema_latch_source_summary' can't be set to the value of '2'
+set global performance_schema_latch_source_summary = 'FOO';
+ERROR 42000: Variable 'performance_schema_latch_source_summary' can't be set to the value of 'FOO'
+set global performance_schema_latch_source_summary = '';
+ERROR 42000: Variable 'performance_schema_latch_source_summary' can't be set to the value of ''
+set global performance_schema_latch_source_summary = ON;
+ERROR 42000: Variable 'performance_schema_latch_source_summary' can't be set to the value of 'ON'
+set global performance_schema_latch_source_summary = 1.5;
+ERROR 42000: Incorrect argument type to variable 'performance_schema_latch_source_summary'
+set global performance_schema_latch_source_summary = SOURCE;
+select @@global.performance_schema_latch_source_summary;
+@@global.performance_schema_latch_source_summary
+SOURCE
+set global performance_schema_latch_source_summary = OFF;
+select @@global.performance_schema_latch_source_summary;
+@@global.performance_schema_latch_source_summary
+OFF
+set global performance_schema_latch_source_summary = 'source';
+select @@global.performance_schema_latch_source_summary;
+@@global.performance_schema_latch_source_summary
+SOURCE
+set global performance_schema_latch_source_summary = 0;
+select @@global.performance_schema_latch_source_summary;
+@@global.performance_schema_latch_source_summary
+OFF
+set global performance_schema_latch_source_summary = 1;
+select @@global.performance_schema_latch_source_summary;
+@@global.performance_schema_latch_source_summary
+SOURCE
+set global performance_schema_latch_source_summary = DEFAULT;
+select @@global.performance_schema_latch_source_summary;
+@@global.performance_schema_latch_source_summary
+OFF
+set persist performance_schema_latch_source_summary = SOURCE;
+select * from performance_schema.persisted_variables
+where variable_name='performance_schema_latch_source_summary';
+VARIABLE_NAME	VARIABLE_VALUE
+performance_schema_latch_source_summary	SOURCE
+reset persist performance_schema_latch_source_summary;
+set @@global.performance_schema_latch_source_summary = @save;

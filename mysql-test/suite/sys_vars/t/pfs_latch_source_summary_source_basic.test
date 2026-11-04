@@ -1,0 +1,11 @@
+# Percona: PS-11822 performance_schema_latch_source_summary set to SOURCE at startup.
+
+select @@global.performance_schema_latch_source_summary;
+
+select variable_name, variable_source from performance_schema.variables_info
+  where variable_name='performance_schema_latch_source_summary';
+
+set global performance_schema_latch_source_summary = OFF;
+select @@global.performance_schema_latch_source_summary;
+set global performance_schema_latch_source_summary = SOURCE;
+select @@global.performance_schema_latch_source_summary;

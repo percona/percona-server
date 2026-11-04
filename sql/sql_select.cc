@@ -5341,11 +5341,9 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
     if (usable_keys.is_set(nr) &&
         (direction = test_if_order_by_key(order, table, nr, &used_key_parts,
                                           &skip_quick))) {
-      const bool is_covering =
-          table->covering_keys.is_set(nr) ||
-          (nr == table->s->primary_key &&
-           table->file->primary_key_is_clustered()) ||
-          (table->file->index_flags(nr, 0, 0) & HA_CLUSTERED_INDEX);
+      const bool is_covering = table->covering_keys.is_set(nr) ||
+                               (nr == table->s->primary_key &&
+                                table->file->primary_key_is_clustered());
       // Don't allow backward scans on indexes with mixed ASC/DESC key parts
       if (skip_quick) table->quick_keys.clear_bit(nr);
 

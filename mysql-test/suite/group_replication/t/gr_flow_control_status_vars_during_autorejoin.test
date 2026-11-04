@@ -1,0 +1,136 @@
+################################################################################
+# Verify that the group_replication_flow_control_% status variables can be
+# read while an auto-rejoin attempt terminates the applier module.
+#
+# The auto-rejoin attempt holds plugin_applier_module_initialize_terminate_mutex
+# (but not plugin_running_lock) while it waits for the applier thread to end.
+# The status variables are read while LOCK_status is held, which the ending
+# applier thread needs, so they must not wait for that mutex. They must return
+# immediately with empty values.
+#
+# 1. Start a group with three members.
+# 2. Provoke a majority loss on server1 so that it starts an auto-rejoin
+#    attempt.
+# 3. Hold the applier thread while the auto-rejoin attempt terminates it.
+# 4. Read the status variables. They must return immediately with empty
+#    values.
+# 5. Resume the applier thread. The auto-rejoin attempt fails and the member
+#    goes to ERROR state.
+# 6. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Start a group with three members.
+--let $rpl_connection_name= server1
+--source include/connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("This member could not reach a majority of the members for more than 10 seconds. The member will now leave the group as instructed by the group_replication_unreachable_majority_timeout option.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+call mtr.add_suppression("Timeout while waiting for a view change event during the auto-rejoin procedure");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
+SET SESSION sql_log_bin= 1;
+
+--source include/gr_autorejoin_monitoring.inc
+
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_rejoin_short_retry';
+SET @@GLOBAL.DEBUG= '+d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.DEBUG= '+d,group_replication_stop_before_rejoin';
+SET @saved_exit_state_action= @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action= READ_ONLY;
+SET @@GLOBAL.group_replication_autorejoin_tries= 1;
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/connection.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/connection.inc
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Provoke a majority loss on server1 so that it starts an
+--echo #    auto-rejoin attempt.
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--let $member_id= `SELECT @@GLOBAL.server_uuid`
+--source include/gr_provoke_majority_loss.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.autorejoin_entering_loop";
+SET DEBUG_SYNC= "now SIGNAL signal.autorejoin_enter_loop";
+SET DEBUG_SYNC= "now WAIT_FOR signal.autorejoin_waiting";
+
+
+--echo
+--echo ############################################################
+--echo # 3. Hold the applier thread while the auto-rejoin attempt
+--echo #    terminates it.
+SET @@GLOBAL.DEBUG= '+d,applier_thd_timeout';
+# The error log retains the messages of earlier applier shutdowns (for
+# example with --repeat), so wait for a new one.
+--let $applier_killed_count= `SELECT COUNT(*) FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-011444'`
+SET DEBUG_SYNC= "now SIGNAL signal.autorejoin_continue";
+
+# 'The group replication applier thread was killed.' is logged by the
+# applier thread after the auto-rejoin attempt acquired
+# plugin_applier_module_initialize_terminate_mutex, right before it checks
+# applier_thd_timeout. The flag stays enabled until the status variables are
+# read, so the applier thread cannot end, and the mutex cannot be released,
+# before that.
+--let $wait_condition= SELECT COUNT(*) > $applier_killed_count FROM performance_schema.error_log WHERE ERROR_CODE = 'MY-011444'
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Read the status variables. They must return immediately
+--echo #    with empty values.
+SHOW GLOBAL STATUS LIKE 'group_replication_flow_control%';
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'group_replication_flow_control%' ORDER BY VARIABLE_NAME;
+
+
+--echo
+--echo ############################################################
+--echo # 5. Resume the applier thread. The auto-rejoin attempt fails
+--echo #    and the member goes to ERROR state.
+SET @@GLOBAL.DEBUG= '-d,applier_thd_timeout';
+SET DEBUG_SYNC= "now SIGNAL signal.applier_continue";
+
+--let $wait_timeout= 600
+--let $wait_condition= SELECT IS_AUTOREJOIN_RUNNING() = FALSE
+--source include/wait_condition_or_abort.inc
+
+--let $group_replication_member_state= ERROR
+--let $group_replication_member_id= $member_id
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+--source include/stop_group_replication.inc
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.group_replication_autorejoin_tries= default;
+SET @@GLOBAL.group_replication_exit_state_action= @saved_exit_state_action;
+SET @@GLOBAL.super_read_only= 0;
+SET @@GLOBAL.read_only= 0;
+--source include/gr_end_autorejoin_monitoring.inc
+--source include/group_replication_end.inc

@@ -51,7 +51,6 @@
 #include "ft_global.h"  // ft_hints
 #include "lex_string.h"
 #include "map_helpers.h"
-#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -7182,76 +7181,6 @@ class handler {
  public:
   /* End of On-line/in-place ALTER TABLE interface. */
 
-  /**
-    @brief Offload an update to the storage engine. See handler::fast_update()
-    for details.
-  */
-  [[nodiscard]] int ha_fast_update(THD *thd,
-                                   mem_root_deque<Item *> &update_fields,
-                                   mem_root_deque<Item *> &update_values,
-                                   Item *conds);
-
-  /**
-    @brief Offload an upsert to the storage engine. See handler::upsert()
-    for details.
-  */
-  [[nodiscard]] int ha_upsert(THD *thd, mem_root_deque<Item *> &update_fields,
-                              mem_root_deque<Item *> &update_values);
-
- private:
-  /**
-    Offload an update to the storage engine implementation.
-
-    @param    thd              The thread handle.
-    @param    update_fields    The list of fields to update.
-    @param    update_values    The list of new values for the fields
-                               in update_fields.
-    @param    conds            Conditions tree.
-
-    @retval   0                if the storage engine handled the update.
-    @retval   ENOTSUP          if the storage engine can not handle the
-                               update and the slow update code path should
-                               continue executing the update.
-
-    @return an error if the update should be terminated.
-
-    @note HA_READ_BEFORE_WRITE_REMOVAL flag doesn not fit there because
-    handler::ha_update_row(...) does not accept conditions.
-  */
-  [[nodiscard]] virtual int fast_update(THD *thd [[maybe_unused]],
-                                        mem_root_deque<Item *> &update_fields
-                                        [[maybe_unused]],
-                                        mem_root_deque<Item *> &update_values
-                                        [[maybe_unused]],
-                                        Item *conds [[maybe_unused]]) {
-    return ENOTSUP;
-  }
-
-  /**
-    Offload an upsert to the storage engine implementation. Expects the row
-    to be stored in record[0].
-
-    @param    thd              The thread handle.
-    @param    update_fields    The list of fields to update.
-    @param    update_values    The list of new values for the fields
-                               in update_fields.
-
-    @retval   0                if the storage engine handled the upsert.
-    @retval   ENOTSUP          if the storage engine can not handle the upsert
-                               and the slow insert code path should continue
-                               executing the insert.
-
-    @return an error if the insert should be terminated.
-  */
-  [[nodiscard]] virtual int upsert(THD *thd [[maybe_unused]],
-                                   mem_root_deque<Item *> &update_fields
-                                   [[maybe_unused]],
-                                   mem_root_deque<Item *> &update_values
-                                   [[maybe_unused]]) {
-    return ENOTSUP;
-  }
-
- public:
   /**
     use_hidden_primary_key() is called in case of an update/delete when
     (table_flags() and HA_PRIMARY_KEY_REQUIRED_FOR_DELETE) is defined

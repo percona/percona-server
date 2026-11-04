@@ -39,8 +39,7 @@ static const char *handler_error_messages[] = {
     "Didn't find key on read or update",
     "Duplicate key on write or update",
     "Internal (unspecified) error in handler",
-    ("Someone has changed the row since it was read (while the table was "
-     "locked to prevent it)"),
+    "Someone has changed the row since it was read (while the table was locked to prevent it)",
     "Wrong index given to function",
     "Transaction has been rolled back",
     "Index file is crashed",
@@ -80,8 +79,7 @@ static const char *handler_error_messages[] = {
     "There's no partition in table for the given value",
     "Row-based binlogging of row failed",
     "Index needed in foreign key constraint",
-    ("Upholding foreign key constraints would lead to a duplicate key error in "
-     "some other table"),
+    "Upholding foreign key constraints would lead to a duplicate key error in some other table",
     "Table needs to be upgraded before it can be used",
     "Table is read only",
     "Failed to get next auto increment value",
@@ -127,8 +125,7 @@ static const char *handler_error_messages[] = {
     "Invalid table name",
     "Path is too long for the OS",
     "Histogram sampling initialization failed",
-    "Too many nested sub-expressions in a full-text search",
-    "Destination schema does not exist"};
+    "Too many nested sub-expressions in a full-text search"};
 
 // clang-format on
 

@@ -589,7 +589,6 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
-           -DROCKSDB_DISABLE_AVX2=1 \
            -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_MAINTAINER_MODE=OFF \
@@ -651,7 +650,6 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
-           -DROCKSDB_DISABLE_AVX2=1 \
            -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_MAINTAINER_MODE=OFF \
@@ -723,7 +721,6 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
-           -DROCKSDB_DISABLE_AVX2=1 \
            -DROCKSDB_DISABLE_MARCH_NATIVE=1 \
            -DMYSQL_MAINTAINER_MODE=OFF \
            -DFORCE_INSOURCE_BUILD=1 \

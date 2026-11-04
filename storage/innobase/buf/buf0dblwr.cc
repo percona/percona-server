@@ -802,11 +802,13 @@ class Double_write {
   [[nodiscard]] static dberr_t create_reduced() noexcept;
 
 #ifndef _WIN32
-  /** @return true if we need to fsync to disk */
+  /** @return true if we need to fsync to disk.  The doublewrite copy of a
+  page must be durable before the page is written to its tablespace, which
+  an O_DIRECT write alone does not guarantee on a device with a volatile
+  write cache; only O_DIRECT_NO_FSYNC promises to skip the fsync(). */
   [[nodiscard]] static bool is_fsync_required() noexcept {
     /* srv_unix_file_flush_method is a dynamic variable. */
-    return srv_unix_file_flush_method != SRV_UNIX_O_DIRECT &&
-           srv_unix_file_flush_method != SRV_UNIX_O_DIRECT_NO_FSYNC;
+    return srv_unix_file_flush_method != SRV_UNIX_O_DIRECT_NO_FSYNC;
   }
 #endif /* _WIN32 */
 

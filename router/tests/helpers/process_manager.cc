@@ -31,12 +31,10 @@
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
-#include <sstream>
 #include <stdexcept>
 #include <string_view>
 #include <system_error>
 #include <thread>
-#include <vector>
 
 #ifndef _WIN32
 #include <sys/file.h>
@@ -200,6 +198,7 @@ ProcessManager::Spawner::wait_for_notified(
       return stdx::unexpected(read_res.error());
     } else {
       const auto bytes_read = read_res.value();
+
       if (bytes_read >= expected_notification.size()) {
         if (expected_notification ==
             std::string_view(buff.data(), expected_notification.size())) {
@@ -655,53 +654,6 @@ void ProcessManager::terminate_all_still_alive() {
   }
 }
 
-/**
- * collect the ERROR and WARNING lines of a log which limit_lines() would
- * replace by its "<snap>" marker.
- *
- * @param content full content of the log
- * @param lines_limit the limit passed to limit_lines()
- * @param max_lines maximum number of lines to return
- */
-static std::string snapped_errors_and_warnings(const std::string &content,
-                                               size_t lines_limit,
-                                               size_t max_lines) {
-  std::vector<std::string> lines;
-  {
-    std::istringstream iss(content);
-    for (std::string line; std::getline(iss, line);) {
-      lines.push_back(std::move(line));
-    }
-  }
-
-  if (lines.size() <= lines_limit) return {};
-
-  // same split as limit_lines()
-  const size_t begin_lines = lines_limit / 2 + lines_limit % 2;
-  const size_t end_lines = lines_limit - begin_lines;
-
-  std::string result;
-  size_t num_found{};
-  for (size_t ndx = begin_lines; ndx < lines.size() - end_lines; ++ndx) {
-    const auto &line = lines[ndx];
-
-    // log-level is followed by the thread-id: "... routing ERROR [7f04...]"
-    if (line.find(" ERROR [") == std::string::npos &&
-        line.find(" WARNING [") == std::string::npos) {
-      continue;
-    }
-
-    if (num_found++ < max_lines) result += line + "\n";
-  }
-
-  if (num_found > max_lines) {
-    result += "<" + std::to_string(num_found - max_lines) +
-              " more ERROR/WARNING lines skipped>\n";
-  }
-
-  return result;
-}
-
 std::string ProcessManager::dump(ProcessWrapper &proc) {
   std::stringstream ss;
 
@@ -713,21 +665,9 @@ std::string ProcessManager::dump(ProcessWrapper &proc) {
     ss << "## Console output:\n\n" << output << "\n";
   }
 
-  constexpr size_t kLogLinesLimit{500};
-
-  const auto log_content = proc.get_logfile_content();
+  auto log_content = proc.get_logfile_content("", "", 500);
   if (!log_content.empty()) {
-    ss << "## Log content:\n\n"
-       << mysql_harness::limit_lines(log_content, kLogLinesLimit, "<snap>\n")
-       << "\n";
-
-    // the snapped part may contain the reason for a failure.
-    const auto snapped_errors =
-        snapped_errors_and_warnings(log_content, kLogLinesLimit, 200);
-    if (!snapped_errors.empty()) {
-      ss << "## ERROR and WARNING lines from the <snap>ed log content:\n\n"
-         << snapped_errors << "\n";
-    }
+    ss << "## Log content:\n\n" << log_content << "\n";
   }
 
   return ss.str();

@@ -49,7 +49,6 @@
 #include "ft_global.h"  // ft_hints
 #include "lex_string.h"
 #include "map_helpers.h"
-#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -591,7 +590,6 @@ enum class SelectExecutedIn : bool { kPrimaryEngine, kSecondaryEngine };
 */
 #define HA_KEY_SCAN_NOT_ROR 128
 #define HA_DO_INDEX_COND_PUSHDOWN 256 /* Supports Index Condition Pushdown */
-#define HA_CLUSTERED_INDEX 512        /* Data is clustered on this key */
 
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ 0
@@ -6805,76 +6803,6 @@ class handler {
   /* End of On-line/in-place ALTER TABLE interface. */
 
   /**
-    @brief Offload an update to the storage engine. See handler::fast_update()
-    for details.
-  */
-  [[nodiscard]] int ha_fast_update(THD *thd,
-                                   mem_root_deque<Item *> &update_fields,
-                                   mem_root_deque<Item *> &update_values,
-                                   Item *conds);
-
-  /**
-    @brief Offload an upsert to the storage engine. See handler::upsert()
-    for details.
-  */
-  [[nodiscard]] int ha_upsert(THD *thd, mem_root_deque<Item *> &update_fields,
-                              mem_root_deque<Item *> &update_values);
-
- private:
-  /**
-    Offload an update to the storage engine implementation.
-
-    @param    thd              The thread handle.
-    @param    update_fields    The list of fields to update.
-    @param    update_values    The list of new values for the fields
-                               in update_fields.
-    @param    conds            Conditions tree.
-
-    @retval   0                if the storage engine handled the update.
-    @retval   ENOTSUP          if the storage engine can not handle the
-                               update and the slow update code path should
-                               continue executing the update.
-
-    @return an error if the update should be terminated.
-
-    @note HA_READ_BEFORE_WRITE_REMOVAL flag doesn not fit there because
-    handler::ha_update_row(...) does not accept conditions.
-  */
-  [[nodiscard]] virtual int fast_update(THD *thd [[maybe_unused]],
-                                        mem_root_deque<Item *> &update_fields
-                                        [[maybe_unused]],
-                                        mem_root_deque<Item *> &update_values
-                                        [[maybe_unused]],
-                                        Item *conds [[maybe_unused]]) {
-    return ENOTSUP;
-  }
-
-  /**
-    Offload an upsert to the storage engine implementation. Expects the row
-    to be stored in record[0].
-
-    @param    thd              The thread handle.
-    @param    update_fields    The list of fields to update.
-    @param    update_values    The list of new values for the fields
-                               in update_fields.
-
-    @retval   0                if the storage engine handled the upsert.
-    @retval   ENOTSUP          if the storage engine can not handle the upsert
-                               and the slow insert code path should continue
-                               executing the insert.
-
-    @return an error if the insert should be terminated.
-  */
-  [[nodiscard]] virtual int upsert(THD *thd [[maybe_unused]],
-                                   mem_root_deque<Item *> &update_fields
-                                   [[maybe_unused]],
-                                   mem_root_deque<Item *> &update_values
-                                   [[maybe_unused]]) {
-    return ENOTSUP;
-  }
-
- public:
-  /**
     use_hidden_primary_key() is called in case of an update/delete when
     (table_flags() and HA_PRIMARY_KEY_REQUIRED_FOR_DELETE) is defined
     but we don't have a primary key
@@ -7406,11 +7334,9 @@ class handler {
    */
   virtual bool rpl_lookup_rows() { return true; }
   /*
-     Storage engine hooks to be called before and after row write, delete, and
-     update events
+     Storage engine hooks to be called before and after row delete and update
+     events
   */
-  virtual void rpl_before_write_rows() {}
-  virtual void rpl_after_write_rows() {}
   virtual void rpl_before_delete_rows() {}
   virtual void rpl_after_delete_rows() {}
   virtual void rpl_before_update_rows() {}

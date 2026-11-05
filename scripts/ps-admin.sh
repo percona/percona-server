@@ -37,17 +37,10 @@ STATUS_MYSQLX_PLUGIN=0
 STATUS_OPENID_CONNECT_PLUGIN=0
 STATUS_UPDATE_JWKS_UDF=0
 STATUS_AUTO_UPDATE_JWKS_EVENT=0
-STATUS_MYSQLD_SAFE=0
 HAROCKSDB_LOCATION=""
 
 SCRIPT_PWD=$(cd `dirname $0` && pwd)
 MYSQL_CLIENT_BIN="${SCRIPT_PWD}/mysql"
-MYSQL_DEFAULTS_BIN="${SCRIPT_PWD}/my_print_defaults"
-if [ -f /etc/redhat-release -o -f /etc/system-release ]; then
-  SYSTEMD_ENV_FILE="/etc/sysconfig/mysql"
-else
-  SYSTEMD_ENV_FILE="/etc/default/mysql"
-fi
 
 # Check if we have a functional getopt(1)
 if ! getopt --test >/dev/null 2>&1

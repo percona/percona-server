@@ -4737,25 +4737,6 @@ int Partition_base::check_for_upgrade(HA_CHECK_OPT *) {
 
 /*
   We don't know which partition table will be updated before executing
-  Write_rows_log_event, so update all partitions.
-*/
-void Partition_base::rpl_before_write_rows() {
-  for (uint i = 0; i < m_tot_parts; i++) {
-    m_file[i]->rpl_before_write_rows();
-  }
-}
-
-/*
-  Clear flag of all partitions after executing Write_rows_log_event.
-*/
-void Partition_base::rpl_after_write_rows() {
-  for (uint i = 0; i < m_tot_parts; i++) {
-    m_file[i]->rpl_after_write_rows();
-  }
-}
-
-/*
-  We don't know which partition table will be updated before executing
   Delete_rows_log_event, so update all partitions.
 */
 void Partition_base::rpl_before_delete_rows() {

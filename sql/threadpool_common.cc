@@ -104,7 +104,7 @@ static bool thread_attach(THD *thd) {
 #ifndef NDEBUG
   set_my_thread_var_id(thd->thread_id());
 #endif
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(&thd);
   thd->store_globals();
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_thread)(thd->get_psi());

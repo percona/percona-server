@@ -102,21 +102,13 @@
 
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8mb4"
 
-<<<<<<< HEAD
 /* Chars needed to store LONGLONG, excluding trailing '\0'. */
 static constexpr const auto LONGLONG_LEN = 20;
 
 enum class key_type_t { NONE, PRIMARY, UNIQUE, NON_UNIQUE, CONSTRAINT };
 
-/* Maximum number of fields per table */
-#define MAX_FIELDS 4000
-||||||| merged common ancestors
-/* Maximum number of fields per table */
-#define MAX_FIELDS 4000
-=======
 /* Maximum number of fields per table. Keep in sync with sql/sql_const.h. */
 #define MAX_FIELDS 4096
->>>>>>> mysql-26.10.0
 
 /* One year in seconds */
 #define LONG_TIMEOUT (3600UL * 24UL * 365UL)
@@ -2295,7 +2287,6 @@ static char *quote_name(char *name, char *buff, size_t buff_size, bool force) {
   return buff;
 } /* quote_name */
 
-<<<<<<< HEAD
 /**
    Unquotes char string, taking into account compatible mode
 
@@ -2335,12 +2326,6 @@ static const char *unquote_name(const char *opt_quoted_name,
   return buff;
 } /* unquote_name */
 
-static const char *quote_name(const char *name, char *buff, bool force) {
-  return quote_name(const_cast<char *>(name), buff, force);
-||||||| merged common ancestors
-static const char *quote_name(const char *name, char *buff, bool force) {
-  return quote_name(const_cast<char *>(name), buff, force);
-=======
 static void check_identifier_length(const char *identifier,
                                     const char *identifier_type) {
   if (identifier == nullptr)
@@ -2359,7 +2344,6 @@ static void check_identifier_length(const char *identifier,
   if (strlen(identifier) > NAME_LEN)
     die(EX_CONSCHECK, "%s name exceeds the maximum length of %d bytes",
         identifier_type, NAME_LEN);
->>>>>>> mysql-26.10.0
 }
 
 /*
@@ -3724,7 +3708,8 @@ static void skip_compressed_columns(char *create_str,
   char *prefix_ptr = strstr(ptr, prefix);
   while (prefix_ptr != nullptr) {
     char *const suffix_ptr = strstr(prefix_ptr + prefix_length, suffix);
-    assert(suffix_ptr != nullptr);
+    /* Not a column format extension, e.g. text inside a COMMENT. */
+    if (suffix_ptr == nullptr) break;
     if (!opt_compressed_columns_with_dictionaries) {
       if (!opt_compressed_columns) {
         /* Strip out all compressed columns extensions. */
@@ -3744,19 +3729,27 @@ static void skip_compressed_columns(char *create_str,
       if (dictionaries != nullptr && prefix_ptr + prefix_length != suffix_ptr) {
         const char *dictionary_keyword_ptr =
             strstr(prefix_ptr + prefix_length, dictionary_keyword);
-        assert(dictionary_keyword_ptr < suffix_ptr);
-        const auto dictionary_name_length =
-            suffix_ptr - (dictionary_keyword_ptr + dictionary_keyword_length);
+        if (dictionary_keyword_ptr != nullptr &&
+            dictionary_keyword_ptr + dictionary_keyword_length <= suffix_ptr) {
+          const size_t dictionary_name_length =
+              suffix_ptr - (dictionary_keyword_ptr + dictionary_keyword_length);
 
-        char opt_quoted_buff[NAME_LEN * 2 + 3];
-        strncpy(opt_quoted_buff,
-                dictionary_keyword_ptr + dictionary_keyword_length,
-                dictionary_name_length);
-        opt_quoted_buff[dictionary_name_length] = '\0';
+          char opt_quoted_buff[NAME_LEN * 2 + 3];
+          /* The name comes from the server, do not trust its length. */
+          if (dictionary_name_length >= sizeof(opt_quoted_buff))
+            die(EX_CONSCHECK,
+                "Compression dictionary name exceeds the maximum length of "
+                "%zu bytes",
+                sizeof(opt_quoted_buff) - 1);
+          memcpy(opt_quoted_buff,
+                 dictionary_keyword_ptr + dictionary_keyword_length,
+                 dictionary_name_length);
+          opt_quoted_buff[dictionary_name_length] = '\0';
 
-        char unquoted_buff[NAME_LEN * 2 + 3];
-        dictionaries->emplace_front(
-            unquote_name(opt_quoted_buff, unquoted_buff));
+          char unquoted_buff[NAME_LEN * 2 + 3];
+          dictionaries->emplace_front(
+              unquote_name(opt_quoted_buff, unquoted_buff));
+        }
       }
       ptr = suffix_ptr + suffix_length;
     }

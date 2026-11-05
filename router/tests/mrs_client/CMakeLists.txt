@@ -29,7 +29,7 @@ SET(MRS_CLIENT_LIBRARIES
   harness_stdx_object
   harness_tls_object
   router_utils_object
-  mysqlclient
+  perconaserverclient
   router_mysqlclient_shim
   ${CMAKE_DL_LIBS}
   ${CMAKE_THREAD_LIBS_INIT})
@@ -65,6 +65,10 @@ TARGET_COMPILE_DEFINITIONS(mysqlrouter_mrs_client PRIVATE
 IF(WIN32)
   # Router objects may import symbols resolved within the same executable.
   TARGET_LINK_OPTIONS(mysqlrouter_mrs_client PRIVATE "/IGNORE:4217")
+ENDIF()
+
+IF(WITH_COREDUMPER)
+  TARGET_LINK_LIBRARIES(mysqlrouter_mrs_client coredumper)
 ENDIF()
 
 # mysqlrouter_mrs_client component is set to Test, which

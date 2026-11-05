@@ -297,31 +297,21 @@ namespace info_schema {
   Changes:
   - WL#16779 User controlled aliasing for 'utf8'
   A new sql_mode INTERPRET_UTF8_AS_UTF8MB4
-<<<<<<< HEAD
 
   260700:
   ----------------------------------------------------------------------------
   Changes:
   - PS-11264: Vector index support in Data Dictionary
   Changed definition of I_S.STATISTICS view to correctly display vector indexes.
-||||||| merged common ancestors
-=======
 
   261000:
   ----------------------------------------------------------------------------
   Changes:
   - WL#17054 Introduce Support for CHECK/NO CHECK at Table and Column Level,
   and UPDATE/NO UPDATE at Column Level in JSON Duality View
->>>>>>> mysql-26.10.0
 */
 
-<<<<<<< HEAD
-static const uint IS_DD_VERSION = 260700;
-||||||| merged common ancestors
-static const uint IS_DD_VERSION = 90500;
-=======
 static const uint IS_DD_VERSION = 261000;
->>>>>>> mysql-26.10.0
 static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
                   ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
               "This release can not use a version number from the future");

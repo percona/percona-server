@@ -27,19 +27,11 @@ IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated")
 ENDIF()
 
-<<<<<<< HEAD
 IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
   ADD_COMPILE_FLAGS(test_next_available.cc test_classic_quit_sender.cc COMPILE_FLAGS "-Wno-restrict")
 ENDIF()
 
-# routing-library as object-lib for testing
-STATICLIB_FROM_TARGET(routing_export_all routing)
-||||||| merged common ancestors
-# routing-library as object-lib for testing
-STATICLIB_FROM_TARGET(routing_export_all routing)
-=======
 ADD_LIBRARY(routing_export_all INTERFACE)
->>>>>>> mysql-26.10.0
 TARGET_COMPILE_DEFINITIONS(routing_export_all
     INTERFACE
     ROUTING_STATIC_DEFINE=1)

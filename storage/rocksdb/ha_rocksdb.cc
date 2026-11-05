@@ -4360,7 +4360,7 @@ class Rdb_transaction {
   void remove_from_global_trx_list(void) {
     DBUG_EXECUTE_IF("rocksdb_trx_list_crash", {
       THD *thd = new THD();
-      thd->thread_stack = reinterpret_cast<char *>(&(thd));
+      thd->capture_stack_base(&thd);
       thd->store_globals();
 
       const char act[] =
@@ -12884,7 +12884,7 @@ void Rdb_drop_index_thread::run() {
 
       DBUG_EXECUTE_IF("rocksdb_drop_cf", {
         THD *thd = new THD();
-        thd->thread_stack = reinterpret_cast<char *>(&(thd));
+        thd->capture_stack_base(&thd);
         thd->store_globals();
 
         static const char act[] = "now wait_for ready_to_drop_cf";
@@ -12931,7 +12931,7 @@ void Rdb_drop_index_thread::run() {
         local_dict_manager->get_all_dropped_cfs(&dropped_cf_ids);
         if (dropped_cf_ids.empty()) {
           THD *thd = new THD();
-          thd->thread_stack = reinterpret_cast<char *>(&(thd));
+          thd->capture_stack_base(&thd);
           thd->store_globals();
 
           static const char act[] = "now signal drop_cf_done";
@@ -13663,7 +13663,7 @@ static int calculate_cardinality_table_scan(
     DBUG_EXECUTE_IF("rocksdb_calculate_stats", {
       if (kd->get_name() == "secondary_key") {
         THD *thd = new THD();
-        thd->thread_stack = reinterpret_cast<char *>(&thd);
+        thd->capture_stack_base(&thd);
         thd->store_globals();
 
         static constexpr char act[] =
@@ -13858,7 +13858,7 @@ static int calculate_stats_for_table(
   DBUG_EXECUTE_IF("rocksdb_is_bg_thread_drop_table", {
     if (tbl_name == "test.t") {
       THD *thd = new THD();
-      thd->thread_stack = reinterpret_cast<char *>(&thd);
+      thd->capture_stack_base(&thd);
       thd->store_globals();
 
       static constexpr char act[] = "now signal ready_to_drop_table";
@@ -13877,7 +13877,7 @@ static int calculate_stats_for_table(
   DBUG_EXECUTE_IF("rocksdb_is_bg_thread_drop_table", {
     if (tbl_name == "test.t") {
       THD *thd = new THD();
-      thd->thread_stack = reinterpret_cast<char *>(&thd);
+      thd->capture_stack_base(&thd);
       thd->store_globals();
 
       static constexpr char act[] = "now wait_for ready_to_save_table_stats";
@@ -15997,7 +15997,7 @@ void Rdb_index_stats_thread::run() {
       DBUG_EXECUTE_IF("rocksdb_is_bg_thread", {
         if (tbl_name == "test.t") {
           THD *thd = new THD();
-          thd->thread_stack = reinterpret_cast<char *>(&thd);
+          thd->capture_stack_base(&thd);
           thd->store_globals();
 
           static constexpr char act[] =
@@ -16022,7 +16022,7 @@ void Rdb_index_stats_thread::run() {
       DBUG_EXECUTE_IF("rocksdb_is_bg_thread", {
         if (tbl_name == "test.t") {
           THD *thd = new THD();
-          thd->thread_stack = reinterpret_cast<char *>(&thd);
+          thd->capture_stack_base(&thd);
           thd->store_globals();
 
           static constexpr char act[] =
@@ -16211,7 +16211,7 @@ void Rdb_manual_compaction_thread::run() {
 
     DBUG_EXECUTE_IF("rocksdb_manual_compaction", {
       THD *thd = new THD();
-      thd->thread_stack = reinterpret_cast<char *>(&(thd));
+      thd->capture_stack_base(&thd);
       thd->store_globals();
       static constexpr char act[] =
           "now signal ready_to_mark_cf_dropped_in_manual_compaction wait_for "

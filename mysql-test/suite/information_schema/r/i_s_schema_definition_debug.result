@@ -118,13 +118,7 @@ include/assert.inc [All expected I_S system views are present.]
 #         I_S system views.
 ########################################################################
 # Print the actual I_S version stored on disk.
-<<<<<<< HEAD
-Current I_S_VERSION=260700
-||||||| merged common ancestors
-Current I_S_VERSION=90500
-=======
 Current I_S_VERSION=261000
->>>>>>> mysql-26.10.0
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 t TEXT NOT NULL,
 row_hash VARCHAR(64) DEFAULT NULL);
@@ -1959,20 +1953,8 @@ SET debug = '-d,fetch_system_view_definition';
 include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
-<<<<<<< HEAD
-The schema checksum corresponds to I_S version 260700.
-||||||| merged common ancestors
-The schema checksum corresponds to I_S version 90500.
-=======
 The schema checksum corresponds to I_S version 261000.
->>>>>>> mysql-26.10.0
 include/assert.inc [The schema checksum corresponds to a known I_S version.]
 include/assert.inc [The schema checksum corresponds to
-<<<<<<< HEAD
-IS_VERSION 260700 stored on disk.]
-||||||| merged common ancestors
-IS_VERSION 90500 stored on disk.]
-=======
 IS_VERSION 261000 stored on disk.]
->>>>>>> mysql-26.10.0
 include/assert.inc [The stored I_S version is the latest published I_S version.]

@@ -22,6 +22,8 @@ EXPLAIN
     -> Filter: (t.id <> 1)  (cost=# rows=#)
         -> Vector index search on t using vk (v = to_vector('[0,0,0,0]'))  (cost=# rows=#)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id` from `test`.`t` where (`test`.`t`.`id` <> 1) order by distance(`test`.`t`.`v`,to_vector('[0,0,0,0]'),'EUCLIDEAN') limit 2
 # READ COMMITTED, FOR UPDATE: rows 1 and 2 only.
 SET SESSION transaction_isolation = 'READ-COMMITTED';
 START TRANSACTION;

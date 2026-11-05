@@ -10369,10 +10369,12 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                   usable_keys.intersect(tab->table()->keys_in_use_for_order_by);
 
                 // Do a cost based search on the indexes that give sort order.
-<<<<<<< HEAD
-                test_if_cheaper_ordering(
-                    tab, &join->order, tab->table(), usable_keys, -1,
-                    select_limit, &best_key, &read_direction, &select_limit);
+                {
+                  const Opt_trace_array trace_recheck_steps(trace, "steps");
+                  test_if_cheaper_ordering(
+                      thd, tab, &join->order, tab->table(), usable_keys, -1,
+                      select_limit, &best_key, &read_direction, &select_limit);
+                }
                 // A vector index answers the ORDER BY directly.
                 bool is_vector;
                 if (setup_vector_index_access(thd, tab, best_key, select_limit,
@@ -10380,22 +10382,6 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                   return true;
                 if (best_key < 0 || is_vector)
                   recheck_reason = DONT_RECHECK;  // No usable keys, or vector
-||||||| merged common ancestors
-                test_if_cheaper_ordering(
-                    tab, &join->order, tab->table(), usable_keys, -1,
-                    select_limit, &best_key, &read_direction, &select_limit);
-                if (best_key < 0)
-                  recheck_reason = DONT_RECHECK;  // No usable keys
-=======
-                {
-                  const Opt_trace_array trace_recheck_steps(trace, "steps");
-                  test_if_cheaper_ordering(
-                      thd, tab, &join->order, tab->table(), usable_keys, -1,
-                      select_limit, &best_key, &read_direction, &select_limit);
-                }
-                if (best_key < 0)
-                  recheck_reason = DONT_RECHECK;  // No usable keys
->>>>>>> mysql-26.10.0
                 else {
                   // Only usable_key is the best_key chosen
                   usable_keys.clear_all();

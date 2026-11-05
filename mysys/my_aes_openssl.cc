@@ -160,21 +160,7 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest, const unsigned char *key,
                    uint32 key_length, enum my_aes_opmode mode,
                    const unsigned char *iv, bool padding,
-<<<<<<< HEAD
                    std::vector<std::string> *kdf_options) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-  EVP_CIPHER_CTX *ctx = &stack_ctx;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-||||||| merged common ancestors
-                   vector<string> *kdf_options) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-  EVP_CIPHER_CTX *ctx = &stack_ctx;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-=======
-                   vector<string> *kdf_options) {
->>>>>>> mysql-26.10.0
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   int const rc = my_aes_encrypt(ctx, source, source_length, dest, key,
                                 key_length, mode, iv, padding, kdf_options);
@@ -217,21 +203,7 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest, const unsigned char *key,
                    uint32 key_length, enum my_aes_opmode mode,
                    const unsigned char *iv, bool padding,
-<<<<<<< HEAD
                    std::vector<std::string> *kdf_options) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-  EVP_CIPHER_CTX *ctx = &stack_ctx;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-||||||| merged common ancestors
-                   vector<string> *kdf_options) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-  EVP_CIPHER_CTX *ctx = &stack_ctx;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-=======
-                   vector<string> *kdf_options) {
->>>>>>> mysql-26.10.0
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 
   int const rc = my_aes_decrypt(ctx, source, source_length, dest, key,

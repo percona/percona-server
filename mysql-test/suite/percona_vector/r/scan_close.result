@@ -31,6 +31,8 @@ EXPLAIN
 -> Limit: 1 row(s)  (cost=X rows=X)
     -> Vector index search on t1 using vk (v = to_vector('[0,0]'))  (cost=X rows=X)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[0,0]'),'EUCLIDEAN') limit 1
 SET DEBUG_SYNC = 'ib_vec_scan_closed SIGNAL scan_closed WAIT_FOR go';
 SELECT id FROM t1 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 1;
 SET DEBUG_SYNC = 'now WAIT_FOR scan_closed TIMEOUT 30';
@@ -49,6 +51,8 @@ EXPLAIN
     -> Filter: (t1.id > 100)  (cost=X rows=X)
         -> Vector index search on t1 using vk (v = to_vector('[0,0]'))  (cost=X rows=X)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`id` > 100) order by distance(`test`.`t1`.`v`,to_vector('[0,0]'),'EUCLIDEAN') limit 2
 SET DEBUG_SYNC = 'ib_vec_scan_closed SIGNAL scan_closed WAIT_FOR go';
 SELECT id FROM t1 WHERE id > 100 ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0]'), 'EUCLIDEAN') LIMIT 2;
 SET DEBUG_SYNC = 'now WAIT_FOR scan_closed TIMEOUT 30';

@@ -314,7 +314,7 @@ void Ack_receiver::run() {
   Socket_listener listener;
 
   if (m_thd != nullptr) {
-    m_thd->thread_stack = reinterpret_cast<char *>(&net);
+    m_thd->capture_stack_base(&net);
     m_thd->store_globals();
   }
 

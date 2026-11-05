@@ -371,11 +371,6 @@ MYSQL_ADD_PLUGIN(innobase
   MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES sql_dd sql_gis ext::zlib ext::lz4 ${NUMA_LIBRARY}
-<<<<<<< HEAD
-                 extra::rapidjson extra::unordered_dense library_mysys)
-||||||| merged common ancestors
-                 extra::rapidjson library_mysys)
-=======
                  extra::rapidjson extra::unordered_dense library_mysys)
 
 # InnoDB needs DD/GIS symbols at final link, but the static archive can be
@@ -388,7 +383,6 @@ IF(INNOBASE_LINK_LIBRARIES)
 ENDIF()
 SET_PROPERTY(TARGET innobase APPEND PROPERTY
   INTERFACE_LINK_LIBRARIES sql_dd sql_gis)
->>>>>>> mysql-26.10.0
 
 # On linux: /usr/include/stdio.h:#define BUFSIZ 8192
 # On Solaris: /usr/include/iso/stdio_iso.h:#define    BUFSIZ  1024

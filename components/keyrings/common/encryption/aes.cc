@@ -138,24 +138,12 @@ size_t get_ciphertext_size(size_t input_size, const Keyring_aes_opmode mode) {
 
 namespace {
 
-<<<<<<< HEAD
 aes_return_status aes_evp_encrypt(const unsigned char *source,
                                   unsigned int source_length,
                                   unsigned char *dest, const EVP_CIPHER *cipher,
                                   const unsigned char *raw_key,
                                   const unsigned char *iv, bool padding,
                                   size_t *encrypted_length) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-  EVP_CIPHER_CTX *ctx = &stack_ctx;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-||||||| merged common ancestors
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-  EVP_CIPHER_CTX *ctx = &stack_ctx;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-=======
->>>>>>> mysql-26.10.0
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   if (ctx == nullptr) return AES_CTX_ALLOCATION_ERROR;
 
@@ -189,22 +177,13 @@ aes_return_status aes_evp_decrypt(const unsigned char *source,
                                   const unsigned char *raw_key,
                                   const unsigned char *iv, bool padding,
                                   size_t *decrypted_length) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-  EVP_CIPHER_CTX *ctx = &stack_ctx;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
   if (ctx == nullptr) return AES_CTX_ALLOCATION_ERROR;
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   auto cleanup_guard = create_scope_guard([&] {
     /* need to explicitly clean up the error if we want to ignore it */
     ERR_clear_error();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    EVP_CIPHER_CTX_cleanup(ctx);
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     EVP_CIPHER_CTX_free(ctx);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   });
 
   if (EVP_CIPHER_iv_length(cipher) > 0 && !iv) return AES_IV_EMPTY;
@@ -255,37 +234,6 @@ aes_return_status aes_decrypt(const unsigned char *source,
                               size_t *decrypted_length) {
   if (decrypted_length == nullptr) return AES_OUTPUT_SIZE_NULL;
 
-<<<<<<< HEAD
-||||||| merged common ancestors
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  EVP_CIPHER_CTX stack_ctx;
-  EVP_CIPHER_CTX *ctx = &stack_ctx;
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-  if (ctx == nullptr) return AES_CTX_ALLOCATION_ERROR;
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-
-  auto cleanup_guard = create_scope_guard([&] {
-    /* need to explicitly clean up the error if we want to ignore it */
-    ERR_clear_error();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    EVP_CIPHER_CTX_cleanup(ctx);
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-    EVP_CIPHER_CTX_free(ctx);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  });
-
-=======
-  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-  if (ctx == nullptr) return AES_CTX_ALLOCATION_ERROR;
-
-  auto cleanup_guard = create_scope_guard([&] {
-    /* need to explicitly clean up the error if we want to ignore it */
-    ERR_clear_error();
-    EVP_CIPHER_CTX_free(ctx);
-  });
-
->>>>>>> mysql-26.10.0
   const EVP_CIPHER *cipher = aes_evp_type(mode);
   if (cipher == nullptr) return AES_INVALID_BLOCK_MODE;
 

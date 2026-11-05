@@ -5349,24 +5349,14 @@ bool test_if_cheaper_ordering(
     if (usable_keys.is_set(nr) &&
         (direction = test_if_order_by_key(order, table, nr, &used_key_parts,
                                           &skip_quick))) {
-<<<<<<< HEAD
+      Opt_trace_object trace_idx(trace);
+      trace_idx.add_utf8("index", table->key_info[nr].name);
       const bool is_covering =
           table->covering_keys.is_set(nr) ||
           (nr == table->s->primary_key &&
            table->file->primary_key_is_clustered()) ||
           (table->file->index_flags(nr, 0, 0) & HA_CLUSTERED_INDEX);
-||||||| merged common ancestors
-      const bool is_covering = table->covering_keys.is_set(nr) ||
-                               (nr == table->s->primary_key &&
-                                table->file->primary_key_is_clustered());
-=======
-      Opt_trace_object trace_idx(trace);
-      trace_idx.add_utf8("index", table->key_info[nr].name);
-      const bool is_covering = table->covering_keys.is_set(nr) ||
-                               (nr == table->s->primary_key &&
-                                table->file->primary_key_is_clustered());
       trace_idx.add("is_covering", is_covering);
->>>>>>> mysql-26.10.0
       // Don't allow backward scans on indexes with mixed ASC/DESC key parts
       if (skip_quick) table->quick_keys.clear_bit(nr);
 

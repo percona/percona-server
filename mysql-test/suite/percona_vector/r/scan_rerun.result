@@ -41,6 +41,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.q.lo' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`q`.`qid` AS `qid`,(/* select#2 */ select `test`.`t1`.`id` from `test`.`t1` FORCE INDEX (`vk`) where (`test`.`t1`.`id` >= `test`.`q`.`lo`) order by distance(`test`.`t1`.`v`,to_vector('[0,0]'),'EUCLIDEAN') limit 1) AS `nn` from `test`.`q` order by `test`.`q`.`qid`
 CREATE TABLE r_ann AS
 SELECT qid,
 (SELECT id FROM t1 FORCE INDEX (vk)
@@ -92,6 +93,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.q.lo' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`q`.`qid` AS `qid`,`d`.`id` AS `id` from `test`.`q` join lateral (/* select#2 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` FORCE INDEX (`vk`) where (`test`.`t1`.`id` >= `test`.`q`.`lo`) order by distance(`test`.`t1`.`v`,to_vector('[0,0]'),'EUCLIDEAN') limit 3) `d` order by `test`.`q`.`qid`,`d`.`id`
 CREATE TABLE r_ann AS
 SELECT q.qid, d.id
 FROM q, LATERAL (SELECT id FROM t1 FORCE INDEX (vk)

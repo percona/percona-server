@@ -336,7 +336,7 @@ int Rdb_cf_manager::remove_dropped_cf(Rdb_dict_manager *const dict_manager,
 
   DBUG_EXECUTE_IF("rocksdb_remove_dropped_cf", {
     THD *thd = new THD();
-    thd->thread_stack = reinterpret_cast<char *>(&(thd));
+    thd->capture_stack_base(&thd);
     thd->store_globals();
     static constexpr char act[] = "now signal ready_to_restart_during_drop_cf";
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));

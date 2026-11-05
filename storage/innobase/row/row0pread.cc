@@ -191,14 +191,8 @@ Parallel_reader::Parallel_reader(size_t max_threads, bool use_reserved_threads)
     : m_max_threads(available_threads(max_threads, use_reserved_threads)),
       m_n_threads(m_max_threads),
       m_ctxs(),
-<<<<<<< HEAD
-      m_sync(max_threads == 0),
+      m_sync(m_max_threads == 0),
       m_trx_for_slow_log(innobase_get_trx_for_slow_log()) {
-||||||| merged common ancestors
-      m_sync(max_threads == 0) {
-=======
-      m_sync(m_max_threads == 0) {
->>>>>>> mysql-26.10.0
   m_n_completed = 0;
 
   mutex_create(LATCH_ID_PARALLEL_READ, &m_mutex);

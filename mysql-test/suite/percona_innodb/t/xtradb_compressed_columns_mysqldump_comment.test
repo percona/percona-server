@@ -1,0 +1,17 @@
+#
+# mysqldump must not trust compressed column extensions found in
+# SHOW CREATE TABLE output: column comments can contain the same text.
+#
+
+--let $name= `SELECT REPEAT('x', 500)`
+eval CREATE TABLE t1 (a INT COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY $name */');
+CREATE TABLE t2 (a INT COMMENT ' /*!50633 COLUMN_FORMAT COMPRESSED');
+
+--echo # Extension prefix without the closing suffix is left as is
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF test t2
+
+--echo # Oversized compression dictionary name is rejected
+--error 3
+--exec $MYSQL_DUMP --compact --set-gtid-purged=OFF --enable-compressed-columns-with-dictionaries test t1 2>&1
+
+DROP TABLE t1, t2;

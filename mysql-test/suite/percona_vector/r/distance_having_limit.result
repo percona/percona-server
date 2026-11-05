@@ -37,6 +37,8 @@ EXPLAIN
     -> Filter: (t1.u > 2)  (cost=X rows=X)
         -> Vector index search on t1 using v (v = to_vector('[0,0,0]'))  (cost=X rows=X)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`u` AS `u` from `test`.`t1` having (`test`.`t1`.`u` > 2) order by distance(`test`.`t1`.`v`,to_vector('[0,0,0]'),'EUCLIDEAN') limit 2
 # Expect ids 5, 6
 SELECT id, u FROM t1 HAVING u > 2
 ORDER BY DISTANCE(v, TO_VECTOR('[0,0,0]'), 'EUCLIDEAN') LIMIT 2;
@@ -109,6 +111,8 @@ EXPLAIN
                 -> Temporary table with deduplication  (cost=X rows=X)
                     -> Table scan on t1_novec  (cost=X rows=X)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1_novec`.`u` AS `u`,distance(`test`.`t1_novec`.`v`,to_vector('[0,0,0]'),'EUCLIDEAN') AS `d` from `test`.`t1_novec` having (`test`.`t1_novec`.`u` > 2) order by `d` limit 2
 #
 # 5. SQL_CALC_FOUND_ROWS needs every row, so the vector index is not
 #    chosen. When forced, the index scan has no limit and must return

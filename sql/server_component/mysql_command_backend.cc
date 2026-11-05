@@ -424,7 +424,6 @@ mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
   mysql_service_registry_t *registry_service =
       no_lock_registry ? srv_registry_no_lock : srv_registry;
 
-<<<<<<< HEAD
   /* We need to handle the failure in this function.
      Setting mcs_extn->session_svc right after session open is not enough
      to handle user lookup errors (and following errors as well)
@@ -439,13 +438,10 @@ mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
         srv_session_close(*mysql_session_ptr);
       });
 
-||||||| merged common ancestors
-=======
   /*
     Avoid possibility of nested txn in the current thd.
     If it is called, for example from a UDF.
   */
->>>>>>> mysql-26.10.0
   if (mcs_extn->mcs_thd == nullptr || mcs_extn->session_svc == nullptr) {
     if (!mcs_extn->mcs_admin_session) {
       // Embedded sessions have no authentication check for the reserved slot.

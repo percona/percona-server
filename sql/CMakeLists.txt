@@ -908,18 +908,10 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                     COMPILE_FLAGS "-Wno-undef -Wno-unused-label")
-<<<<<<< HEAD
-  IF((MY_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
-     OR
-     (MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16))
-||||||| merged common ancestors
-  IF(MY_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
-=======
   IF((MY_COMPILER_IS_CLANG AND
       CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14) OR
      (MY_COMPILER_IS_GNU AND
       CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16))
->>>>>>> mysql-26.10.0
     ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                       ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                       COMPILE_FLAGS "-Wno-unused-but-set-variable")
@@ -951,17 +943,11 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
   )
 ENDIF()
 
-<<<<<<< HEAD
 IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14)
   ADD_COMPILE_FLAGS(sql_planner.cc COMPILE_FLAGS "-Wno-array-bounds")
 ENDIF()
-ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu ext::xxhash)
-||||||| merged common ancestors
-ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE} LINK_LIBRARIES ext::icu ext::xxhash)
-=======
 ADD_STATIC_LIBRARY(sql_main ${SQL_SOURCE})
 TARGET_LINK_LIBRARIES(sql_main PRIVATE ext::icu ext::xxhash)
->>>>>>> mysql-26.10.0
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
@@ -1039,39 +1025,6 @@ IF(COMPRESS_DEBUG_SECTIONS)
   ENDIF()
 ENDIF()
 
-<<<<<<< HEAD
-ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
-# GCC 16's -O2 analysis emits false-positive -Wmaybe-uninitialized warnings
-# inside libstdc++ basic_string code instantiated for the dd::String_type
-# allocator (Stateless_allocator<char, dd::String_type_alloc>) when assigning
-# strings inside the generated dd::Object_table_definition_impl-derived
-# constructors.
-IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
-  ADD_COMPILE_FLAGS(
-    dd/impl/tables/index_stats.cc
-    dd/impl/tables/table_stats.cc
-    dd/impl/tables/triggers.cc
-    COMPILE_FLAGS "-Wno-maybe-uninitialized")
-ENDIF()
-ADD_DEPENDENCIES(sql_dd GenFixPrivs)
-ADD_DEPENDENCIES(sql_dd GenServerSource)
-ADD_DEPENDENCIES(sql_dd GenDigestServerSource)
-ADD_DEPENDENCIES(sql_dd GenBootstrapPriv)
-ADD_DEPENDENCIES(sql_dd GenSysSchema)
-ADD_DEPENDENCIES(sql_dd GenError)
-ADD_DEPENDENCIES(sql_dd GenKeywordList)
-TARGET_LINK_LIBRARIES(sql_dd sql_gis sql_main)
-||||||| merged common ancestors
-ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
-ADD_DEPENDENCIES(sql_dd GenFixPrivs)
-ADD_DEPENDENCIES(sql_dd GenServerSource)
-ADD_DEPENDENCIES(sql_dd GenDigestServerSource)
-ADD_DEPENDENCIES(sql_dd GenBootstrapPriv)
-ADD_DEPENDENCIES(sql_dd GenSysSchema)
-ADD_DEPENDENCIES(sql_dd GenError)
-ADD_DEPENDENCIES(sql_dd GenKeywordList)
-TARGET_LINK_LIBRARIES(sql_dd sql_gis sql_main)
-=======
 SET(SQL_DD_GENERATED_DEPENDENCIES
   GenFixPrivs
   GenServerSource
@@ -1130,6 +1083,18 @@ ADD_LIBRARY(sql_dd STATIC
   ${DD_SOURCES}
   ${GEN_KEYWORD_LIST_SOURCES}
   )
+# GCC 16's -O2 analysis emits false-positive -Wmaybe-uninitialized warnings
+# inside libstdc++ basic_string code instantiated for the dd::String_type
+# allocator (Stateless_allocator<char, dd::String_type_alloc>) when assigning
+# strings inside the generated dd::Object_table_definition_impl-derived
+# constructors.
+IF(MY_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+  ADD_COMPILE_FLAGS(
+    dd/impl/tables/index_stats.cc
+    dd/impl/tables/table_stats.cc
+    dd/impl/tables/triggers.cc
+    COMPILE_FLAGS "-Wno-maybe-uninitialized")
+ENDIF()
 ADD_DEPENDENCIES(sql_dd ${SQL_DD_GENERATED_DEPENDENCIES})
 TARGET_LINK_LIBRARIES(sql_dd
   PRIVATE ${SQL_SERVER_HEADER_LIBRARIES})
@@ -1147,7 +1112,6 @@ IF(MSVC AND SQL_DD_BASENAME_COLLISION_SOURCES)
     ${SQL_DD_GENERATED_DEPENDENCIES})
 ENDIF()
 TARGET_LINK_LIBRARIES(sql_dd INTERFACE sql_gis sql_main)
->>>>>>> mysql-26.10.0
 SET_TARGET_PROPERTIES(sql_dd PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 #

@@ -69,15 +69,7 @@ int create_kdf_key(const unsigned char *key, const unsigned int key_length,
   return kdf_function->derive_key(key, key_length, rkey, rkey_size);
 }
 
-<<<<<<< HEAD
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
 Key_hkdf_function::Key_hkdf_function(std::vector<std::string> *kdf_options) {
-||||||| merged common ancestors
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-Key_hkdf_function::Key_hkdf_function(vector<string> *kdf_options) {
-=======
-Key_hkdf_function::Key_hkdf_function(vector<string> *kdf_options) {
->>>>>>> mysql-26.10.0
   kdf_options_ = {kdf_options};
 }
 

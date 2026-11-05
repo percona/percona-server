@@ -319,15 +319,5 @@ SET GLOBAL innodb_monitor_disable = module_ddl;
 DROP TABLE t1;
 SET GLOBAL DEBUG = '';
 SET GLOBAL innodb_file_per_table = @global_innodb_file_per_table_orig;
-<<<<<<< HEAD
-||||||| merged common ancestors
-SET GLOBAL innodb_monitor_reset = default;
-SET GLOBAL innodb_monitor_enable = default;
-SET GLOBAL innodb_monitor_disable = default;
-=======
-SET GLOBAL innodb_monitor_reset = default;
-SET GLOBAL innodb_monitor_enable = default;
-SET GLOBAL innodb_monitor_disable = default;
 SET GLOBAL innodb_ddl_threads = @saved_innodb_ddl_threads;
 SET SESSION innodb_ddl_threads = DEFAULT;
->>>>>>> mysql-26.10.0

@@ -3835,15 +3835,6 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
       part_spec->start_part = sub_part;
       part_spec->end_part =
           sub_part + (part_info->num_subparts * (part_info->num_parts - 1));
-<<<<<<< HEAD
-      // TODO: Set bit part_id in bit array (loop removed because it was a
-      // no-op; placeholder for future bit-array support).
-||||||| merged common ancestors
-      for (i = 0, part_id = sub_part; i < part_info->num_parts;
-           i++, part_id += part_info->num_subparts)
-        ;  // Set bit part_id in bit array
-=======
->>>>>>> mysql-26.10.0
     }
   }
   if (found_part_field) clear_indicator_in_key_fields(key_info);

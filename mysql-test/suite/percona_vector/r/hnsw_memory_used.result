@@ -8,6 +8,7 @@ VECTOR KEY vk (v) TYPE hnsw (M = 4));
 INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
 (2, STRING_TO_VECTOR('[0,1,0,0]')),
 (3, STRING_TO_VECTOR('[0,0,1,0]'));
+ANALYZE TABLE t1;
 # After a restart no graph is loaded.
 # restart
 SHOW GLOBAL STATUS LIKE 'Innodb_hnsw_memory_used';

@@ -11,6 +11,12 @@ CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
 INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,0,0,0]')),
                       (2, STRING_TO_VECTOR('[0,1,0,0]')),
                       (3, STRING_TO_VECTOR('[0,0,1,0]'));
+# Persist the row count: the background recalculation may not run before the
+# restart, and with n_rows = 0 the optimizer prefers a table scan + filesort,
+# so the search below would never load the graph.
+--disable_result_log
+ANALYZE TABLE t1;
+--enable_result_log
 
 --echo # After a restart no graph is loaded.
 --source include/restart_mysqld.inc

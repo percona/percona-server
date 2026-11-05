@@ -74,7 +74,8 @@
 
 #include "ft_global.h"
 #include "m_string.h"
-#include "my_aes.h"  // my_aes_opmode_names
+#include "mutex_lock.h"  // MUTEX_LOCK
+#include "my_aes.h"      // my_aes_opmode_names
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -5470,11 +5471,32 @@ static Sys_var_charptr Sys_version_suffix("version_suffix", "version_suffix",
                                           DEFAULT(server_version_suffix));
 
 static char *server_version_with_update_ptr;
-static Sys_var_charptr Sys_version_with_update(
+static Sys_var_version Sys_version_with_update(
     "version_with_update",
-    "Full four-part server version including the update component",
+    "Full four-part server version including the update component (includes "
+    "@@version_suffix, like @@version)",
     READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_with_update_ptr),
-    NO_CMD_LINE, IN_SYSTEM_CHARSET, DEFAULT(server_version_with_update));
+    NO_CMD_LINE, IN_SYSTEM_CHARSET, DEFAULT(MYSQL_SERVER_VERSION_WITH_UPDATE));
+
+LEX_CSTRING get_server_version(THD *thd, bool with_update) {
+  const char *fallback =
+      with_update ? server_version_with_update : server_version;
+  LEX_CSTRING version{fallback, strlen(fallback)};
+  if (thd == nullptr) return version;
+
+  Sys_var_version &var = with_update ? Sys_version_with_update : Sys_version;
+  /*
+    Sys_var_version::global_value_str() builds the value in a buffer shared
+    by all callers, so it must be copied while the lock is held.
+  */
+  MUTEX_LOCK(lock, &LOCK_global_system_variables);
+  const char *value = var.global_value_str();
+  if (value != nullptr) {
+    char *copy = thd->mem_strdup(value);
+    if (copy != nullptr) version = {copy, strlen(copy)};
+  }
+  return version;
+}
 
 static char *server_version_comment_ptr;
 static Sys_var_charptr Sys_version_comment(

@@ -9864,15 +9864,22 @@ longlong Item_func_internal_tablespace_data_free::val_int() {
 }
 
 Item_func_version::Item_func_version(const POS &pos)
-    : Item_static_string_func(pos, NAME_STRING("version()"), server_version,
-                              strlen(server_version), system_charset_info,
+    : Item_func_version(pos, get_server_version(current_thd, false)) {}
+
+Item_func_version::Item_func_version(const POS &pos, const LEX_CSTRING &version)
+    : Item_static_string_func(pos, NAME_STRING("version()"), version.str,
+                              version.length, system_charset_info,
                               DERIVATION_SYSCONST) {}
 
 Item_func_version_with_update::Item_func_version_with_update(const POS &pos)
+    : Item_func_version_with_update(pos,
+                                    get_server_version(current_thd, true)) {}
+
+Item_func_version_with_update::Item_func_version_with_update(
+    const POS &pos, const LEX_CSTRING &version)
     : Item_static_string_func(pos, NAME_STRING("version_with_update()"),
-                              server_version_with_update,
-                              strlen(server_version_with_update),
-                              system_charset_info, DERIVATION_SYSCONST) {}
+                              version.str, version.length, system_charset_info,
+                              DERIVATION_SYSCONST) {}
 
 /*
     Syntax:

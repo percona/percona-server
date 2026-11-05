@@ -910,6 +910,13 @@ class ShareConnectionTest
         SharedServer::reset_to_defaults(*cli);
       }
     }
+
+    // close_all_connections() only waits until the server closed the
+    // connections. Wait until the router removed them from the pool and the
+    // stash too, so that the test starts with an empty pool.
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(0, 10s));
     TRACE("");
   }
 

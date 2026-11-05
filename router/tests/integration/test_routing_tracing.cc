@@ -1921,6 +1921,10 @@ TEST_P(TracingCommandTest,
       srv->close_all_connections();
     }
 
+    // the killed server-connection was stashed. Wait until the router removed
+    // it from the stash, so that the next command opens a new connection.
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(0, 10s));
     ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
   }
 

@@ -1010,6 +1010,13 @@ class ShareConnectionTestTemp
         SharedServer::reset_to_defaults(*cli);
       }
     }
+
+    // close_all_connections() only waits until the server closed the
+    // connections. Wait until the router removed them from the pool and the
+    // stash too, so that the test starts with an empty pool.
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(0, 10s));
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(0, 10s));
   }
 
   ~ShareConnectionTestTemp() override {
@@ -1872,6 +1879,14 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
 
   auto conn_num_res = from_string((*conn_id_res)[0]);
   ASSERT_NO_ERROR(conn_num_res);
+
+  // the server-connection must be stashed before it is killed. Otherwise the
+  // next query is sent over the killed connection and fails with 2013 instead
+  // of triggering the reconnect.
+  if (can_share && can_fetch_password) {
+    ASSERT_NO_ERROR(
+        shared_router()->wait_for_stashed_server_connections(1, 10s));
+  }
 
   ASSERT_NO_ERROR(admin_cli.query("KILL " + std::to_string(*conn_num_res)));
 

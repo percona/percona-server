@@ -313,6 +313,9 @@ void Ack_receiver::run() {
   uint i;
   Socket_listener listener;
 
+  /* Initialize net first: capture_stack_base() must not see it uninitialized. */
+  init_net(&net, net_buff, REPLY_MESSAGE_MAX_LENGTH);
+
   if (m_thd != nullptr) {
     m_thd->capture_stack_base(&net);
     m_thd->store_globals();
@@ -320,7 +323,6 @@ void Ack_receiver::run() {
 
   LogErr(INFORMATION_LEVEL, ER_SEMISYNC_STARTING_ACK_RECEIVER_THD);
 
-  init_net(&net, net_buff, REPLY_MESSAGE_MAX_LENGTH);
   NET_SERVER server_extn;
   net_server_ext_init(&server_extn);
   net.extension = &server_extn;

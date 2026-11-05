@@ -34,6 +34,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(0) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(0) `tt`
 
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE(1) AS tt ###
 SELECT value FROM PERCONA_SEQUENCE_TABLE(1) AS tt;
@@ -50,6 +52,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(1) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(1) `tt`
 
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE(4) AS tt ###
 SELECT value FROM PERCONA_SEQUENCE_TABLE(4) AS tt;
@@ -69,6 +73,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(4) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(4) `tt`
 
 ###
 ### Checking PERCONA_SEQUENCE_TABLE() max records limit
@@ -100,6 +106,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(-1) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(-(1)) `tt`
 
 # NULL value
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE(NULL) AS tt ###
@@ -116,6 +124,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(NULL) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(NULL) `tt`
 
 # Floating point numbers
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE(2.5) AS tt ###
@@ -135,6 +145,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(2.5) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(2.5) `tt`
 
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE(0.15E1) AS tt ###
 SELECT value FROM PERCONA_SEQUENCE_TABLE(0.15E1) AS tt;
@@ -152,6 +164,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(0.15E1) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(0.15E1) `tt`
 
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE(0.15E-1) AS tt ###
 SELECT value FROM PERCONA_SEQUENCE_TABLE(0.15E-1) AS tt;
@@ -167,6 +181,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(0.15E-1) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(0.15E-1) `tt`
 
 # String values
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE("") AS tt ###
@@ -188,6 +204,7 @@ EXPLAIN
 
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table('') `tt`
 
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE(" ") AS tt ###
 SELECT value FROM PERCONA_SEQUENCE_TABLE(" ") AS tt;
@@ -208,6 +225,7 @@ EXPLAIN
 
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ' '
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(' ') `tt`
 
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE("2") AS tt ###
 SELECT value FROM PERCONA_SEQUENCE_TABLE("2") AS tt;
@@ -225,6 +243,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE("2") AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table('2') `tt`
 
 ###
 ### Checking PERCONA_SEQUENCE_TABLE() upper bound expressions
@@ -249,6 +269,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(@a) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table((@`a`)) `tt`
 
 SET @a = 3;
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE(@a) AS tt ###
@@ -268,6 +290,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(@a) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table((@`a`)) `tt`
 
 # Simple arithmetic expressions
 SET @a = 2;
@@ -288,6 +312,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(@a * @a - 1) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table((((@`a`) * (@`a`)) - 1)) `tt`
 
 SET @a = 1;
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE(EXP(@a) - 1) AS tt ###
@@ -306,6 +332,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(EXP(@a) - 1) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table((exp((@`a`)) - 1)) `tt`
 
 ###
 ### Checking PERCONA_SEQUENCE_TABLE() with WHERE clause
@@ -326,6 +354,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM PERCONA_SEQUENCE_TABLE(4) AS tt WHERE valu
 EXPLAIN
 -> Materialize table function  (cost=0.35 rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(4) `tt` where (`tt`.`value` = 1)
 
 # Range selection
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE(4) AS tt WHERE value > 1 ###
@@ -345,6 +375,8 @@ EXPLAIN
 -> Filter: (tt.`value` > 1)  (cost=2.73 rows=1)
     -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(4) `tt` where (`tt`.`value` > 1)
 
 # Every second record
 ### SELECT value FROM PERCONA_SEQUENCE_TABLE(4) AS tt WHERE value %2 = 0 ###
@@ -364,6 +396,8 @@ EXPLAIN
 -> Filter: ((tt.`value` % 2) = 0)  (cost=2.73 rows=2)
     -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(4) `tt` where ((`tt`.`value` % 2) = 0)
 
 ###
 ### Selecting custom value expressions from PERCONA_SEQUENCE_TABLE()
@@ -387,6 +421,8 @@ EXPLAIN FORMAT=TREE SELECT value + 1 FROM PERCONA_SEQUENCE_TABLE(4) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select (`tt`.`value` + 1) AS `value + 1` from percona_sequence_table(4) `tt`
 
 # Odd numbers
 ### SELECT value * 2 + 1 FROM PERCONA_SEQUENCE_TABLE(4) AS tt ###
@@ -407,6 +443,8 @@ EXPLAIN FORMAT=TREE SELECT value * 2 + 1 FROM PERCONA_SEQUENCE_TABLE(4) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select ((`tt`.`value` * 2) + 1) AS `value * 2 + 1` from percona_sequence_table(4) `tt`
 
 # Reverse order
 ### SELECT 7 - value FROM PERCONA_SEQUENCE_TABLE(4) AS tt ###
@@ -427,6 +465,8 @@ EXPLAIN FORMAT=TREE SELECT 7 - value FROM PERCONA_SEQUENCE_TABLE(4) AS tt;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select (7 - `tt`.`value`) AS `7 - value` from percona_sequence_table(4) `tt`
 
 # Mapping with ELT()
 ### SELECT ELT(value + 1, "a", "b", "c", "d") FROM PERCONA_SEQUENCE_TABLE(4) AS tt ###
@@ -447,6 +487,8 @@ EXPLAIN FORMAT=TREE SELECT ELT(value + 1, "a", "b", "c", "d") FROM PERCONA_SEQUE
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select elt((`tt`.`value` + 1),'a','b','c','d') AS `ELT(value + 1, "a", "b", "c", "d")` from percona_sequence_table(4) `tt`
 
 ###
 ### Checking VIEWs based on PERCONA_SEQUENCE_TABLE()
@@ -473,6 +515,8 @@ EXPLAIN FORMAT=TREE SELECT value FROM v1;
 EXPLAIN
 -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `tt`.`value` AS `value` from percona_sequence_table(4) `tt`
 
 DROP VIEW v1;
 ###
@@ -551,6 +595,8 @@ EXPLAIN
     -> Hash
         -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select ((`test`.`t1`.`a` * 10) + `tt`.`value`) AS `t1.a * 10 + value` from `test`.`t1` join percona_sequence_table(3) `tt`
 
 # Join with UNION-based row set
 ### SELECT tt1.a * 10 + value FROM (SELECT 0 AS a UNION SELECT 1 UNION SELECT 2) AS tt1, PERCONA_SEQUENCE_TABLE(3) AS tt2 ###
@@ -588,6 +634,8 @@ EXPLAIN
     -> Hash
         -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select ((`tt1`.`a` * 10) + `tt2`.`value`) AS `tt1.a * 10 + value` from (/* select#2 */ select 0 AS `a` union /* select#3 */ select 1 AS `1` union /* select#4 */ select 2 AS `2`) `tt1` join percona_sequence_table(3) `tt2`
 
 # Join with VALUES ROW-based row set
 ### SELECT tt1.column_0 * 10 + value FROM (VALUES ROW(0), ROW(1), ROW(2)) AS tt1, PERCONA_SEQUENCE_TABLE(3) AS tt2 ###
@@ -620,6 +668,8 @@ EXPLAIN
     -> Hash
         -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select ((`tt1`.`column_0` * 10) + `tt2`.`value`) AS `tt1.column_0 * 10 + value` from (values row(0),row(1),row(2)) `tt1` join percona_sequence_table(3) `tt2`
 
 # Join with derived SELECT
 ### SELECT tt1.a * 10 + value FROM (SELECT * FROM t1) AS tt1, PERCONA_SEQUENCE_TABLE(3) AS tt2 ###
@@ -649,6 +699,8 @@ EXPLAIN
     -> Hash
         -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select ((`test`.`t1`.`a` * 10) + `tt2`.`value`) AS `tt1.a * 10 + value` from `test`.`t1` join percona_sequence_table(3) `tt2`
 
 # Join with derived TABLE
 ### SELECT tt1.a * 10 + value FROM (TABLE t1) AS tt1, PERCONA_SEQUENCE_TABLE(3) AS tt2 ###
@@ -678,6 +730,8 @@ EXPLAIN
     -> Hash
         -> Materialize table function  (cost=2.73 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select ((`test`.`t1`.`a` * 10) + `tt2`.`value`) AS `tt1.a * 10 + value` from `test`.`t1` join percona_sequence_table(3) `tt2`
 
 # Dependent upper_bound
 ### SELECT t1.a * 10 + value FROM t1, PERCONA_SEQUENCE_TABLE(a + 1) AS tt ###
@@ -703,6 +757,8 @@ EXPLAIN
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Materialize table function  (cost=0.908 rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select ((`test`.`t1`.`a` * 10) + `tt`.`value`) AS `t1.a * 10 + value` from `test`.`t1` join percona_sequence_table((`test`.`t1`.`a` + 1)) `tt`
 
 ###
 ### Checking for various forbidden upper_bound constructs

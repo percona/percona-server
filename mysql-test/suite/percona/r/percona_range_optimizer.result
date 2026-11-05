@@ -10,4 +10,6 @@ EXPLAIN
 -> Filter: ((t2.a = 2) and (t2.b >= '2') and (t2.b <= <cache>(('2' + 2))))  (cost=COST rows=3)
     -> Covering index range scan on t2 using PRIMARY over (a = 2 AND 2 <= b <= 4)  (cost=COST rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select '2' AS `b` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = 2) and (`test`.`t2`.`b` >= '2') and (`test`.`t2`.`b` <= <cache>(('2' + 2))))
 DROP TABLE t1, t2;

@@ -76,7 +76,7 @@ EXPLAIN
     "pushed_index_condition": "((t3.kp1 between 2 and 4) and ((t3.kp1 % 3) = 0) and (t3.kp2 like '%foo%'))"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 # Check that we handle the case where out-of-range is encountered sooner
 # than matched index condition

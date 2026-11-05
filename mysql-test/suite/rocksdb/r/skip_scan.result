@@ -17,6 +17,8 @@ EXPLAIN
 -> Filter: ((t.b = 2) and (t.c < 3))  (rows=83.3)
     -> Covering index skip scan on t using b over b = 2  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where ((`test`.`t`.`b` = 2) and (`test`.`t`.`c` < 3))
 FLUSH STATUS;
 SELECT b, c from t where b = 2 and c < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -34,6 +36,8 @@ EXPLAIN
 -> Filter: ((t.b = 2) and (t.c < 3))  (rows=83.3)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where ((`test`.`t`.`b` = 2) and (`test`.`t`.`c` < 3))
 FLUSH STATUS;
 SELECT b, c from t where b = 2 and c < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -51,6 +55,8 @@ EXPLAIN
 -> Filter: ((t.b = 2) and (t.c < 3))  (rows=83.3)
     -> Covering index skip scan on t using b over b = 2  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where ((`test`.`t`.`b` = 2) and (`test`.`t`.`c` < 3))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c FROM t WHERE b = 2 and c < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -69,6 +75,8 @@ EXPLAIN
 -> Filter: ((t.b = 1) and (t.c > 4))  (rows=83.3)
     -> Covering index skip scan on t using b over b = 1  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where ((`test`.`t`.`b` = 1) and (`test`.`t`.`c` > 4))
 FLUSH STATUS;
 SELECT b, c from t where b = 1 and c > 4;
 SHOW STATUS LIKE 'handler_read%';
@@ -86,6 +94,8 @@ EXPLAIN
 -> Filter: ((t.b = 1) and (t.c > 4))  (rows=83.3)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where ((`test`.`t`.`b` = 1) and (`test`.`t`.`c` > 4))
 FLUSH STATUS;
 SELECT b, c from t where b = 1 and c > 4;
 SHOW STATUS LIKE 'handler_read%';
@@ -103,6 +113,8 @@ EXPLAIN
 -> Filter: ((t.b = 1) and (t.c > 4))  (rows=83.3)
     -> Covering index skip scan on t using b over b = 1  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where ((`test`.`t`.`b` = 1) and (`test`.`t`.`c` > 4))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c from t where b = 1 and c > 4;
 SHOW STATUS LIKE 'handler_read%';
@@ -121,6 +133,8 @@ EXPLAIN
 -> Filter: (t.d <= 3)  (rows=833)
     -> Covering index lookup on t using b (a = 5)  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -138,6 +152,8 @@ EXPLAIN
 -> Filter: (t.d <= 3)  (rows=833)
     -> Covering index lookup on t using b (a = 5)  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -155,6 +171,8 @@ EXPLAIN
 -> Filter: ((t.a = 5) and (t.d <= 3))  (rows=833)
     -> Covering index skip scan on t using b over a = 5, NULL < d <= 3  (rows=833)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -173,6 +191,8 @@ EXPLAIN
 -> Filter: (t.d >= 98)  (rows=833)
     -> Covering index lookup on t using b (a = 5)  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -190,6 +210,8 @@ EXPLAIN
 -> Filter: (t.d >= 98)  (rows=833)
     -> Covering index lookup on t using b (a = 5)  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -207,6 +229,8 @@ EXPLAIN
 -> Filter: ((t.a = 5) and (t.d >= 98))  (rows=833)
     -> Covering index skip scan on t using b over a = 5, 98 <= d  (rows=833)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -225,6 +249,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,5)) and (t.d >= 98))  (rows=833)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -242,6 +268,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,5)) and (t.d >= 98))  (rows=833)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -259,6 +287,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,5)) and (t.d >= 98))  (rows=1666)
     -> Covering index skip scan on t using b over a IN (1, 5), 98 <= d  (rows=1666)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -277,6 +307,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,3,5)) and (t.d >= 98))  (rows=833)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,3,5)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -294,6 +326,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,3,5)) and (t.d >= 98))  (rows=833)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,3,5)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -311,6 +345,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,3,5)) and (t.d >= 98))  (rows=2499)
     -> Covering index skip scan on t using b over a IN (1, 3, 5), 98 <= d  (rows=2499)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,3,5)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 3, 5) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -329,6 +365,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,5)) and (t.b in (1,2)) and (t.d >= 98))  (rows=833)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`b` in (1,2)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -346,6 +384,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,5)) and (t.b in (1,2)) and (t.d >= 98))  (rows=833)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`b` in (1,2)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -363,6 +403,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,5)) and (t.b in (1,2)) and (t.d >= 98))  (rows=3333)
     -> Covering index skip scan on t using b over a IN (1, 5), b IN (1, 2), 98 <= d  (rows=3333)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,5)) and (`test`.`t`.`b` in (1,2)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 5) AND b IN (1, 2) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -381,6 +423,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,2,3,4,5)) and (t.b in (1,2,3)) and (t.d >= 98))  (rows=833)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,2,3,4,5)) and (`test`.`t`.`b` in (1,2,3)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -398,6 +442,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,2,3,4,5)) and (t.b in (1,2,3)) and (t.d >= 98))  (rows=833)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,2,3,4,5)) and (`test`.`t`.`b` in (1,2,3)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -415,6 +461,8 @@ EXPLAIN
 -> Filter: ((t.a in (1,2,3,4,5)) and (t.b in (1,2,3)) and (t.d >= 98))  (rows=12498)
     -> Covering index skip scan on t using b over a IN (1, 2, (3 more)), b IN (1, 2, 3), 98 <= d  (rows=12498)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` in (1,2,3,4,5)) and (`test`.`t`.`b` in (1,2,3)) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -433,6 +481,8 @@ EXPLAIN
 -> Filter: (t.d >= 98)  (rows=833)
     -> Covering index lookup on t using b (a = 5, b = 2)  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 2) and (`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -450,6 +500,8 @@ EXPLAIN
 -> Filter: (t.d >= 98)  (rows=833)
     -> Covering index lookup on t using b (a = 5, b = 2)  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 2) and (`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -467,6 +519,8 @@ EXPLAIN
 -> Filter: ((t.b = 2) and (t.a = 5) and (t.d >= 98))  (rows=833)
     -> Covering index skip scan on t using b over a = 5, b = 2, 98 <= d  (rows=833)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 2) and (`test`.`t`.`a` = 5) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = 5 AND b = 2 AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -485,6 +539,8 @@ EXPLAIN
 -> Filter: ((t.b between 1 and 2) and (t.c > 4))  (rows=92.3)
     -> Covering index skip scan on t using b over 1 <= b <= 2  (rows=277)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where ((`test`.`t`.`b` between 1 and 2) and (`test`.`t`.`c` > 4))
 FLUSH STATUS;
 SELECT b, c FROM t WHERE b BETWEEN 1 AND 2 AND c > 4;
 SHOW STATUS LIKE 'handler_read%';
@@ -502,6 +558,8 @@ EXPLAIN
 -> Filter: ((t.b between 1 and 2) and (t.c > 4))  (rows=92.6)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where ((`test`.`t`.`b` between 1 and 2) and (`test`.`t`.`c` > 4))
 FLUSH STATUS;
 SELECT b, c FROM t WHERE b BETWEEN 1 AND 2 AND c > 4;
 SHOW STATUS LIKE 'handler_read%';
@@ -519,6 +577,8 @@ EXPLAIN
 -> Filter: ((t.b between 1 and 2) and (t.c > 4))  (rows=92.3)
     -> Covering index skip scan on t using b over 1 <= b <= 2  (rows=277)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where ((`test`.`t`.`b` between 1 and 2) and (`test`.`t`.`c` > 4))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c FROM t WHERE b BETWEEN 1 AND 2 AND c > 4;
 SHOW STATUS LIKE 'handler_read%';
@@ -537,6 +597,8 @@ EXPLAIN
 -> Filter: (t.d < 3)  (rows=833)
     -> Covering index lookup on t using b (a = 5)  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -554,6 +616,8 @@ EXPLAIN
 -> Filter: (t.d < 3)  (rows=833)
     -> Covering index lookup on t using b (a = 5)  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -571,6 +635,8 @@ EXPLAIN
 -> Filter: ((t.a = 5) and (t.d < 3))  (rows=833)
     -> Covering index skip scan on t using b over a = 5, NULL < d < 3  (rows=833)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -589,6 +655,8 @@ EXPLAIN
 -> Filter: ((t.b = t.a) and (t.d >= 98))  (rows=833)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = `test`.`t`.`a`) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -606,6 +674,8 @@ EXPLAIN
 -> Filter: ((t.b = t.a) and (t.d >= 98))  (rows=833)
     -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = `test`.`t`.`a`) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -623,6 +693,8 @@ EXPLAIN
 -> Filter: ((t.b = t.a) and (t.d >= 98))  (rows=833)
     -> Covering index skip scan on t using b over 98 <= d  (rows=833)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = `test`.`t`.`a`) and (`test`.`t`.`d` >= 98))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ a, b, c, d FROM t WHERE a = b AND d >= 98;
 SHOW STATUS LIKE 'handler_read%';
@@ -641,6 +713,8 @@ EXPLAIN
 -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=278)
     -> Covering index skip scan on t using b over a = 5, 10 < c  (rows=833)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -658,6 +732,8 @@ EXPLAIN
 -> Filter: ((t.c > 10) and (t.d < 3))  (rows=278)
     -> Covering index lookup on t using b (a = 5)  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -675,6 +751,8 @@ EXPLAIN
 -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=278)
     -> Covering index skip scan on t using b over a = 5, 10 < c  (rows=833)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -694,6 +772,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 10) and (t.d < 3))  (rows=250)
         -> Covering index skip scan on t using b over b = 5  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE b = 5 AND c > 10 AND d < 3 ORDER BY d, c;
 SHOW STATUS LIKE 'handler_read%';
@@ -712,6 +792,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 10) and (t.d < 3))  (rows=2500)
         -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE b = 5 AND c > 10 AND d < 3 ORDER BY d, c;
 SHOW STATUS LIKE 'handler_read%';
@@ -730,6 +812,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 10) and (t.d < 3))  (rows=250)
         -> Covering index skip scan on t using b over b = 5  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE b = 5 AND c > 10 AND d < 3 ORDER BY d, c;
 SHOW STATUS LIKE 'handler_read%';
@@ -749,6 +833,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 1) and (t.d < 3))  (rows=250)
         -> Covering index skip scan on t using b over b = 5  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 1) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,(`test`.`t`.`c` * -(1))
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE  b = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
 SHOW STATUS LIKE 'handler_read%';
@@ -767,6 +853,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 1) and (t.d < 3))  (rows=2500)
         -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 1) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,(`test`.`t`.`c` * -(1))
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE  b = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
 SHOW STATUS LIKE 'handler_read%';
@@ -785,6 +873,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 1) and (t.d < 3))  (rows=250)
         -> Covering index skip scan on t using b over b = 5  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 1) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,(`test`.`t`.`c` * -(1))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE b = 5 AND c > 1 AND d < 3 ORDER BY d, c * -1;
 SHOW STATUS LIKE 'handler_read%';
@@ -803,6 +893,8 @@ EXPLAIN
 -> Filter: ((t.a = 5) and (t.d <= 3))  (rows=833)
     -> Table scan on t  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`e` AS `e` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
 FLUSH STATUS;
 SELECT e FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -820,6 +912,8 @@ EXPLAIN
 -> Filter: ((t.a = 5) and (t.d <= 3))  (rows=833)
     -> Table scan on t  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`e` AS `e` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
 FLUSH STATUS;
 SELECT e FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -837,6 +931,8 @@ EXPLAIN
 -> Filter: ((t.a = 5) and (t.d <= 3))  (rows=833)
     -> Table scan on t  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`e` AS `e` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`d` <= 3))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ e FROM t WHERE a = 5 AND d <= 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -856,6 +952,8 @@ EXPLAIN
     -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=2500)
         -> Table scan on t  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`,`test`.`t`.`e`
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
 SHOW STATUS LIKE 'handler_read%';
@@ -874,6 +972,8 @@ EXPLAIN
     -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=2500)
         -> Table scan on t  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`,`test`.`t`.`e`
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
 SHOW STATUS LIKE 'handler_read%';
@@ -892,6 +992,8 @@ EXPLAIN
     -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=2500)
         -> Table scan on t  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3)) order by `test`.`t`.`d`,`test`.`t`.`c`,`test`.`t`.`e`
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ b, c, d FROM t WHERE a = 5 AND c > 10 AND d < 3 ORDER BY d, c, e;
 SHOW STATUS LIKE 'handler_read%';
@@ -911,6 +1013,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 10) and (t.d < 3))  (rows=27.8)
         -> Covering index skip scan on t using b over b = 5  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t`.`a`) AS `count(a)`,count(`test`.`t`.`b`) AS `count(b)`,count(`test`.`t`.`c`) AS `count(c)` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT count(a), count(b), count(c)  FROM t WHERE b = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -929,6 +1033,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 10) and (t.d < 3))  (rows=27.8)
         -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select count(`test`.`t`.`a`) AS `count(a)`,count(`test`.`t`.`b`) AS `count(b)`,count(`test`.`t`.`c`) AS `count(c)` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT count(a), count(b), count(c)  FROM t WHERE b = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -947,6 +1053,8 @@ EXPLAIN
     -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=278)
         -> Covering index skip scan on t using b over a = 5, 10 < c  (rows=833)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ count(`test`.`t`.`a`) AS `count(a)`,count(`test`.`t`.`b`) AS `count(b)`,count(`test`.`t`.`c`) AS `count(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ count(a), count(b), count(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -966,6 +1074,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 10) and (t.d < 3))  (rows=27.8)
         -> Covering index skip scan on t using b over b = 5  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t`.`a`) AS `min(a)`,max(`test`.`t`.`b`) AS `max(b)`,min(`test`.`t`.`c`) AS `min(c)` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT min(a), max(b), min(c)  FROM t WHERE b = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -984,6 +1094,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 10) and (t.d < 3))  (rows=27.8)
         -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t`.`a`) AS `min(a)`,max(`test`.`t`.`b`) AS `max(b)`,min(`test`.`t`.`c`) AS `min(c)` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT min(a), max(b), min(c)  FROM t WHERE b = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -1002,6 +1114,8 @@ EXPLAIN
     -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=278)
         -> Covering index skip scan on t using b over a = 5, 10 < c  (rows=833)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ min(`test`.`t`.`a`) AS `min(a)`,max(`test`.`t`.`b`) AS `max(b)`,min(`test`.`t`.`c`) AS `min(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ min(a), max(b), min(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -1021,6 +1135,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 10) and (t.d < 3))  (rows=27.8)
         -> Covering index skip scan on t using b over b = 5  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t`.`a`) AS `sum(a)`,sum(`test`.`t`.`b`) AS `sum(b)`,sum(`test`.`t`.`c`) AS `sum(c)` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT sum(a), sum(b), sum(c)  FROM t WHERE b = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -1039,6 +1155,8 @@ EXPLAIN
     -> Filter: ((t.b = 5) and (t.c > 10) and (t.d < 3))  (rows=27.8)
         -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t`.`a`) AS `sum(a)`,sum(`test`.`t`.`b`) AS `sum(b)`,sum(`test`.`t`.`c`) AS `sum(c)` from `test`.`t` where ((`test`.`t`.`b` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT sum(a), sum(b), sum(c)  FROM t WHERE b = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -1057,6 +1175,8 @@ EXPLAIN
     -> Filter: ((t.a = 5) and (t.c > 10) and (t.d < 3))  (rows=278)
         -> Covering index skip scan on t using b over a = 5, 10 < c  (rows=833)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ sum(`test`.`t`.`a`) AS `sum(a)`,avg(`test`.`t`.`b`) AS `avg(b)`,sum(`test`.`t`.`c`) AS `sum(c)` from `test`.`t` where ((`test`.`t`.`a` = 5) and (`test`.`t`.`c` > 10) and (`test`.`t`.`d` < 3))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ sum(a), avg(b), sum(c) FROM t WHERE a = 5 AND c > 10 AND d < 3;
 SHOW STATUS LIKE 'handler_read%';
@@ -1076,6 +1196,8 @@ EXPLAIN
     -> Filter: (t.d < 2)  (rows=833)
         -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t` where (`test`.`t`.`d` < 2)
 FLUSH STATUS;
 SELECT count(*) FROM t WHERE d < 2;
 SHOW STATUS LIKE 'handler_read%';
@@ -1094,6 +1216,8 @@ EXPLAIN
     -> Filter: (t.d < 2)  (rows=833)
         -> Covering index scan on t using b  (rows=2500)
 
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t` where (`test`.`t`.`d` < 2)
 FLUSH STATUS;
 SELECT count(*) FROM t WHERE d < 2;
 SHOW STATUS LIKE 'handler_read%';
@@ -1112,6 +1236,8 @@ EXPLAIN
     -> Filter: ((t.b = 1) and (t.d < 2))  (rows=83.3)
         -> Covering index skip scan on t using b over b = 1  (rows=250)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1`) */ count(0) AS `count(*)` from `test`.`t` where ((`test`.`t`.`b` = 1) and (`test`.`t`.`d` < 2))
 FLUSH STATUS;
 SELECT /*+ SKIP_SCAN(t) */ count(*) FROM t WHERE  b = 1 AND d < 2;
 SHOW STATUS LIKE 'handler_read%';
@@ -1161,32 +1287,44 @@ EXPLAIN
 -> Filter: (t1.c2 = 40)  (rows=16)
     -> Covering index skip scan on t1 using i1_t1 over c2 = 40  (rows=16)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` = 40)
 EXPLAIN FORMAT=tree SELECT /*+NO_SKIP_SCAN(t1 i1_t1)*/ c1, c2 FROM t1 WHERE c2 = 40;
 EXPLAIN
 -> Filter: (t1.c2 = 40)  (rows=16)
     -> Covering index skip scan on t1 using i2_t1 over c2 = 40  (rows=16)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SKIP_SCAN(`t1`@`select#1` `i1_t1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` = 40)
 EXPLAIN FORMAT=tree SELECT /*+NO_SKIP_SCAN(t1 i2_t1)*/ c1, c2 FROM t1 WHERE c2 = 40;
 EXPLAIN
 -> Filter: (t1.c2 = 40)  (rows=16)
     -> Covering index skip scan on t1 using i1_t1 over c2 = 40  (rows=16)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SKIP_SCAN(`t1`@`select#1` `i2_t1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` = 40)
 EXPLAIN FORMAT=tree SELECT /*+NO_SKIP_SCAN(t1)*/  c1, c2 FROM t1 WHERE c2 = 40;
 EXPLAIN
 -> Filter: (t1.c2 = 40)  (rows=16)
     -> Covering index scan on t1 using i1_t1  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SKIP_SCAN(`t1`@`select#1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` = 40)
 EXPLAIN FORMAT=tree SELECT /*+SKIP_SCAN(t1 i2_t1)*/  c1, c2 FROM t1 WHERE c2 = 40;
 EXPLAIN
 -> Filter: (t1.c2 = 40)  (rows=16)
     -> Covering index skip scan on t1 using i2_t1 over c2 = 40  (rows=16)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t1`@`select#1` `i2_t1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` = 40)
 SET OPTIMIZER_SWITCH = 'skip_scan=off';
 EXPLAIN FORMAT=tree SELECT c1, c2 FROM t1 WHERE c2 = 40;
 EXPLAIN
 -> Filter: (t1.c2 = 40)  (rows=16)
     -> Covering index scan on t1 using i1_t1  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c2` = 40)
 DROP TABLE t1;
 SET OPTIMIZER_SWITCH = default;
 set global rocksdb_pause_background_work=@save_rocksdb_pause_background_work;

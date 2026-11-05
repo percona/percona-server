@@ -417,6 +417,8 @@ EXPLAIN
     -> Filter: ((t1.a > 1) and (t1.a < 3))  (...)
         -> Covering index range scan on t1 using PRIMARY over (1 < a < 3)  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(rocksdb_records_in_range=0) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`a` > 1) and (`test`.`t1`.`a` < 3))
 SELECT /*+ SET_VAR(rocksdb_records_in_range=10000000) */ COUNT(*) FROM t1 WHERE a > 1 AND a < 3;
 COUNT(*)
 1
@@ -426,6 +428,8 @@ EXPLAIN
     -> Filter: ((t1.a > 1) and (t1.a < 3))  (...)
         -> Covering index scan on t1 using PRIMARY  (...)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SET_VAR(rocksdb_records_in_range=10000000) */ count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`a` > 1) and (`test`.`t1`.`a` < 3))
 DROP TABLE t1;
 #############################################
 # Test SET_VAR with rocksdb_skip_bloom_filter_on_read

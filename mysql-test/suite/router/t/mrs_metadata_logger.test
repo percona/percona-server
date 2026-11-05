@@ -1,6 +1,7 @@
 # Verify that the service status is respected by the MRS
 #
 --source include/have_router.inc
+--source include/skip_component_mrs.inc
 # mrs metadata logging is only enabled when md version is >= 4.0.2
 --source ../include/mrs/is_mrs_schema_v4.inc
 
@@ -207,7 +208,7 @@ truncate mysql_rest_service_metadata.router_general_log;
 SET GLOBAL super_read_only = 1;
 
 --echo Wait until the Router notices it (based on the filelog)
---let $grep_pattern = .*WARNING .* Node .* is read-only, stopping the REST service.*
+--let $grep_pattern = .*WARNING .* Destination .+ is read-only, stopping the REST service.*
 --let $grep_file = $MYSQLROUTER_LOGFILE
 --let $wait_timeout = 60
 --source ../include/wait_for_pattern_in_file.inc

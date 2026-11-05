@@ -2552,6 +2552,11 @@ int io_thread_init_commands(MYSQL *mysql, Master_info *mi) {
 
   sprintf(query, "SET @slave_uuid = '%s', @replica_uuid = '%s'", server_uuid,
           server_uuid);
+  DBUG_EXECUTE_IF("replica_registers_specific_uuid", {
+    const std::string specific_uuid{"00000000-0000-0000-0000-000000000000"};
+    sprintf(query, "SET @slave_uuid = '%s', @replica_uuid = '%s'",
+            specific_uuid.c_str(), specific_uuid.c_str());
+  });
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))) &&
       !check_io_slave_killed(mi->info_thd, mi, nullptr))
     goto err;
@@ -5497,7 +5502,7 @@ extern "C" void *handle_slave_io(void *arg) {
 #endif
     mysql_thread_set_psi_THD(thd);
 
-    thd->thread_stack = (char *)&thd;  // remember where our stack is
+    thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
     mi->clear_error();
     mi->slave_running = 1;
     if (init_replica_thread(thd, SLAVE_THD_IO)) {
@@ -6139,9 +6144,6 @@ extern "C" void *handle_slave_io(void *arg) {
     mysql_mutex_unlock(&mi->run_lock);
   }
   my_thread_end();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(nullptr);
   return (nullptr);  // Avoid compiler warnings
 }
@@ -6231,7 +6233,7 @@ static void *handle_slave_worker(void *arg) {
   mysql_mutex_lock(&w->info_thd_lock);
   w->info_thd = thd;
   mysql_mutex_unlock(&w->info_thd_lock);
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   // save the instrumentation for worker thread in w->info_thd
@@ -6408,9 +6410,6 @@ err:
   }
 
   my_thread_end();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(nullptr);
   return nullptr;
 }
@@ -7235,7 +7234,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       errmsg = nullptr;
 
       thd = new THD;  // note that constructor of THD uses DBUG_ !
-      thd->thread_stack = (char *)&thd;  // remember where our stack is
+      thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
       mysql_mutex_lock(&rli->info_thd_lock);
       rli->info_thd = thd;
 
@@ -7699,9 +7698,6 @@ extern "C" void *handle_slave_sql(void *arg) {
     mysql_mutex_unlock(&rli->run_lock);  // tell the world we are done
   }
   my_thread_end();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   my_thread_exit(nullptr);
   return nullptr;  // Avoid compiler warnings
 }

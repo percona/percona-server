@@ -348,6 +348,7 @@ extern ulong binlog_row_metadata;
 extern const char *binlog_checksum_type_names[];
 extern bool opt_source_verify_checksum;
 extern bool opt_replica_sql_verify_checksum;
+extern bool opt_rpl_dump_thread_account_affinity;
 extern uint32 gtid_executed_compression_period;
 extern bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
@@ -729,8 +730,13 @@ extern size_t mysql_data_home_len;
 extern const char *mysql_real_data_home_ptr;
 extern MYSQL_PLUGIN_IMPORT char *mysql_data_home;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
+<<<<<<< HEAD
 extern "C" MYSQL_PLUGIN_IMPORT char
     server_version_suffix[SERVER_VERSION_LENGTH];
+||||||| merged common ancestors
+=======
+extern char server_version_with_update[SERVER_VERSION_LENGTH];
+>>>>>>> mysql-26.10.0
 extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
 extern MYSQL_PLUGIN_IMPORT struct System_variables global_system_variables;

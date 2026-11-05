@@ -223,7 +223,7 @@ static THD *init_new_thd(Channel_info *channel_info) {
     need to know the start of the stack so that we could check for
     stack overruns.
   */
-  thd_set_thread_stack(thd, (char *)&thd);
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   return thd;
@@ -316,10 +316,6 @@ static void *handle_connection(void *arg) {
     thd->get_stmt_da()->reset_diagnostics_area();
     thd->release_resources();
 
-    // Clean up errors now, before possibly waiting for a new connection.
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     thd_manager->remove_thd(thd);
     Connection_handler_manager::dec_connection_count();
 

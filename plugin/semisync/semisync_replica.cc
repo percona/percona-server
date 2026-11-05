@@ -112,8 +112,15 @@ int ReplSemiSyncReplica::replicaReply(MYSQL *mysql, const char *binlog_filename,
   function_enter(kWho);
 
   DBUG_EXECUTE_IF("rpl_semisync_before_send_ack", {
+<<<<<<< HEAD
     const char act[] = "now WAIT_FOR continue";
     assert(opt_debug_sync_timeout > 0);
+||||||| merged common ancestors
+    const char act[] = "now SIGNAL sending_ack WAIT_FOR continue";
+    assert(opt_debug_sync_timeout > 0);
+=======
+    const char act[] = "now SIGNAL sending_ack WAIT_FOR continue";
+>>>>>>> mysql-26.10.0
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
 

@@ -361,6 +361,7 @@ INSERT INTO I_S_published_schema
         '15fc193e376953d3cacf51b2f5daed9d3e0c12b0a6bddb37f60581710ce9ccbc');
 INSERT INTO I_S_published_schema
   VALUES ('90500', '90500', 1,
+<<<<<<< HEAD
         '738fe3913ef23105fbc1af4e93172905941b21f1add0d38854cc88d899b5d081');
 INSERT INTO I_S_published_schema
   VALUES ('260700', '260700', 0,
@@ -368,6 +369,17 @@ INSERT INTO I_S_published_schema
 INSERT INTO I_S_published_schema
   VALUES ('260700', '260700', 1,
         'c943d84c996bd25f9a91cf214904664eca164e44f6a8abee0cc38b4e767158a4');
+||||||| merged common ancestors
+        '797926c355c5bda0e300ad5fab20371e44d1bcacaf76f10d03636f37570fe732');
+=======
+        '797926c355c5bda0e300ad5fab20371e44d1bcacaf76f10d03636f37570fe732');
+INSERT INTO I_S_published_schema
+  VALUES ('261000', '261000', 0,
+        'a6579d17b959d05060c01a6a54c6368bf8c4f4d2d9d8c62b28c3a18aae4f43b7');
+INSERT INTO I_S_published_schema
+  VALUES ('261000', '261000', 1,
+        'f8ea12c48b0a95362154b0ff3e37cefb0fc34e24c5d5782a086df525db6d8d90');
+>>>>>>> mysql-26.10.0
 
 LET $checksum_version = `SELECT IF(ISNULL(mysqld_version), "0", i_s_version)
                   FROM I_S_published_schema i RIGHT OUTER JOIN whole_schema w

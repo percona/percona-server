@@ -36,8 +36,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define MYSQL_SESSION_USER "mysql.session"
 #define MYSQL_SYS_HOST "localhost"
 
+enum class mysql_command_connection_mode {
+  kEmbedded,
+  kAuthenticated,
+  kAuthenticationAttempted
+};
+
 struct Mysql_handle {
   MYSQL *mysql = nullptr;
+  const MYSQL_METHODS *client_methods = nullptr;
+  // A failed mysql_real_connect() frees MYSQL::extension.
+  // Keep these settings here so they survive the failure.
+  // The handle owns the user and host name copies.
+  char *user_name = nullptr;
+  char *host_name = nullptr;
+  bool admin_session = true;
+  mysql_command_connection_mode connection_mode =
+      mysql_command_connection_mode::kEmbedded;
 };
 
 struct Mysql_res_handle {
@@ -50,28 +65,28 @@ struct Mysql_res_handle {
   command_consumer_services is set by
   mysql_service_mysql_command_options::set() api,
   if it is nullptr then the default mysql_test_consumer services will be set.
-  data is allocated in mysql_text_consumer_factory_v1 service start() api,
-  and this data is retrived by csi_read_rows().
+  data is allocated in mysql_text_consumer_factory_v1 service start() api.
+  csi_read_rows() transfers it for mysql_store_result(); mysql_use_result()
+  consumes it through use_result_cursor until EOF or mysql_free_result().
   This information is used by mysql_text_consumer service apis.
-  mcs_thd, mcs_protocol, mcs_user_name, mcs_password, mcs_tcpip_port,
-  mcs_db and mcs_client_flag will be set by mysql_service_mysql_command_options
-  set() api.
+  mcs_thd, mcs_protocol, mcs_password, mcs_tcpip_port, mcs_db and
+  mcs_client_flag will be set by mysql_service_mysql_command_options set() api.
 */
 struct mysql_command_service_extn {
   MYSQL_SESSION session_svc;
   bool is_thd_associated; /* this is used to free session_svc,
                              if it was allocated. */
   MYSQL_DATA *data = nullptr;
+  MYSQL_ROWS *use_result_cursor = nullptr;
   void *command_consumer_services = nullptr;
   SRV_CTX_H consumer_srv_data = nullptr;
   MYSQL_THD mcs_thd = nullptr;
   const char *mcs_protocol = nullptr;
-  const char *mcs_user_name = nullptr;
-  const char *mcs_host_name = nullptr;
   const char *mcs_password = nullptr;
   int mcs_tcpip_port;
   const char *mcs_db = nullptr;
   uint32_t mcs_client_flag = 0;
+  bool mcs_admin_session = true;
   bool no_lock_registry = false;
   /*
     Remember whether set() chose default or custom services after service
@@ -92,6 +107,10 @@ struct mysql_command_service_extn {
 */
 class mysql_command_services_imp {
  public:
+  /** Check whether a literal bind value accepts a loopback address family. */
+  static bool bind_address_accepts_loopback(const char *bind_address,
+                                            bool use_ipv4);
+
   /* mysql_command_factory service apis */
   static DEFINE_BOOL_METHOD(init, (MYSQL_H * mysql_h));
   static DEFINE_BOOL_METHOD(connect, (MYSQL_H mysql_h));

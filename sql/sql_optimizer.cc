@@ -562,11 +562,20 @@ bool JOIN::optimize(bool finalize_access_paths) {
         // All SELECT expressions are fully evaluated
         DBUG_PRINT("info", ("Select tables optimized away"));
         zero_result_cause = "Select tables optimized away";
+        // When aggregate optimization replaces access to exactly one
+        // partitioned base table with a fake-row path, retain its TABLE pointer
+        // for EXPLAIN. Iterator creation and execution do not use this pointer.
+        TABLE *explain_table = nullptr;
+        if (query_block->leaf_table_count == 1 &&
+            tables_list->is_base_table() && tables_list->table != nullptr &&
+            tables_list->table->part_info != nullptr) {
+          explain_table = tables_list->table;
+        }
         tables_list = nullptr;  // All tables resolved
         best_rowcount = 1;
         const_tables = tables = primary_tables = query_block->leaf_table_count;
-        AccessPath *path =
-            NewFakeSingleRowAccessPath(thd, /*count_examined_rows=*/true);
+        AccessPath *path = NewFakeSingleRowAccessPath(
+            thd, /*count_examined_rows=*/true, explain_table);
         path = attach_access_paths_for_having_qualify_limit(path);
         m_root_access_path = path;
         /*
@@ -843,14 +852,6 @@ bool JOIN::optimize(bool finalize_access_paths) {
   if (query_block->has_ft_funcs() && optimize_fts_query()) return true;
 
   /*
-    By setting child_subquery_can_materialize so late we gain the following:
-    JOIN::compare_costs_of_subquery_strategies() can test this variable to
-    know if we are have finished evaluating constant conditions, which itself
-    helps determining fanouts.
-  */
-  child_subquery_can_materialize = true;
-
-  /*
     It's necessary to check const part of HAVING cond as
     there is a chance that some cond parts may become
     const items after make_join_plan() (for example
@@ -878,6 +879,14 @@ bool JOIN::optimize(bool finalize_access_paths) {
       goto setup_subq_exit;
     }
   }
+
+  /*
+    By setting child_subquery_can_materialize after constant-condition
+    evaluation, JOIN::compare_costs_of_subquery_strategies() can use it to
+    determine whether parent fanouts are available. Constant folding can
+    execute nested subqueries before qep_tab is built.
+  */
+  child_subquery_can_materialize = true;
 
   // Inject cast nodes into the HAVING conditions
   if (having_cond != nullptr &&
@@ -2561,10 +2570,10 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     // 3. Optimizer has chosen to do table scan currently.
     if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX) ||
         is_force_index || ref_key == -1)
-      test_if_cheaper_ordering(tab, &order, table, usable_keys, ref_key_hint,
-                               select_limit, &best_key, &best_key_direction,
-                               &select_limit, &best_key_parts,
-                               &saved_best_key_parts, &best_read_time);
+      test_if_cheaper_ordering(
+          thd, tab, &order, table, usable_keys, ref_key_hint, select_limit,
+          &best_key, &best_key_direction, &select_limit, &best_key_parts,
+          &saved_best_key_parts, &best_read_time);
 
     // Try backward scan for previously found key
     if (best_key < 0 && order_direction < 0) goto check_reverse_order;
@@ -2800,7 +2809,8 @@ check_reverse_order:
         tab->set_type(calc_join_type(tab->range_scan()));
         tab->use_quick = QS_RANGE;
         if (is_loose_index_scan(tab->range_scan()))
-          join->tmp_table_param.precomputed_group_by = true;
+          join->tmp_table_param.precomputed_group_by =
+              !is_agg_loose_index_scan(tab->range_scan());
         tab->position()->filter_effect = COND_FILTER_STALE;
       }
     }  // best_key >= 0
@@ -10359,6 +10369,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                   usable_keys.intersect(tab->table()->keys_in_use_for_order_by);
 
                 // Do a cost based search on the indexes that give sort order.
+<<<<<<< HEAD
                 test_if_cheaper_ordering(
                     tab, &join->order, tab->table(), usable_keys, -1,
                     select_limit, &best_key, &read_direction, &select_limit);
@@ -10369,6 +10380,22 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
                   return true;
                 if (best_key < 0 || is_vector)
                   recheck_reason = DONT_RECHECK;  // No usable keys, or vector
+||||||| merged common ancestors
+                test_if_cheaper_ordering(
+                    tab, &join->order, tab->table(), usable_keys, -1,
+                    select_limit, &best_key, &read_direction, &select_limit);
+                if (best_key < 0)
+                  recheck_reason = DONT_RECHECK;  // No usable keys
+=======
+                {
+                  const Opt_trace_array trace_recheck_steps(trace, "steps");
+                  test_if_cheaper_ordering(
+                      thd, tab, &join->order, tab->table(), usable_keys, -1,
+                      select_limit, &best_key, &read_direction, &select_limit);
+                }
+                if (best_key < 0)
+                  recheck_reason = DONT_RECHECK;  // No usable keys
+>>>>>>> mysql-26.10.0
                 else {
                   // Only usable_key is the best_key chosen
                   usable_keys.clear_all();

@@ -610,7 +610,6 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
         const char act[] =
             "now "
             "wait_for signal.continue";
-        assert(opt_debug_sync_timeout > 0);
         assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
       }
     });

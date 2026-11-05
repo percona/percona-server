@@ -159,6 +159,14 @@ Source7:        %{compatsrc}
 BuildRequires:  cmake >= 3.14.6
 BuildRequires:  libtirpc-devel
 BuildRequires:  rpcgen
+# rpcgen shells out to the system C preprocessor to generate
+# xdr_gen/xcom_vp.h. Without it rpcgen fails silently and xcom
+# fails to compile.
+# cpp is not declared explicitly in BuildRequires.
+# On el9/el10 yum-builddep's resolution pulls in gcc as a side effect,
+# and gcc itself requires cpp. On el8 this does not happen so it must
+# be declared explicitly.
+%{?el8:BuildRequires:  cpp}
 %else
 BuildRequires:  cmake3 >= 3.14.6
 %endif
@@ -195,12 +203,16 @@ BuildRequires:  binutils
 BuildRequires:  dwz
 BuildRequires:  gcc-c++
 BuildRequires:  gcc
-BuildRequires:  libfido2-devel
 %ifnarch aarch64
 BuildRequires:  libquadmath-devel
 %endif
-BuildRequires:  libudev-devel
 %endif # el10
+%if 0%{?rhel} >= 8
+# Needed to build the FIDO2/WebAuthn client plugin, configured similarly to
+# add_fido_plugins above to avoid configuration drift.
+BuildRequires:  libfido2-devel
+BuildRequires:  libudev-devel
+%endif # add_fido_plugins deps (el8+)
 BuildRequires:  bison >= 3.0.4
 BuildRequires:  elfutils
 BuildRequires:  patchelf
@@ -296,6 +308,7 @@ Requires:       openssl3-fips
 Requires:       %{name}-client%{?_isa} >= %{min}
 Requires:       %{name}-common%{?_isa} = %{version}-%{release}
 Requires:       %{name}-icu-data-files = %{version}-%{release}
+Obsoletes:      mysql8.4-server < %{version}-%{release}
 %if 0%{?commercial}
 Obsoletes:      mysql-commercial-bench < 5.7.8
 Obsoletes:      mysql-commercial-embedded < 8.0.1
@@ -345,6 +358,20 @@ Obsoletes:      mariadb-server-utils
 Obsoletes:      mariadb-galera-server
 Obsoletes:      mariadb-gssapi-server
 Obsoletes:      mariadb-oqgraph-engine
+%if 0%{?rhel} == 10
+# EL10 packages the MariaDB stack with versioned names. Obsolete the full
+# versioned stack so DNF does not select it alongside MySQL and hit file
+# conflicts on shared client/server binaries.
+Obsoletes:      mariadb11.8
+Obsoletes:      mariadb11.8-common
+Obsoletes:      mariadb11.8-errmsg
+Obsoletes:      mariadb11.8-backup
+Obsoletes:      mariadb11.8-cracklib-password-check
+Obsoletes:      mariadb11.8-gssapi-server
+Obsoletes:      mariadb11.8-server
+Obsoletes:      mariadb11.8-server-utils
+Obsoletes:      mariadb11.8-client-utils
+%endif
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-compat-server = %{version}-%{release}
@@ -421,6 +448,8 @@ Obsoletes:      mariadb-client-utils
 Obsoletes:      mysql < %{version}-%{release}
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql%{?_isa} = %{version}-%{release}
+Obsoletes:      mysql8.4 < %{version}-%{release}
+Obsoletes:      mysql8.4-server < %{version}-%{release}
 
 %description    client
 This package contains the standard MySQL clients and administration
@@ -444,6 +473,8 @@ Obsoletes:      mysql-cluster-community-common < %{version}-%{release}
 %endif
 Provides:       mysql-common = %{version}-%{release}
 Provides:       mysql-common%{?_isa} = %{version}-%{release}
+Obsoletes:      mysql8.4-common < %{version}-%{release}
+Obsoletes:      mysql8.4-errmsg < %{version}-%{release}
 
 %description    common
 This packages contains common files needed by MySQL client library and
@@ -481,6 +512,8 @@ Requires:       perl(POSIX)
 Requires:       perl(Sys::Hostname)
 Requires:       perl(Time::HiRes)
 Requires:       perl(Time::localtime)
+Requires:       perl(lib)
+Requires:       openssl
 %if 0%{?cluster}
 Requires:       %{name}-data-node%{?_isa} >= %{min}
 Requires:       %{name}-management-server%{?_isa} >= %{min}
@@ -602,6 +635,7 @@ Conflicts:      mysql-cluster-community-client < 8.0.22
 Obsoletes:      mysql-community-client-plugins < %{version}-%{release}
 %endif
 %endif
+Obsoletes:      mysql8.4-server < %{version}-%{release}
 
 %description    client-plugins
 This package contains the client-plugins libraries used by MySQL client applications.
@@ -669,7 +703,7 @@ Summary:       MySQL Router
 Group:         Applications/Databases
 Provides:      mysql-router = %{version}-%{release}
 Obsoletes:     mysql-router < %{version}-%{release}
-%{?el7:Requires:  openssl-libs >= 1.0.2j}
+%{?el7:Requires:  openssl11-libs >= 1.1.1}
 %if 0%{?commercial}
 Obsoletes:     mysql-router-community < %{version}-%{release}
 %endif
@@ -907,7 +941,82 @@ mkdir debug
            -DCMAKE_BUILD_TYPE=Debug \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
+<<<<<<< HEAD
            %{cmake_common_flags} \
+||||||| merged common ancestors
+%if 0%{?ssl_default}
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%else
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+           -DWITH_AUTHENTICATION_KERBEROS=0 \
+           -DWITH_AUTHENTICATION_OPENID_CONNECT=0 \
+           -DWITH_AUTHENTICATION_LDAP=0 \
+           -DWITH_AUTHENTICATION_OCI=0 \
+           -DWITH_COMPONENT_KEYRING_HASHICORP=0 \
+           -DWITH_COMPONENT_KEYRING_KMIP=0 \
+           -DWITH_COMPONENT_KEYRING_OCI=0 \
+           -DWITH_CURL=0 \
+           -DWITH_KEYRING_HASHICORP=0 \
+%endif # ssl_default
+           -DWITH_CURL=system \
+           -DWITH_SYSTEMD=1 \
+           -DWITH_ROUTER=%{with_router} \
+%if 0%{?cluster}
+           -DWITH_NDB=1 \
+%endif
+%if 0%{?commercial}
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_MLE=1 \
+           %{?aws_sdk_option} \
+%endif
+           %{?ssl_option} \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
+           -DWITH_NUMA=1 \
+           %{?mecab_option} \
+%if 0%{?mrs_jit_executor_lib:1}
+    -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
+%endif
+=======
+%if 0%{?ssl_default}
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
+%else
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+           -DWITH_AUTHENTICATION_KERBEROS=0 \
+           -DWITH_AUTHENTICATION_OPENID_CONNECT=0 \
+           -DWITH_AUTHENTICATION_LDAP=0 \
+           -DWITH_AUTHENTICATION_OCI=0 \
+           -DWITH_COMPONENT_KEYRING_HASHICORP=0 \
+           -DWITH_COMPONENT_KEYRING_KMIP=0 \
+           -DWITH_COMPONENT_KEYRING_OCI=0 \
+           -DWITH_CURL=0 \
+           -DWITH_KEYRING_HASHICORP=0 \
+%endif # ssl_default
+           -DWITH_CURL=system \
+           -DWITH_SYSTEMD=1 \
+           -DWITH_ROUTER=%{with_router} \
+%if 0%{?cluster}
+           -DWITH_NDB=1 \
+%endif
+%if 0%{?commercial}
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_MLE=1 \
+           %{?aws_sdk_option} \
+%endif
+           %{?ssl_option} \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
+           -DWITH_NUMA=1 \
+           %{?mecab_option} \
+%if 0%{?mrs_jit_executor_lib:1}
+    -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
+%endif
+>>>>>>> mysql-26.10.0
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/my_config.h ; echo END_DEBUG_CONFIG
@@ -923,7 +1032,82 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
+<<<<<<< HEAD
            %{cmake_common_flags} \
+||||||| merged common ancestors
+%if 0%{?ssl_default}
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%else
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+           -DWITH_AUTHENTICATION_KERBEROS=0 \
+           -DWITH_AUTHENTICATION_OPENID_CONNECT=0 \
+           -DWITH_AUTHENTICATION_LDAP=0 \
+           -DWITH_AUTHENTICATION_OCI=0 \
+           -DWITH_COMPONENT_KEYRING_HASHICORP=0 \
+           -DWITH_COMPONENT_KEYRING_KMIP=0 \
+           -DWITH_COMPONENT_KEYRING_OCI=0 \
+           -DWITH_CURL=0 \
+           -DWITH_KEYRING_HASHICORP=0 \
+%endif # ssl_default
+           -DWITH_CURL=system \
+           -DWITH_SYSTEMD=1 \
+           -DWITH_ROUTER=%{with_router} \
+%if 0%{?cluster}
+           -DWITH_NDB=1 \
+%endif
+%if 0%{?commercial}
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_MLE=1 \
+           %{?aws_sdk_option} \
+%endif
+           %{?ssl_option} \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
+           -DWITH_NUMA=1 \
+           %{?mecab_option} \
+%if 0%{?mrs_jit_executor_lib:1}
+    -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
+%endif
+=======
+%if 0%{?ssl_default}
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=1 \
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
+%else
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+           -DWITH_AUTHENTICATION_KERBEROS=0 \
+           -DWITH_AUTHENTICATION_OPENID_CONNECT=0 \
+           -DWITH_AUTHENTICATION_LDAP=0 \
+           -DWITH_AUTHENTICATION_OCI=0 \
+           -DWITH_COMPONENT_KEYRING_HASHICORP=0 \
+           -DWITH_COMPONENT_KEYRING_KMIP=0 \
+           -DWITH_COMPONENT_KEYRING_OCI=0 \
+           -DWITH_CURL=0 \
+           -DWITH_KEYRING_HASHICORP=0 \
+%endif # ssl_default
+           -DWITH_CURL=system \
+           -DWITH_SYSTEMD=1 \
+           -DWITH_ROUTER=%{with_router} \
+%if 0%{?cluster}
+           -DWITH_NDB=1 \
+%endif
+%if 0%{?commercial}
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_MLE=1 \
+           %{?aws_sdk_option} \
+%endif
+           %{?ssl_option} \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
+           -DWITH_NUMA=1 \
+           %{?mecab_option} \
+%if 0%{?mrs_jit_executor_lib:1}
+    -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
+%endif
+>>>>>>> mysql-26.10.0
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/my_config.h ; echo END_NORMAL_CONFIG
@@ -946,7 +1130,84 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
+<<<<<<< HEAD
            %{cmake_common_flags} \
+||||||| merged common ancestors
+%if 0%{?ssl_default}
+%else
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITH_AUTHENTICATION_FIDO=0 \
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+           -DWITH_AUTHENTICATION_KERBEROS=0 \
+           -DWITH_AUTHENTICATION_OPENID_CONNECT=0 \
+           -DWITH_AUTHENTICATION_LDAP=0 \
+           -DWITH_AUTHENTICATION_OCI=0 \
+           -DWITH_COMPONENT_KEYRING_HASHICORP=0 \
+           -DWITH_COMPONENT_KEYRING_KMIP=0 \
+           -DWITH_COMPONENT_KEYRING_OCI=0 \
+           -DWITH_CURL=0 \
+           -DWITH_KEYRING_HASHICORP=0 \
+           -DWITH_KEYRING_OCI=0 \
+%endif # ssl_default
+           -DWITH_CURL=system \
+           -DWITH_SYSTEMD=1 \
+           -DWITH_ROUTER=%{with_router} \
+%if 0%{?cluster}
+           -DWITH_NDB=1 \
+%endif
+%if 0%{?commercial}
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_MLE=1 \
+           %{?aws_sdk_option} \
+%endif
+           %{?ssl_option} \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
+           -DWITH_NUMA=1 \
+           %{?mecab_option} \
+%if 0%{?mrs_jit_executor_lib:1}
+    -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
+%endif
+=======
+%if 0%{?ssl_default}
+%if 0%{?add_fido_plugins} == 0
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+%endif # add_fido_plugins
+%else
+           -DWITH_AUTHENTICATION_CLIENT_PLUGINS=0 \
+           -DWITH_AUTHENTICATION_FIDO=0 \
+           -DWITH_AUTHENTICATION_WEBAUTHN=0 \
+           -DWITH_AUTHENTICATION_KERBEROS=0 \
+           -DWITH_AUTHENTICATION_OPENID_CONNECT=0 \
+           -DWITH_AUTHENTICATION_LDAP=0 \
+           -DWITH_AUTHENTICATION_OCI=0 \
+           -DWITH_COMPONENT_KEYRING_HASHICORP=0 \
+           -DWITH_COMPONENT_KEYRING_KMIP=0 \
+           -DWITH_COMPONENT_KEYRING_OCI=0 \
+           -DWITH_CURL=0 \
+           -DWITH_KEYRING_HASHICORP=0 \
+           -DWITH_KEYRING_OCI=0 \
+%endif # ssl_default
+           -DWITH_CURL=system \
+           -DWITH_SYSTEMD=1 \
+           -DWITH_ROUTER=%{with_router} \
+%if 0%{?cluster}
+           -DWITH_NDB=1 \
+%endif
+%if 0%{?commercial}
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_MLE=1 \
+           %{?aws_sdk_option} \
+%endif
+           %{?ssl_option} \
+           -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
+           -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
+           -DWITH_NUMA=1 \
+           %{?mecab_option} \
+%if 0%{?mrs_jit_executor_lib:1}
+    -DMRS_JIT_EXECUTOR_LIB="%{mrs_jit_executor_lib}" \
+%endif
+>>>>>>> mysql-26.10.0
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}"
   make %{?_smp_mflags} VERBOSE=1
@@ -994,6 +1255,11 @@ install -d -m 0755 %{buildroot}/var/run/mysqlrouter
 # Install all binaries
 cd $MBD/release
 make DESTDIR=%{buildroot} install
+
+%if 0%{?with_router} == 0
+install -d -m 0755 %{buildroot}%{_prefix}/libexec
+mv %{buildroot}%{_bindir}/mysqlrouter_mrs_client %{buildroot}%{_prefix}/libexec/
+%endif # !with_router
 
 # Install config and logrotate
 install -D -m 0644 packaging/rpm-common/mysql.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
@@ -1214,10 +1480,14 @@ fi
 %if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/private/libpolyglot.so
 %endif # commercial
-
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%if 0%{?ssl_default}
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
+%endif # add_fido_plugins
+%endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
@@ -1226,6 +1496,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_health_monitor.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_telemetry.so
@@ -1251,6 +1522,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_flow_control_stats.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_resource_manager.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_group_replication_elect_prefers_most_updated.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysql_rest_service.so
 
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
@@ -1265,9 +1537,6 @@ fi
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_component_filter_uninstall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %if 0%{?ssl_default}
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
-%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_openid_connect.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
@@ -1330,6 +1599,11 @@ fi
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%if 0%{?ssl_default}
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
+%endif # add_fido_plugins
+%endif # ssl_default
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
@@ -1338,6 +1612,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_classic_hashing.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_health_monitor.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_telemetry.so
@@ -1363,6 +1638,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_flow_control_stats.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_resource_manager.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_group_replication_elect_prefers_most_updated.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysql_rest_service.so
 
 %if 0%{?mecab}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
@@ -1372,9 +1648,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %if 0%{?ssl_default}
-%if 0%{?add_fido_plugins}
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
-%endif # add_fido_plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_openid_connect.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
@@ -1618,6 +1891,10 @@ fi
 %if 0%{?commercial}
 %attr(755, root, root) %{_bindir}/mysql_test_jwt_generator
 %endif # commercial
+
+%if 0%{?with_router} == 0
+%{_prefix}/libexec/mysqlrouter_mrs_client
+%endif # !with_router
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
@@ -1988,6 +2265,9 @@ fi
 %endif # with_router
 
 %changelog
+* Sun Aug 30 2026 MySQL Release Engineering <mysql-build@oss.oracle.com> - 26.10.0
+- Added component_health_monitor to community
+
 * Fri Feb  6 2026 Harin Vadodaria <harin.vadodaria@oracle.com> - 9.7.0
 - Added component_object_policy
 

@@ -282,7 +282,8 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
         ${target} STREQUAL "keyring_aws" OR
         ${target} STREQUAL "component_keyring_aws" OR
         ${target} STREQUAL "component_mle" OR
-        ${target} STREQUAL "component_telemetry"
+        ${target} STREQUAL "component_telemetry" OR
+        ${target} STREQUAL "component_mysql_rest_service"
         )
       GET_TARGET_PROPERTY(output_name ${target} OUTPUT_NAME)
       SET(plugin_so_file "${output_name}.so")
@@ -861,6 +862,29 @@ FUNCTION(COPY_CUSTOM_SHARED_LIBRARY_LINUX library_full_filename subdir
     WORLD_READ WORLD_EXECUTE
     )
 ENDFUNCTION(COPY_CUSTOM_SHARED_LIBRARY_LINUX)
+
+
+# For DLL targets built as part of the source tree on Windows.
+# A separate always-run target is needed because POST_BUILD does not run when
+# runtime_output_directory is removed while the producer target is up to date.
+FUNCTION(COPY_TARGET_DLL_TO_RUNTIME target)
+  IF(NOT WIN32)
+    RETURN()
+  ENDIF()
+
+  SET(copy_target "${target}_runtime_copy")
+  SET(runtime_dir
+    "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}")
+  ADD_CUSTOM_TARGET(${copy_target} ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${runtime_dir}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "$<TARGET_FILE:${target}>"
+      "${runtime_dir}/$<TARGET_FILE_NAME:${target}>"
+    COMMENT "Copying $<TARGET_FILE_NAME:${target}> to runtime_output_directory"
+    VERBATIM
+    )
+  ADD_DEPENDENCIES(${copy_target} ${target})
+ENDFUNCTION()
 
 
 # For 3rd party .dlls on Windows.

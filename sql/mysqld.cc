@@ -1297,6 +1297,7 @@ char *opt_replica_skip_errors;
 bool opt_replica_allow_batching = true;
 bool opt_collect_replica_applier_metrics = false;
 bool opt_replica_allow_higher_version_source = true;
+bool opt_rpl_dump_thread_account_affinity = false;
 
 /*
   Legacy global handlerton. These will be removed (please do not add more).
@@ -1566,7 +1567,12 @@ char *mysql_data_home = const_cast<char *>(".");
 const char *mysql_real_data_home_ptr = mysql_real_data_home;
 char *opt_protocol_compression_algorithms;
 char server_version[SERVER_VERSION_LENGTH];
+<<<<<<< HEAD
 char server_version_suffix[SERVER_VERSION_LENGTH];
+||||||| merged common ancestors
+=======
+char server_version_with_update[SERVER_VERSION_LENGTH];
+>>>>>>> mysql-26.10.0
 const char *mysqld_unix_port;
 char *opt_mysql_tmpdir;
 
@@ -7141,9 +7147,11 @@ int init_common_variables() {
   if (!opt_validate_config && (opt_initialize || opt_initialize_insecure)) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_INIT, my_progname, server_version,
            (ulong)getpid());
+    LogErr(SYSTEM_LEVEL, ER_SERVER_VERSION_INFO, server_version_with_update);
   } else if (!is_help_or_validate_option()) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_AS, my_progname, server_version,
            (ulong)getpid());
+    LogErr(SYSTEM_LEVEL, ER_SERVER_VERSION_INFO, server_version_with_update);
   }
   if (opt_help && !opt_verbose) unireg_abort(MYSQLD_SUCCESS_EXIT);
 
@@ -7559,27 +7567,21 @@ static int init_thread_environment() {
 
 static PSI_memory_key key_memory_openssl = PSI_NOT_INSTRUMENTED;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-#define FILE_LINE_ARGS
-#else
-#define FILE_LINE_ARGS , const char *, int
-#endif
-
-static void *my_openssl_malloc(size_t size FILE_LINE_ARGS) {
+static void *my_openssl_malloc(size_t size, const char *, int) {
 #ifndef _WIN32
   return my_malloc(key_memory_openssl, size, MYF(MY_WME));
 #else
   return my_std_malloc(key_memory_openssl, size, MYF(MY_WME));
 #endif  // !_WIN32
 }
-static void *my_openssl_realloc(void *ptr, size_t size FILE_LINE_ARGS) {
+static void *my_openssl_realloc(void *ptr, size_t size, const char *, int) {
 #ifndef _WIN32
   return my_realloc(key_memory_openssl, ptr, size, MYF(MY_WME));
 #else
   return my_std_realloc(key_memory_openssl, ptr, size, MYF(MY_WME));
 #endif  // !_WIN32
 }
-static void my_openssl_free(void *ptr FILE_LINE_ARGS) {
+static void my_openssl_free(void *ptr, const char *, int) {
 #ifndef _WIN32
   return my_free(ptr);
 #else
@@ -7642,10 +7644,6 @@ static int init_ssl_communication() {
     }
   }
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  ERR_remove_thread_state(nullptr);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-
   if (init_rsa_keys()) return 1;
 
   return 0;
@@ -7676,7 +7674,7 @@ static int generate_server_uuid() {
     LogErr(ERROR_LEVEL, ER_NO_THD_NO_UUID);
     return 1;
   }
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   /*
@@ -11379,6 +11377,10 @@ struct my_option my_long_early_options[] = {
      &opt_verbose, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"version", 'V', "Output version information and exit.", nullptr, nullptr,
      nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"version-with-update", OPT_VERSION_WITH_UPDATE,
+     "Output version information including the update component and exit.",
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"initialize", 'I',
      "Create the default database and exit."
      " Create a super user with a random expired password and store it into "
@@ -12305,11 +12307,7 @@ bool validate_libcoredumper_path(char *libcoredumper_path) {
 }
 
 static int show_tls_library_version(THD *, SHOW_VAR *var, char *buff) {
-#if OPENSSL_VERSION_NUMBER <= 0x10100000L
-  strncpy(buff, SSLeay_version(SSLEAY_VERSION), SHOW_VAR_FUNC_BUFF_SIZE);
-#else
   strncpy(buff, OpenSSL_version(OPENSSL_VERSION), SHOW_VAR_FUNC_BUFF_SIZE);
-#endif
   buff[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;
   var->type = SHOW_CHAR;
   var->value = buff;
@@ -12873,6 +12871,12 @@ static void print_server_version(void) {
   set_server_version();
 
   print_explicit_version(server_version);
+}
+
+static void print_server_version_with_update(void) {
+  set_server_version();
+
+  print_explicit_version(server_version_with_update);
 }
 
 /** Compares two options' names, treats - and _ the same */
@@ -13632,6 +13636,9 @@ bool mysqld_get_one_option(int optid,
     case 'V':
       print_server_version();
       exit(MYSQLD_SUCCESS_EXIT);
+    case OPT_VERSION_WITH_UPDATE:
+      print_server_version_with_update();
+      exit(MYSQLD_SUCCESS_EXIT);
     case 'T':
       test_flags = argument ? (uint)atoi(argument) : 0;
       opt_endinfo = true;
@@ -14217,41 +14224,49 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 #endif
 
 static void set_server_version(void) {
-  char *end [[maybe_unused]] = strxmov(server_version, MYSQL_SERVER_VERSION,
-                                       MYSQL_SERVER_SUFFIX_STR, NullS);
+  auto append_runtime_version_suffixes = [](char *buf,
+                                            const char *base_version) {
+    char *end [[maybe_unused]] =
+        strxmov(buf, base_version, MYSQL_SERVER_SUFFIX_STR, NullS);
 #ifndef NDEBUG
-  if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
-    end = my_stpcpy(end, "-debug");
+    if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
+      end = my_stpcpy(end, "-debug");
 #endif
 #ifdef HAVE_VALGRIND
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-valgrind")))
-    end = my_stpcpy(end, "-valgrind");
+    if (SERVER_VERSION_LENGTH - (end - buf) >
+        static_cast<int>(sizeof("-valgrind")))
+      end = my_stpcpy(end, "-valgrind");
 #endif
 #ifdef HAVE_ASAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-asan")))
-    end = my_stpcpy(end, "-asan");
+    if (SERVER_VERSION_LENGTH - (end - buf) > static_cast<int>(sizeof("-asan")))
+      end = my_stpcpy(end, "-asan");
 #endif
 #ifdef HAVE_LSAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-lsan")))
-    end = my_stpcpy(end, "-lsan");
+    if (SERVER_VERSION_LENGTH - (end - buf) > static_cast<int>(sizeof("-lsan")))
+      end = my_stpcpy(end, "-lsan");
 #endif
 #ifdef HAVE_UBSAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-ubsan")))
-    end = my_stpcpy(end, "-ubsan");
+    if (SERVER_VERSION_LENGTH - (end - buf) >
+        static_cast<int>(sizeof("-ubsan")))
+      end = my_stpcpy(end, "-ubsan");
 #endif
 #ifdef HAVE_TSAN
-  if (SERVER_VERSION_LENGTH - (end - server_version) >
-      static_cast<int>(sizeof("-tsan")))
-    end = my_stpcpy(end, "-tsan");
+    if (SERVER_VERSION_LENGTH - (end - buf) > static_cast<int>(sizeof("-tsan")))
+      end = my_stpcpy(end, "-tsan");
 #endif
+<<<<<<< HEAD
 
   assert(end < server_version + SERVER_VERSION_LENGTH);
   my_stpcpy(server_version_suffix,
             server_version + strlen(MYSQL_SERVER_VERSION));
+||||||| merged common ancestors
+=======
+  };
+
+  append_runtime_version_suffixes(server_version, MYSQL_SERVER_VERSION);
+  append_runtime_version_suffixes(server_version_with_update,
+                                  MYSQL_SERVER_VERSION_WITH_UPDATE);
+>>>>>>> mysql-26.10.0
 }
 
 static const char *get_relative_path(const char *path) {

@@ -35,6 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Include necessary SQL headers */
 #include <assert.h>
+#include <set>
+
 #include <current_thd.h>
 #include <debug_sync.h>
 #include <key_spec.h>
@@ -226,6 +228,9 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
   dict_table_t *new_table;
   /** mapping of old column numbers to new ones, or NULL */
   const ulint *col_map;
+  /** whether mapped old columns have a charset/collation change whose existing
+  value bytes can be reused, or NULL */
+  const bool *col_has_compatible_charset_change;
   /** new column names, or NULL if nothing was renamed */
   const char **col_names;
   /** added AUTO_INCREMENT column position, or ULINT_UNDEFINED */
@@ -279,6 +284,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
         old_table(prebuilt_arg->table),
         new_table(new_table_arg),
         col_map(nullptr),
+        col_has_compatible_charset_change(nullptr),
         col_names(col_names_arg),
         add_autoinc(add_autoinc_arg),
         add_cols(nullptr),
@@ -964,7 +970,47 @@ static inline bool is_instant(const Alter_inplace_info *ha_alter_info) {
           instant_type_to_int(Instant_Type::INSTANT_IMPOSSIBLE));
 }
 
-/** Determine if ALTER TABLE needs to rebuild the table.
+/** Determine whether all equal-pack-length column changes are binary-compatible
+for InnoDB.
+@param[in]      ha_alter_info   The DDL operation
+@return whether all such changes can reuse the existing row bytes */
+[[nodiscard]] static bool innobase_equal_pack_length_is_binary_compatible(
+    const Alter_inplace_info *ha_alter_info) {
+  bool found = false;
+  List_iterator_fast<Create_field> cf_it(
+      ha_alter_info->alter_info->create_list);
+
+  while (const Create_field *cf = cf_it++) {
+    const Field *field = cf->field;
+
+    /* create_list describes all columns in the new table definition. New
+    columns and columns without an equal-pack-length change are handled by
+    their corresponding ALTER flags and are outside this check. */
+    if (field == nullptr || field->is_equal(cf) != IS_EQUAL_PACK_LENGTH) {
+      continue;
+    }
+
+    found = true;
+
+    /* True VARCHAR is variable-length in every InnoDB row format.
+    Field_varstring::is_equal() has already rejected shrinking the column,
+    crossing the 256-byte length-encoding boundary, and incompatible charset
+    changes. A change between binary and nonbinary VARCHAR also changes the
+    InnoDB storage type. Other column types require their own physical
+    compatibility proof before they can be allowed here. */
+    if (field->type() != MYSQL_TYPE_VARCHAR ||
+        field->binary() != (cf->charset == &my_charset_bin)) {
+      return false;
+    }
+  }
+
+  return found;
+}
+
+/** Determine whether an InnoDB native in-place ALTER must rebuild the clustered
+index (and therefore the table). This does not apply to ALGORITHM=COPY. A false
+result does not imply that the ALTER performs no data work; it may still build
+secondary indexes.
 @param[in]      ha_alter_info   The DDL operation
 @return whether it is necessary to rebuild the table */
 [[nodiscard]] static bool innobase_need_rebuild(
@@ -976,10 +1022,22 @@ static inline bool is_instant(const Alter_inplace_info *ha_alter_info) {
   Alter_inplace_info::HA_ALTER_FLAGS alter_inplace_flags =
       ha_alter_info->handler_flags & ~(INNOBASE_INPLACE_IGNORE);
 
-  if (alter_inplace_flags == Alter_inplace_info::CHANGE_CREATE_OPTION &&
-      !(ha_alter_info->create_info->used_fields &
-        (HA_CREATE_USED_ROW_FORMAT | HA_CREATE_USED_KEY_BLOCK_SIZE |
-         HA_CREATE_USED_TABLESPACE))) {
+  const bool only_rebuild_flag_is_change_create_option =
+      (alter_inplace_flags & INNOBASE_ALTER_REBUILD) ==
+      Alter_inplace_info::CHANGE_CREATE_OPTION;
+  const bool has_equal_pack_length_change =
+      alter_inplace_flags & Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH;
+  const bool equal_pack_length_change_requires_rebuild =
+      has_equal_pack_length_change &&
+      !innobase_equal_pack_length_is_binary_compatible(ha_alter_info);
+  const bool physical_table_option_changed =
+      ha_alter_info->create_info->used_fields &
+      (HA_CREATE_USED_ROW_FORMAT | HA_CREATE_USED_KEY_BLOCK_SIZE |
+       HA_CREATE_USED_TABLESPACE);
+
+  if (only_rebuild_flag_is_change_create_option &&
+      !equal_pack_length_change_requires_rebuild &&
+      !physical_table_option_changed) {
     /* Any other CHANGE_CREATE_OPTION than changing
     ROW_FORMAT, KEY_BLOCK_SIZE or TABLESPACE can be done
     without rebuilding the table. */
@@ -1436,6 +1494,16 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
       ha_alter_info->unsupported_reason =
           innobase_get_err_msg(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS);
     }
+  } else if (((ha_alter_info->handler_flags &
+               Alter_inplace_info::ADD_PK_INDEX) ||
+              innobase_need_rebuild(ha_alter_info)) &&
+             (ha_alter_info->handler_flags &
+              Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) &&
+             !innobase_equal_pack_length_is_binary_compatible(ha_alter_info)) {
+    /* Online clustered-index rebuild replays concurrent changes from the
+    old table definition. If the changed column bytes cannot be copied
+    unchanged, allow the in-place rebuild only with writes blocked. */
+    online = false;
   } else if ((ha_alter_info->handler_flags & Alter_inplace_info::ADD_INDEX)) {
     /* Two index kinds need at least a shared lock while they are built,
     and this loop finds either.
@@ -1644,21 +1712,19 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
     max_threads = std::min(max_threads, max_desired_threads);
   }
 
-  max_threads =
-      Parallel_reader::available_threads(max_threads, use_reserved_threads);
-
-  if (max_threads == 0) {
-    return (HA_ERR_GENERIC);
-  }
-
   const auto row_len = m_prebuilt->mysql_row_len;
 
   auto adapter = ut::new_withkey<Parallel_reader_adapter>(
-      UT_NEW_THIS_FILE_PSI_KEY, max_threads, row_len);
+      UT_NEW_THIS_FILE_PSI_KEY, max_threads, row_len, use_reserved_threads);
 
   if (adapter == nullptr) {
-    Parallel_reader::release_threads(max_threads);
     return (HA_ERR_OUT_OF_MEM);
+  }
+
+  max_threads = adapter->max_threads();
+  if (max_threads == 0) {
+    ut::delete_(adapter);
+    return (HA_ERR_GENERIC);
   }
 
   Parallel_reader::Scan_range full_scan{};
@@ -2474,6 +2540,7 @@ static void innobase_col_to_mysql(
 void innobase_rec_to_mysql(struct TABLE *table, const rec_t *rec,
                            const dict_index_t *index, const ulint *offsets) {
   uint n_fields = table->s->fields;
+  ulint num_v = 0;
 
   ut_ad(n_fields ==
         dict_table_get_n_tot_u_cols(index->table) -
@@ -2486,9 +2553,15 @@ void innobase_rec_to_mysql(struct TABLE *table, const rec_t *rec,
     ulint ilen;
     const uchar *ifield;
 
-    field->reset();
+    const auto col_n = innobase_is_v_fld(field) ? num_v++ : i - num_v;
 
+<<<<<<< HEAD
     ipos = index->get_col_pos(i, true, false, nullptr);
+||||||| merged common ancestors
+    ipos = index->get_col_pos(i, true, false);
+=======
+    ipos = index->get_col_pos(col_n, true, innobase_is_v_fld(field));
+>>>>>>> mysql-26.10.0
 
     if (ipos == ULINT_UNDEFINED || rec_offs_nth_extern(index, offsets, ipos)) {
     null_field:
@@ -2529,8 +2602,6 @@ void innobase_fields_to_mysql(struct TABLE *table, const dict_index_t *index,
     Field *field = table->field[i];
     ulint ipos;
     ulint col_n;
-
-    field->reset();
 
     if (innobase_is_v_fld(field)) {
       col_n = num_v;
@@ -3532,6 +3603,34 @@ static void innobase_build_col_map_add(mem_heap_t *heap, dfield_t *dfield,
       field->zip_dict_data.length, &prebuilt->compress_heap);
 }
 
+/** Determine whether a mapped column definition change can reuse the old
+value bytes during online rebuild log replay. Currently, only VARCHAR is
+supported. SQL-layer is_equal() proves that its length encoding and charset
+change are compatible. The InnoDB checks below additionally require identical
+storage types and flags, apart from nullability and the charset/collation
+identifier.
+@param[in] old_field old MySQL column
+@param[in] new_field new MySQL column definition
+@param[in] old_col old InnoDB column
+@param[in] new_col new InnoDB column
+@return whether online log replay can copy the value bytes unchanged */
+[[nodiscard]] static bool innobase_is_binary_compatible_charset_change(
+    const Field *old_field, const Create_field *new_field,
+    const dict_col_t *old_col, const dict_col_t *new_col) {
+  if (old_field->type() != MYSQL_TYPE_VARCHAR ||
+      old_field->is_equal(new_field) != IS_EQUAL_PACK_LENGTH ||
+      old_col->mtype != new_col->mtype || old_col->len > new_col->len ||
+      dtype_get_charset_coll(old_col->prtype) ==
+          dtype_get_charset_coll(new_col->prtype)) {
+    return false;
+  }
+
+  constexpr uint32_t charset_coll_mask = static_cast<uint32_t>(CHAR_COLL_MASK)
+                                         << 16;
+  return !((old_col->prtype ^ new_col->prtype) &
+           ~(DATA_NOT_NULL | charset_coll_mask));
+}
+
 /** Construct the translation table for reordering, dropping or
 adding columns.
 
@@ -3541,14 +3640,23 @@ adding columns.
 @param new_table InnoDB table corresponding to MySQL altered_table
 @param old_table InnoDB table corresponding to MYSQL table
 @param add_cols Default values for ADD COLUMN, or NULL if no ADD COLUMN
+@param[out] col_has_compatible_charset_change whether each mapped old column
+has a charset/collation change whose existing value bytes can be reused
 @param heap Memory heap where allocated
 @return array of integers, mapping column numbers in the table
 to column numbers in altered_table */
 [[nodiscard]] static const ulint *innobase_build_col_map(
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *table, const dict_table_t *new_table,
+<<<<<<< HEAD
     const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap,
     row_prebuilt_t *prebuilt) {
+||||||| merged common ancestors
+    const dict_table_t *old_table, dtuple_t *add_cols, mem_heap_t *heap) {
+=======
+    const dict_table_t *old_table, dtuple_t *add_cols,
+    const bool **col_has_compatible_charset_change, mem_heap_t *heap) {
+>>>>>>> mysql-26.10.0
   DBUG_TRACE;
   assert(altered_table != table);
   assert(new_table != old_table);
@@ -3562,6 +3670,9 @@ to column numbers in altered_table */
 
   ulint *col_map = static_cast<ulint *>(mem_heap_alloc(
       heap, (old_table->n_cols + old_table->n_v_cols) * sizeof *col_map));
+  bool *has_compatible_charset_change = static_cast<bool *>(mem_heap_zalloc(
+      heap, old_table->n_cols * sizeof *has_compatible_charset_change));
+  *col_has_compatible_charset_change = has_compatible_charset_change;
 
   List_iterator_fast<Create_field> cf_it(
       ha_alter_info->alter_info->create_list);
@@ -3599,7 +3710,12 @@ to column numbers in altered_table */
       }
 
       if (new_field->field == field) {
-        col_map[old_i - num_old_v] = i;
+        const uint32_t old_col_no = old_i - num_old_v;
+        col_map[old_col_no] = i;
+        has_compatible_charset_change[old_col_no] =
+            innobase_is_binary_compatible_charset_change(
+                field, new_field, old_table->get_col(old_col_no),
+                new_table->get_col(i));
         goto found_col;
       }
     }
@@ -5179,9 +5295,19 @@ template <typename Table>
       add_cols = nullptr;
     }
 
+<<<<<<< HEAD
     ctx->col_map = innobase_build_col_map(ha_alter_info, altered_table,
                                           old_table, ctx->new_table, user_table,
                                           add_cols, ctx->heap, prebuilt);
+||||||| merged common ancestors
+    ctx->col_map =
+        innobase_build_col_map(ha_alter_info, altered_table, old_table,
+                               ctx->new_table, user_table, add_cols, ctx->heap);
+=======
+    ctx->col_map = innobase_build_col_map(
+        ha_alter_info, altered_table, old_table, ctx->new_table, user_table,
+        add_cols, &ctx->col_has_compatible_charset_change, ctx->heap);
+>>>>>>> mysql-26.10.0
     ctx->add_cols = add_cols;
   } else {
     assert(!innobase_need_rebuild(ha_alter_info));
@@ -5292,7 +5418,7 @@ template <typename Table>
                       goto error_handling;);
       rw_lock_x_lock(&ctx->add_index[a]->lock, UT_LOCATION_HERE);
       bool ok = row_log_allocate(ctx->add_index[a], nullptr, true, nullptr,
-                                 nullptr, path);
+                                 nullptr, nullptr, path);
       rw_lock_x_unlock(&ctx->add_index[a]->lock);
 
       if (!ok) {
@@ -5330,7 +5456,8 @@ template <typename Table>
       bool ok = row_log_allocate(
           clust_index, ctx->new_table,
           !(ha_alter_info->handler_flags & Alter_inplace_info::ADD_PK_INDEX),
-          ctx->add_cols, ctx->col_map, path);
+          ctx->add_cols, ctx->col_map, ctx->col_has_compatible_charset_change,
+          path);
       rw_lock_x_unlock(&clust_index->lock);
 
       if (!ok) {
@@ -6371,6 +6498,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     }
   }
 
+<<<<<<< HEAD
   /* The hidden column comes or goes with this ALTER
   (innobase_vec_aux_col_changes). Either way every row is rewritten, so
   prepare must build a new table, as add_fts_doc_id makes it for FTS_DOC_ID;
@@ -6388,6 +6516,17 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
        ((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
             Alter_inplace_info::CHANGE_CREATE_OPTION &&
         !innobase_need_rebuild(ha_alter_info)))) {
+||||||| merged common ancestors
+  if (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ||
+      ((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
+           Alter_inplace_info::CHANGE_CREATE_OPTION &&
+       !innobase_need_rebuild(ha_alter_info))) {
+=======
+  if (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ||
+      ((ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ==
+           Alter_inplace_info::CHANGE_CREATE_OPTION &&
+       !innobase_need_rebuild(ha_alter_info))) {
+>>>>>>> mysql-26.10.0
     if (heap) {
       ha_alter_info->handler_ctx = new (m_user_thd->mem_root)
           ha_innobase_inplace_ctx(m_prebuilt, drop_index, n_drop_index,
@@ -6647,7 +6786,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
     return all_ok();
   }
 
-  if (((ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ==
+  if (((ha_alter_info->handler_flags & INNOBASE_ALTER_DATA) ==
            Alter_inplace_info::CHANGE_CREATE_OPTION &&
        !innobase_need_rebuild(ha_alter_info))) {
     return all_ok();
@@ -7368,7 +7507,10 @@ static void innobase_rename_col_discard_foreign(
       information to see any one gets affected by this rename, and discard
       them from cache */
 
-      std::list<dict_foreign_t *> fk_evict;
+      // A self-referencing foreign key appears in both sets. Ensure each
+      // affected constraint is collected once, so it is removed from the cache
+      // only once.
+      std::set<dict_foreign_t *> fk_evict;
 
       for (auto fk : old_table->foreign_set) {
         dict_foreign_t *foreign = fk;
@@ -7379,7 +7521,7 @@ static void innobase_rename_col_discard_foreign(
             continue;
           }
 
-          fk_evict.push_back(foreign);
+          fk_evict.insert(foreign);
           break;
         }
       }
@@ -7393,7 +7535,7 @@ static void innobase_rename_col_discard_foreign(
             continue;
           }
 
-          fk_evict.push_back(foreign);
+          fk_evict.insert(foreign);
           break;
         }
       }
@@ -10597,23 +10739,21 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
 
   ut_a(max_threads <= Parallel_reader::MAX_THREADS);
 
-  max_threads = static_cast<ulong>(
-      Parallel_reader::available_threads(max_threads, use_reserved_threads));
-
-  if (max_threads == 0) {
-    return (HA_ERR_GENERIC);
-  }
-
   scan_ctx = nullptr;
 
   const auto row_len = m_prebuilt->mysql_row_len;
 
   auto adapter = ut::new_withkey<Parallel_reader_adapter>(
-      UT_NEW_THIS_FILE_PSI_KEY, max_threads, row_len);
+      UT_NEW_THIS_FILE_PSI_KEY, max_threads, row_len, use_reserved_threads);
 
   if (adapter == nullptr) {
-    Parallel_reader::release_threads(max_threads);
     return (HA_ERR_OUT_OF_MEM);
+  }
+
+  max_threads = adapter->max_threads();
+  if (max_threads == 0) {
+    ut::delete_(adapter);
+    return (HA_ERR_GENERIC);
   }
 
   auto trx = m_prebuilt->trx;
@@ -12189,4 +12329,26 @@ int ha_innobase::bulk_load_end(THD *thd, void *load_ctx, bool is_error) {
   /* We raise the error in report_error. */
   bool any_error = is_error || db_err != DB_SUCCESS;
   return any_error ? HA_ERR_GENERIC : 0;
+}
+
+int ha_innobase::bulk_load_preserve_auto_increment(
+    ulonglong auto_increment_value) {
+  if (auto_increment_value == 0 || table->found_next_number_field == nullptr) {
+    return 0;
+  }
+
+  dict_table_t *innodb_table = m_prebuilt->table;
+  dict_table_autoinc_lock(innodb_table);
+  dict_table_autoinc_update_if_greater(innodb_table, auto_increment_value);
+  const uint64_t final_autoinc = dict_table_autoinc_read(innodb_table);
+  dict_table_autoinc_set_col_pos(innodb_table,
+                                 table->found_next_number_field->field_index());
+  dict_table_autoinc_unlock(innodb_table);
+
+  if (!innodb_table->is_temporary()) {
+    /* DD stores the last assigned value; the in-memory counter is next. */
+    dict_table_autoinc_persist(innodb_table, final_autoinc - 1);
+  }
+
+  return 0;
 }

@@ -616,6 +616,9 @@ class ha_innobase : public handler {
   @return error code. */
   int bulk_load_end(THD *thd, void *load_ctx, bool is_error) override;
 
+  int bulk_load_preserve_auto_increment(
+      ulonglong auto_increment_value) override;
+
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes) override;
 
@@ -813,7 +816,7 @@ class ha_innobase : public handler {
   uchar *m_upd_buf;
 
   /** the size of upd_buf in bytes */
-  ulint m_upd_buf_size;
+  size_t m_upd_buf_size;
 
   /** Flags that specify the handler instance (table) capability. */
   Table_flags m_int_table_flags;

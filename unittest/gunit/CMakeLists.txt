@@ -155,10 +155,12 @@ SET(TESTS
   mysys_my_read
   mysys_my_symlink
   mysys_my_system
+  mysys_system_info
   mysys_my_time
   mysys_my_clone
   mysys_my_write
   mysys_pathfuncs
+  mysys_stack_pointer
   opt_recperkey
   overflow_bitset
   partitioned_rwlock
@@ -274,6 +276,7 @@ SET(SERVER_TESTS
   make_sortkey
   mdl_sync
   my_decimal
+  mysql_command_consumer
   mysqld_funcs
   opt_costconstants
   opt_costmodel
@@ -438,6 +441,7 @@ FOREACH(test ${TESTS})
   )
 ENDFOREACH()
 
+<<<<<<< HEAD
 # vector_distance per-tier benchmark — all SIMD tiers × 12 sizes × all metrics.
 # Unavailable tiers (wrong ISA or CPU) are skipped at runtime via GTEST_SKIP().
 MYSQL_ADD_EXECUTABLE(vector_distance_benchmark-t vector_distance_benchmark-t.cc
@@ -460,6 +464,30 @@ MYSQL_ADD_EXECUTABLE(hnsw_bench-t hnsw_bench-t.cc
   SKIP_INSTALL
 )
 
+||||||| merged common ancestors
+=======
+MYSQL_ADD_EXECUTABLE(mysys_system_info_unsupported-t
+  mysys_system_info_unsupported-t.cc
+  ${CMAKE_SOURCE_DIR}/components/library_mysys/system_info.cc
+  ${CMAKE_SOURCE_DIR}/components/library_mysys/my_system_api/system_info_unsupported.cc
+  COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
+  ENABLE_EXPORTS
+  EXCLUDE_FROM_ALL
+  LINK_LIBRARIES sqlgunitlib gunit_small extra::boost
+  SKIP_INSTALL
+  ADD_GCOV_TEST mysys_system_info_unsupported
+)
+
+# Exercise the portable Linux mountinfo parser on Apple without adding it to
+# the Apple production library.
+IF(APPLE)
+  TARGET_SOURCES(mysys_system_info-t PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/library_mysys/my_system_api/system_info_linux_procfs.cc)
+  TARGET_SOURCES(merge_small_tests-t PRIVATE
+    ${CMAKE_SOURCE_DIR}/components/library_mysys/my_system_api/system_info_linux_procfs.cc)
+ENDIF()
+
+>>>>>>> mysql-26.10.0
 # Disable by default, since it dumps a stack trace.
 # We don't want ppl to think there was a segfault or something.
 # See also the mtr test main.print_stacktrace

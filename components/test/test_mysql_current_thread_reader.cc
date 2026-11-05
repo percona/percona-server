@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/mysql_current_thread_reader.h>
+#include <mysql/components/services/mysql_thd_attributes.h>
 #include <mysql/components/services/security_context.h>
 #include <mysql/components/services/udf_registration.h>
 #include <mysql/mysql_lex_string.h>
@@ -31,7 +32,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <cstring>
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_current_thread_reader);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_attributes);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_factory);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_account_database_security_context_lookup);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 
@@ -40,8 +44,10 @@ END_COMPONENT_PROVIDES();
 
 BEGIN_COMPONENT_REQUIRES(test_mysql_current_thread_reader)
 REQUIRES_SERVICE(mysql_current_thread_reader),
-    REQUIRES_SERVICE(udf_registration),
+    REQUIRES_SERVICE(mysql_thd_attributes), REQUIRES_SERVICE(udf_registration),
     REQUIRES_SERVICE(mysql_thd_security_context),
+    REQUIRES_SERVICE(mysql_security_context_factory),
+    REQUIRES_SERVICE(mysql_account_database_security_context_lookup),
     REQUIRES_SERVICE(mysql_security_context_options), END_COMPONENT_REQUIRES();
 
 static char *test_thd_reader_current_user_udf(UDF_INIT *, UDF_ARGS *args,
@@ -88,12 +94,88 @@ static char *test_thd_reader_current_user_udf(UDF_INIT *, UDF_ARGS *args,
   return reinterpret_cast<char *>(result);
 }
 
+static long long test_security_context_account_locked_udf(
+    UDF_INIT *, UDF_ARGS *args, unsigned char *, unsigned char *error) {
+  if (args->arg_count != 0) {
+    *error = 1;
+    return 0;
+  }
+
+  Security_context_handle ctx;
+  if (mysql_service_mysql_security_context_factory->create(&ctx)) {
+    *error = 1;
+    return 0;
+  }
+
+  bool account_locked = false;
+  // Populate test_account_locked@localhost account state without authenticating
+  // the locked user.
+  bool failed =
+      mysql_service_mysql_account_database_security_context_lookup->lookup(
+          ctx, "test_account_locked", "localhost", nullptr, nullptr) ||
+      mysql_service_mysql_security_context_options->get(ctx, "account_locked",
+                                                        &account_locked);
+
+  if (mysql_service_mysql_security_context_factory->destroy(ctx)) failed = true;
+  if (failed) *error = 1;
+
+  return static_cast<long long>(account_locked);
+}
+
+static long long test_thd_is_substatement_udf(UDF_INIT *, UDF_ARGS *args,
+                                              unsigned char *,
+                                              unsigned char *error) {
+  if (args->arg_count != 0) {
+    *error = 1;
+    return 0;
+  }
+
+  MYSQL_THD thd = nullptr;
+  bool is_substatement = false;
+  if (mysql_service_mysql_current_thread_reader->get(&thd) || thd == nullptr ||
+      mysql_service_mysql_thd_attributes->get(thd, "is_substatement",
+                                              &is_substatement)) {
+    *error = 1;
+    return 0;
+  }
+
+  return static_cast<long long>(is_substatement);
+}
+
 static mysql_service_status_t init() {
   Udf_func_string udf = test_thd_reader_current_user_udf;
   if (mysql_service_udf_registration->udf_register(
           "test_thd_reader_current_user", STRING_RESULT,
           reinterpret_cast<Udf_func_any>(udf), nullptr, nullptr)) {
     fprintf(stderr, "Can't register the test_thd_reader_current_user UDF\n");
+    return 1;
+  }
+
+  Udf_func_longlong account_locked_udf =
+      test_security_context_account_locked_udf;
+  if (mysql_service_udf_registration->udf_register(
+          "test_security_context_account_locked", INT_RESULT,
+          reinterpret_cast<Udf_func_any>(account_locked_udf), nullptr,
+          nullptr)) {
+    fprintf(stderr,
+            "Can't register the test_security_context_account_locked UDF\n");
+    int was_present = 0;
+    mysql_service_udf_registration->udf_unregister(
+        "test_thd_reader_current_user", &was_present);
+    return 1;
+  }
+
+  Udf_func_longlong is_substatement_udf = test_thd_is_substatement_udf;
+  if (mysql_service_udf_registration->udf_register(
+          "test_thd_is_substatement", INT_RESULT,
+          reinterpret_cast<Udf_func_any>(is_substatement_udf), nullptr,
+          nullptr)) {
+    fprintf(stderr, "Can't register the test_thd_is_substatement UDF\n");
+    int was_present = 0;
+    mysql_service_udf_registration->udf_unregister(
+        "test_security_context_account_locked", &was_present);
+    mysql_service_udf_registration->udf_unregister(
+        "test_thd_reader_current_user", &was_present);
     return 1;
   }
 
@@ -105,6 +187,13 @@ static mysql_service_status_t deinit() {
   if (mysql_service_udf_registration->udf_unregister(
           "test_thd_reader_current_user", &was_present))
     fprintf(stderr, "Can't unregister the test_thd_reader_current_user UDF\n");
+  if (mysql_service_udf_registration->udf_unregister(
+          "test_security_context_account_locked", &was_present))
+    fprintf(stderr,
+            "Can't unregister the test_security_context_account_locked UDF\n");
+  if (mysql_service_udf_registration->udf_unregister("test_thd_is_substatement",
+                                                     &was_present))
+    fprintf(stderr, "Can't unregister the test_thd_is_substatement UDF\n");
   return 0; /* success */
 }
 

@@ -279,7 +279,7 @@ bool ACL_HOST_AND_IP::calc_cidr_mask(const char *ip_arg, long *val) {
     return true;
 
   /* Create IP mask. */
-  *val = UINT_MAX32 << (32 - tmp);
+  *val = (UINT_MAX32 << (32 - tmp)) & UINT_MAX32;
 
   return false;
 }
@@ -2112,7 +2112,7 @@ bool acl_init(bool dont_read_acl_tables) {
     To be able to run this from boot, we allocate a temporary THD
   */
   if (!(thd = new THD)) return true; /* purecov: inspected */
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   /*
@@ -2813,7 +2813,7 @@ bool grant_init(bool skip_grant_tables) {
   if (skip_grant_tables) return false;
 
   if (!(thd = new THD)) return true; /* purecov: deadcode */
-  thd->thread_stack = (char *)&thd;
+  thd->capture_stack_base(reinterpret_cast<const void *>(&thd));
   thd->store_globals();
 
   return_val = grant_reload(thd, false);

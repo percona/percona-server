@@ -593,6 +593,19 @@ class Bulk_extent_allocator {
   @return innodb error code. */
   dberr_t allocate_page(bool is_leaf, Page_range_t &range);
 
+#ifdef UNIV_DEBUG
+  /** Synchronize a query interruption when a newly allocated range reuses a
+  freed page still present in the buffer pool.
+  @param[in] range newly allocated page range */
+  void debug_sync_reused_freed_page(const Page_range_t &range);
+#endif /* UNIV_DEBUG */
+
+  /** Evict any buffer-pool incarnation of a newly allocated page range.
+  MTIB pages bypass the buffer pool until they are flushed, so an older
+  incarnation must not remain visible while the range is privately owned.
+  @param[in] range newly allocated page range */
+  void evict_allocated_range(const Page_range_t &range);
+
   /** @return true if operation is interrupted. */
   bool is_interrupted();
 
@@ -653,10 +666,6 @@ class Bulk_flusher {
   @return innodb error code. */
   dberr_t run();
 
-  /** Check if work is available for the bulk flusher thread.
-  @return true if work is available. */
-  bool is_work_available();
-
   /** Start a new thread to do the flush work.
   @param[in] space_id space for flushing pages to
   @param[in] index loader index
@@ -677,6 +686,10 @@ class Bulk_flusher {
   /** Wait till the bulk flush thread stops. */
   void wait_to_stop();
 
+  /** Wake the bulk flush thread and wait until all submitted extents have
+  been flushed. */
+  void wait_for_idle();
+
   /** Get the maximum allowed queue size.
   @return the maximum allowed queue size. */
   size_t get_max_queue_size() const { return m_max_queue_size; }
@@ -695,6 +708,10 @@ class Bulk_flusher {
   Page_extent *get_free_extent();
 
  private:
+  /** Move queued work to the queue used exclusively by the bulk flush thread.
+  @return true if work was moved. */
+  bool is_work_available();
+
   /** Do the actual work of flushing.
   @param[in,out] node space file node */
   void do_work(fil_node_t *node);
@@ -716,6 +733,9 @@ class Bulk_flusher {
 
   /** Condition variable to wait upon. */
   mutable std::condition_variable m_condition;
+
+  /** Number of queued or in-progress extent flushes, protected by m_mutex. */
+  size_t m_pending_flushes{};
 
   /** This queue is protected by the m_free_mutex. It is used to cache the
   Page_extent objects that have been flushed and ready for re-use. */
@@ -977,6 +997,7 @@ class Btree_load : private ut::Non_copyable {
   void track_page_flush(page_no_t page_no) {
     m_bulk_flusher.m_flushed_page_nos.push_back(page_no);
   }
+
 #endif /* UNIV_DEBUG */
 
   /** Check if the index build operation has been interrupted.

@@ -807,14 +807,16 @@ bool BackupRestore::init(Uint32 tableChangesMask) {
   m_ndb = new Ndb(m_cluster_connection);
   if (m_ndb == NULL) return false;
 
-  m_ndb->init(m_parallelism);
+  const Uint32 max_parallelism = std::max(m_parallelism, m_log_parallelism);
+
+  m_ndb->init(max_parallelism);
   if (m_ndb->waitUntilReady(30) != 0) {
     restoreLogger.log_error("Could not connect to NDB");
     return false;
   }
   restoreLogger.log_info("Connected to NDB");
 
-  m_callback = new restore_callback_t[m_parallelism];
+  m_callback = new restore_callback_t[max_parallelism];
 
   if (m_callback == 0) {
     restoreLogger.log_error("Failed to allocate callback structs");
@@ -822,7 +824,7 @@ bool BackupRestore::init(Uint32 tableChangesMask) {
   }
 
   m_free_callback = m_callback;
-  for (Uint32 i = 0; i < m_parallelism; i++) {
+  for (Uint32 i = 0; i < max_parallelism; i++) {
     m_callback[i].restore = this;
     m_callback[i].connection = 0;
     m_callback[i].logRestore = false;
@@ -835,9 +837,13 @@ bool BackupRestore::init(Uint32 tableChangesMask) {
     m_callback[i].last_waiter = nullptr;
     if (i > 0) m_callback[i - 1].next = &(m_callback[i]);
   }
-  m_callback[m_parallelism - 1].next = 0;
+  m_callback[max_parallelism - 1].next = 0;
 
-  m_transScheduler.init(m_parallelism);
+  m_transScheduler.init(m_log_parallelism);
+
+#ifndef NDEBUG
+  m_fakeRetryCounter = 0;
+#endif
 
   return true;
 }
@@ -3485,14 +3491,7 @@ bool BackupRestore::tuple(const TupleS &tup, Uint32 fragmentId) {
     return false;
   }
 
-  while (m_free_callback == 0) {
-    assert(m_transactions.load(std::memory_order_relaxed) == m_parallelism);
-    // send-poll all transactions
-    // close transaction is done in callback
-    m_ndb->sendPollNdb(3000, 1);
-  }
-
-  restore_callback_t *cb = m_free_callback;
+  restore_callback_t *cb = seize_callback(m_parallelism);
 
   if (cb == 0) assert(false);
 
@@ -3503,10 +3502,9 @@ bool BackupRestore::tuple(const TupleS &tup, Uint32 fragmentId) {
 
   if (tab->isSYSTAB_0()) {
     tuple_SYSTAB_0(cb, *tab);
+    release_callback(cb);
     return true;
   }
-
-  m_free_callback = cb->next;
 
   tuple_a(cb);
   /*
@@ -3702,8 +3700,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb) {
   set_fatal_error(true);
   m_ndb->closeTransaction(cb->connection);
   cb->connection = NULL;
-  cb->next = m_free_callback;
-  m_free_callback = cb;
+  release_callback(cb);
   return;
 }
 
@@ -3770,8 +3767,7 @@ void BackupRestore::cback(int result, restore_callback_t *cb) {
       restoreLogger.log_error(
           "Restore: Failed to restore data due to a unrecoverable error. "
           "Exiting...");
-      cb->next = m_free_callback;
-      m_free_callback = cb;
+      release_callback(cb);
       return;
     }
   } else if (get_fatal_error())  // fatal error in other restore-thread
@@ -3782,8 +3778,7 @@ void BackupRestore::cback(int result, restore_callback_t *cb) {
     restoreLogger.log_error(
         "Restore: Failed to restore data due to a unrecoverable error "
         "previously detected. Exiting...");
-    cb->next = m_free_callback;
-    m_free_callback = cb;
+    release_callback(cb);
     return;
   } else {
     /**
@@ -3791,11 +3786,62 @@ void BackupRestore::cback(int result, restore_callback_t *cb) {
      */
     m_ndb->closeTransaction(cb->connection);
     cb->connection = 0;
-    cb->next = m_free_callback;
-    m_free_callback = cb;
     m_dataBytes += cb->n_bytes;
     m_dataCount++;
+    release_callback(cb);
   }
+}
+
+restore_callback_t *BackupRestore::seize_callback(Uint32 parallelism) {
+  while (m_callbacks_in_use == parallelism) {
+    // send-poll all transactions
+    // close transaction is done in callback
+    m_ndb->sendPollNdb(3000);
+  }
+  require(m_callbacks_in_use < parallelism);
+  require(m_free_callback);
+
+  restore_callback_t *cb = m_free_callback;
+  m_free_callback = cb->next;
+  cb->next = nullptr;
+  m_callbacks_in_use++;
+  return cb;
+}
+
+void BackupRestore::release_callback(restore_callback_t *cb) {
+  require(m_callbacks_in_use);
+  m_callbacks_in_use--;
+  cb->next = m_free_callback;
+  m_free_callback = cb;
+}
+
+void BackupRestore::tempErrorHandler(restore_callback_t *cb,
+                                     const NdbError &error) {
+  require(error.status == NdbError::TemporaryError);
+  struct TempErrorStat *errStat = nullptr;
+
+  for (Uint32 i = 0; i < m_tempErrors.size(); i++) {
+    if (m_tempErrors[i].code == error.code) {
+      errStat = &m_tempErrors[i];
+      break;
+    }
+  }
+  if (!errStat) {
+    TempErrorStat newStat;
+    newStat.code = error.code;
+    newStat.count = 0;
+    newStat.sleepMillis = 0;
+    m_tempErrors.push_back(newStat);
+    errStat = &m_tempErrors[m_tempErrors.size() - 1];
+  }
+
+  const Uint32 sleepTime = 100 + cb->retries * 300;
+
+  errStat->count++;
+  errStat->sleepMillis += sleepTime;
+
+  NdbSleep_MilliSleep(sleepTime);
+  cb->retries++;
 }
 
 /**
@@ -3813,32 +3859,10 @@ bool BackupRestore::errorHandler(restore_callback_t *cb) {
     error = m_ndb->getNdbError();
   }
 
-  Uint32 sleepTime = 100 + cb->retries * 300;
-
-  cb->retries++;
   cb->error_code = error.code;
 
   if (error.status == NdbError::TemporaryError) {
-    struct TempErrorStat *errStat = nullptr;
-    for (Uint32 i = 0; i < m_tempErrors.size(); i++) {
-      if (m_tempErrors[i].code == error.code) {
-        errStat = &m_tempErrors[i];
-        break;
-      }
-    }
-    if (!errStat) {
-      TempErrorStat newStat;
-      newStat.code = error.code;
-      newStat.count = 0;
-      newStat.sleepMillis = 0;
-      m_tempErrors.push_back(newStat);
-      errStat = &m_tempErrors[m_tempErrors.size() - 1];
-    }
-
-    errStat->count++;
-    errStat->sleepMillis += sleepTime;
-
-    NdbSleep_MilliSleep(sleepTime);
+    tempErrorHandler(cb, error);
     return true;
     // RETRY
   }
@@ -4357,16 +4381,7 @@ bool BackupRestore::logEntry(const LogEntry &le) {
   }
 
   /* Get or wait for available transaction */
-  while (m_free_callback == nullptr) {
-    assert(m_transactions.load(std::memory_order_relaxed) == m_parallelism);
-    // send-poll all transactions
-    // close transaction is done in callback
-    m_ndb->sendPollNdb(3000);
-  }
-
-  restore_callback_t *cb = m_free_callback;
-  m_free_callback = cb->next;
-
+  restore_callback_t *cb = seize_callback(m_log_parallelism);
   if (cb == nullptr) abort();
 
   cb->retries = 0;
@@ -4424,7 +4439,7 @@ retry:
   }
 #endif
 
-  if (++cb->retries >= MAX_RETRIES) {
+  if (cb->retries >= MAX_RETRIES) {
     restoreLogger.log_error(
         "Attempted transaction %u times.  Unable to recover from errors.",
         cb->retries);
@@ -4709,61 +4724,128 @@ void BackupRestore::logEntry_b(restore_callback_t *cb) {
   return;
 }
 
-void BackupRestore::cback_logentry(int result, restore_callback_t *cb) {
-  m_transactions.fetch_sub(1, std::memory_order_relaxed);
-  const NdbError errobj = cb->connection->getNdbError();
-  m_ndb->closeTransaction(cb->connection);
-  cb->connection = NULL;
-
-#ifndef NDEBUG
-  /* Test retry path */
-  if ((m_logCount % 100000) == 3) {
-    if (cb->retries++ < 3) {
-      restoreLogger.log_info("Testing log retry path for cb %p", cb);
-      logEntry_a(cb, true);
-      return;
-    }
+BackupRestore::Outcome BackupRestore::get_logentry_apply_outcome(
+    int result, const NdbError &errObj, restore_callback_t *cb) {
+  /* Decide whether we are :
+   * DONE  : Finished applying this log entry
+   * RETRY : Should retry applying this log entry
+   * FAIL  : Have failed and should give up
+   */
+  if (get_fatal_error()) {
+    /* Something already failed */
+    return FAIL;
   }
-#endif
 
   if (result < 0) {
     // Ignore errors and continue if
     // - insert fails with ConstraintViolation or
     // - update/delete fails with NoDataFound
-    bool ok = false;
-    if (errobj.status == NdbError::TemporaryError) {
-      logEntry_a(cb, true);
-      return;
-    }
-    switch (cb->le.m_type) {
-      case LogEntry::LE_INSERT:
-        if (errobj.status == NdbError::PermanentError &&
-            errobj.classification == NdbError::ConstraintViolation)
-          ok = true;
+    if (errObj.status == NdbError::TemporaryError) {
+      tempErrorHandler(cb, errObj);
+      return RETRY;
+    } else {
+      switch (cb->le.m_type) {
+        case LogEntry::LE_INSERT:
+          if (errObj.status == NdbError::PermanentError &&
+              errObj.classification == NdbError::ConstraintViolation) {
 #ifdef ERROR_INSERT
-        if (m_error_insert == NDB_RESTORE_ERROR_INSERT_FAIL_LOG_CONSTRAINT) {
-          restoreLogger.log_error(
-              "Error insert NDB_RESTORE_ERROR_INSERT_FAIL_LOG_CONSTRAINT");
-          m_error_insert = 0;
-          ok = false;
-        }
+            if (m_error_insert ==
+                NDB_RESTORE_ERROR_INSERT_FAIL_LOG_CONSTRAINT) {
+              restoreLogger.log_error(
+                  "Error insert NDB_RESTORE_ERROR_INSERT_FAIL_LOG_CONSTRAINT");
+              m_error_insert = 0;
+              return FAIL;
+            }
 #endif
-        break;
-      case LogEntry::LE_UPDATE:
-      case LogEntry::LE_DELETE:
-        if (errobj.status == NdbError::PermanentError &&
-            errobj.classification == NdbError::NoDataFound)
-          ok = true;
-        break;
-    }
-    if (!ok) {
-      report_error(cb, errobj);
-      set_fatal_error(true);
-      return;
+            /* Constraint violation on log INSERT -> Ignore for idempotent apply
+             */
+            return DONE;
+          }
+          break;
+        case LogEntry::LE_UPDATE:
+        case LogEntry::LE_DELETE:
+          if (errObj.status == NdbError::PermanentError &&
+              errObj.classification == NdbError::NoDataFound) {
+            /* Constraint violation on UPDATE/DELETE -> Ignore for idempotent
+             * apply */
+            return DONE;
+          }
+          break;
+      }
+
+      /* Some other error, FAIL */
+      return FAIL;
     }
   }
 
-  /* OK */
+#ifndef NDEBUG
+  /* Test retry path */
+  if ((m_fakeRetryCounter++ % 100000) == 3) {
+    if (cb->retries++ < 3) {
+      restoreLogger.log_info("Testing log retry path for cb %p", cb);
+      return RETRY;
+    }
+  }
+#endif
+
+  return DONE;
+}
+
+void BackupRestore::cback_logentry(int result, restore_callback_t *cb) {
+  /* Track transaction completion */
+  m_transactions.fetch_sub(1, std::memory_order_relaxed);
+  const NdbError errobj = cb->connection->getNdbError();
+  m_ndb->closeTransaction(cb->connection);
+  cb->connection = NULL;
+
+  /* Check current state, and callback result to decide what to do */
+  Outcome outcome = get_logentry_apply_outcome(result, errobj, cb);
+
+  switch (outcome) {
+    case RETRY: {
+      /* Define a new transaction for this operation */
+      logEntry_a(cb, true);
+
+      /* Check for failure in definition */
+      if (!get_fatal_error()) {
+        /* Wait for next callback */
+        return;
+      }
+      outcome = FAIL; /* Fallthrough */
+    }
+      [[fallthrough]];
+    case FAIL: {
+      report_error(cb, errobj);
+
+      /* Restore will fail, unblock any transactions waiting
+       * for this one to complete
+       */
+      restore_callback_t *waiting_trans =
+          m_transScheduler.notifyRowAccessComplete(cb);
+      while (waiting_trans) {
+        /* Skip execution of waiting trans */
+        m_transactions.fetch_sub(1, std::memory_order_relaxed);
+        m_ndb->closeTransaction(waiting_trans->connection);
+        waiting_trans->connection = nullptr;
+
+        /* Release previous callback */
+        release_callback(cb);
+
+        /* Check for next */
+        cb = waiting_trans;
+        waiting_trans = m_transScheduler.notifyRowAccessComplete(cb);
+      }
+
+      release_callback(cb);
+
+      set_fatal_error(true);
+      return;
+    }
+    default:
+      break;
+  }
+
+  require(outcome == DONE);
   {
     /**
      * Transaction is complete, notify completion, and
@@ -4784,12 +4866,11 @@ void BackupRestore::cback_logentry(int result, restore_callback_t *cb) {
     }
   }
 
-  /* Return our callback to free list */
-  cb->next = m_free_callback;
-  m_free_callback = cb;
-
   m_logBytes += cb->n_bytes;
   m_logCount++;
+
+  /* Return our callback to free list */
+  release_callback(cb);
 }
 
 bool BackupRestore::endOfLogEntrys() {

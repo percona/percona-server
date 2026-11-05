@@ -31,9 +31,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 03/11/2014 Shaohua Wang
  *******************************************************/
 
-#include "btr0load.h"
+#include <iostream>
+
 #include "btr0btr.h"
 #include "btr0cur.h"
+#include "btr0load.h"
 #include "btr0pcur.h"
 #include "buf0stats.h"
 #include "ibuf0ibuf.h"
@@ -101,8 +103,11 @@ class Page_load : private ut::Non_copyable {
  private:
   /** Initialize members and allocate page if needed and start mtr.
   @note Must be called and only once right after constructor.
+  @param[in]  hint_page_no  desired page number when allocating a new page,
+                            or 0 if no positional hint is available; ignored
+                            when initializing an existing page
   @return error code */
-  [[nodiscard]] dberr_t init() noexcept;
+  [[nodiscard]] dberr_t init(page_no_t hint_page_no) noexcept;
 
   /** Insert a tuple in the page.
   @param[in]  tuple             Tuple to insert
@@ -295,7 +300,7 @@ class Page_load : private ut::Non_copyable {
   friend class Btree_load;
 };
 
-dberr_t Page_load::init() noexcept {
+dberr_t Page_load::init(page_no_t hint_page_no) noexcept {
   page_t *new_page;
   page_no_t new_page_no;
   buf_block_t *new_block;
@@ -340,8 +345,12 @@ dberr_t Page_load::init() noexcept {
       return DB_OUT_OF_FILE_SPACE;
     }
 
-    /* Allocate a new page. */
-    new_block = btr_page_alloc(m_index, 0, FSP_UP, m_level, &alloc_mtr, mtr);
+    /* The first page at a level has no predecessor and uses hint 0. Once its
+    page number is known, subsequent sibling allocations use the previous
+    page number plus one as the hint. FSP_UP can therefore keep logical
+    siblings physically close and consume newly assigned extents. */
+    new_block =
+        btr_page_alloc(m_index, hint_page_no, FSP_UP, m_level, &alloc_mtr, mtr);
 
     if (n_reserved > 0) {
       fil_space_release_free_extents(m_index->space, n_reserved);
@@ -438,11 +447,10 @@ dberr_t Page_load::insert(const rec_t *rec, Rec_offsets offsets) noexcept {
     auto old_offsets = rec_get_offsets(
         old_rec, m_index, nullptr, ULINT_UNDEFINED, UT_LOCATION_HERE, &m_heap);
 
-    ut_ad(cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
-                      page_is_spatial_non_leaf(old_rec, m_index)) > 0 ||
-          (m_index->is_multi_value() &&
-           cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
-                       page_is_spatial_non_leaf(old_rec, m_index)) >= 0));
+    const auto cmp = cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
+                                 page_is_spatial_non_leaf(old_rec, m_index));
+
+    ut_ad(m_index->is_multi_value() ? cmp >= 0 : cmp > 0);
   }
 
   m_total_data += rec_size;
@@ -914,7 +922,7 @@ dberr_t Btree_load::page_split(Page_load *page_loader,
   Page_load new_page_loader(m_index, m_trx_id, FIL_NULL,
                             page_loader->get_level(), m_flush_observer);
 
-  err = new_page_loader.init();
+  err = new_page_loader.init(page_loader->get_page_no() + 1);
 
   if (err != DB_SUCCESS) {
     return err;
@@ -1051,7 +1059,7 @@ dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
   auto *sibling_page_loader = sibling_page_loader_ptr.get();
 
   {
-    auto err = sibling_page_loader->init();
+    auto err = sibling_page_loader->init(page_loader->get_page_no() + 1);
 
     if (err != DB_SUCCESS) {
       return err;
@@ -1113,7 +1121,7 @@ dberr_t Btree_load::insert(dtuple_t *tuple, size_t level) noexcept {
       return DB_OUT_OF_MEMORY;
     }
 
-    err = page_loader->init();
+    err = page_loader->init(0);
 
     if (err != DB_SUCCESS) {
       return err;
@@ -1254,7 +1262,7 @@ dberr_t Btree_load::load_root_page(page_no_t last_page_no) noexcept {
   auto last_page = buf_block_get_frame(last_block);
 
   /* Copy last page to root page. */
-  auto err = page_loader.init();
+  auto err = page_loader.init(0);
 
   if (err == DB_SUCCESS) {
     page_loader.copy_all(last_page);

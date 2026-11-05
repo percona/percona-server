@@ -18,6 +18,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = (/* select#2 */ select min(`i`.`f1`) from `test`.`t1` `i` where (`i`.`f1` > `test`.`t1`.`f1`)))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
 EXPLAIN
 {
@@ -97,7 +98,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -109,6 +110,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Covering index scan on t1 using PRIMARY  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` > (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` limit 1))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 EXPLAIN
 {
@@ -172,7 +175,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 drop table t1;
 #
@@ -188,6 +191,8 @@ explain format=TREE select * from t1 where a > 2;
 EXPLAIN
 -> Index range scan on t1 using PRIMARY over (2 < a)  (rows=8)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` > 2)
 explain format=JSON select * from t1 where a > 2;
 EXPLAIN
 {
@@ -217,7 +222,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 drop table t1;
 # Index lookup. Nested loop join
@@ -239,6 +244,8 @@ EXPLAIN
     -> Hash
         -> Covering index scan on t1 using PRIMARY  (rows=8)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where multiple equal(`test`.`t1`.`i`, `test`.`t2`.`i`)
 EXPLAIN format=JSON SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 EXPLAIN
 {
@@ -306,7 +313,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 DROP TABLE t1,t2;
 set optimizer_switch=@old_opt_switch;
@@ -338,6 +345,8 @@ EXPLAIN
     -> Filter: (t2.pk < t1.pk)  (rows=0.402)
         -> Index lookup on t2 using col_int_key (col_int_key = t1.col_int)  (rows=1.2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`pk` < `test`.`t1`.`pk`) and (`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`))
 EXPLAIN FORMAT=JSON SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 EXPLAIN
@@ -406,7 +415,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 DROP TABLE t1,t2;
 # Group aggregates, hash join, sort.
@@ -440,6 +449,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`col_varchar_key` AS `field1` from `test`.`t1` join `test`.`t1` `alias1` anti join (`test`.`t1` `alias2`) on((`alias2`.`col_varchar_key` >= `test`.`t1`.`col_varchar`)) where true group by `field1`
 EXPLAIN FORMAT=JSON SELECT SQL_BIG_RESULT
 t1.col_varchar_key AS field1 FROM (t1, t1 as alias1)
 WHERE NOT EXISTS( SELECT alias2.col_varchar_key FROM t1 AS alias2
@@ -551,7 +561,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
@@ -563,6 +573,8 @@ EXPLAIN
     -> Table scan on e  (rows=1000)
         -> Fill information schema table e  (rows=1000)
 
+Warnings:
+Note	1003	/* select#1 */ select `e`.`ENGINE` AS `ENGINE`,`e`.`SUPPORT` AS `SUPPORT`,`e`.`COMMENT` AS `COMMENT`,`e`.`TRANSACTIONS` AS `TRANSACTIONS`,`e`.`XA` AS `XA`,`e`.`SAVEPOINTS` AS `SAVEPOINTS` from `information_schema`.`ENGINES` `e` where (`e`.`ENGINE` = 'MyISAM')
 explain format=JSON select * from information_schema.engines e WHERE e.ENGINE="MyISAM";
 EXPLAIN
 {
@@ -615,7 +627,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 # Materialize, window aggregates, Stream
 CREATE TABLE t0 (i0 INTEGER);
@@ -649,6 +661,8 @@ EXPLAIN
                     -> Group (no aggregates)  (rows=2.45)
                         -> Covering index scan on t1 using f1_2  (rows=12)
 
+Warnings:
+Note	1003	/* select#1 */ select `dt`.`f1` AS `f1`,`dt`.`SUM(f2) OVER()` AS `SUM(f2) OVER()` from (/* select#2 */ select sql_big_result `test`.`t1`.`f1` AS `f1`,sum(`test`.`t1`.`f2`) OVER ()  AS `SUM(f2) OVER()` from `test`.`t1` group by `test`.`t1`.`f1`) `dt` where (`dt`.`f1` > 2)
 EXPLAIN FORMAT=JSON SELECT * FROM
 (SELECT SQL_BIG_RESULT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2;
@@ -741,7 +755,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 drop table t0, t1;
 # Explain analyze; Temporary table.
@@ -878,7 +892,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 drop table t1;
 drop table t2;
@@ -895,6 +909,8 @@ EXPLAIN
     -> Table scan on a  (rows=4)
     -> Zero rows (Join condition rejects all rows)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select `a`.`a` AS `a`,`b`.`a` AS `a`,`c`.`a` AS `a` from `test`.`t1` `a` left join `test`.`t1` `b` on(false) left join `test`.`t1` `c` on((`b`.`a` = `c`.`a`))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 AS a LEFT JOIN t1 AS b ON FALSE
 LEFT JOIN t1 AS c ON b.a=c.a;
 EXPLAIN
@@ -933,7 +949,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 DROP TABLE t1;
 #
@@ -968,6 +984,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x2`.`a` AS `a`,`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`x2`.`a` = (/* select#2 */ select min(`x3`.`a`) from `test`.`t1` `x3` where (`x1`.`a` = `x3`.`a`)))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a=
 (SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
 EXPLAIN
@@ -1063,7 +1080,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
@@ -1081,6 +1098,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x2`.`a` AS `a`,`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`x2`.`a` < (/* select#2 */ select min(`x3`.`a`) from `test`.`t1` `x3` where (`x1`.`a` = `x3`.`a`)))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 x1 JOIN t1 x2 ON x2.a<
 (SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
 EXPLAIN
@@ -1177,7 +1195,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
@@ -1200,6 +1218,8 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select last_value(`(select #2)`) OVER (PARTITION BY `x1`.`b` )  AS `LAST_VALUE((SELECT x1.a FROM t1))
+OVER (PARTITION BY b)` from `test`.`t1` `x1`
 EXPLAIN FORMAT=JSON SELECT LAST_VALUE((SELECT x1.a FROM t1))
 OVER (PARTITION BY b) FROM t1 x1;
 EXPLAIN
@@ -1264,7 +1284,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
@@ -1298,7 +1318,7 @@ EXPLAIN
     ]
   },
   "query_type": "insert",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 EXPLAIN FORMAT=JSON REPLACE INTO t VALUES (7), (8), (9);
 EXPLAIN
@@ -1320,7 +1340,7 @@ EXPLAIN
     ]
   },
   "query_type": "replace",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 DROP TABLE t;
 #
@@ -1521,3 +1541,32 @@ fulltext_search_references_const
 1
 SET @v1 = NULL;
 DROP TABLE t;
+#
+# WL#17309: Add Selected Partition Information to Iterator-Based EXPLAIN
+#
+SET explain_json_format_version = 2;
+CREATE TABLE t (
+id INT NOT NULL,
+payload VARCHAR(20),
+PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t VALUES (110, 'a'), (120, 'b'), (210, 'c');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t WHERE id BETWEEN 110 AND 120;
+SELECT
+JSON_EXTRACT(@var, '$**.operation') AS operation,
+JSON_EXTRACT(@var, '$**.partitions') AS partitions,
+JSON_EXTRACT(@var, '$.json_schema_version') AS json_schema_version;
+operation	partitions	json_schema_version
+["Filter: (t.id between 110 and 120)", "Index scan on t using PRIMARY in partitions (p1)"]	[["p1"]]	"2.1"
+DROP TABLE t;
+SET @var = NULL;
+SET explain_json_format_version = DEFAULT;

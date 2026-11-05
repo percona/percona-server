@@ -35,6 +35,7 @@
 #include "mrs/database/query_statistics.h"
 #include "mrs/database/query_version.h"
 
+#include "mrs/mrs_start_observer.h"
 #include "mrs/observability/entity.h"
 #include "mrs/router_observation_entities.h"
 
@@ -160,9 +161,15 @@ SchemaMonitor::SchemaMonitor(
 
 SchemaMonitor::~SchemaMonitor() { stop(); }
 
-void SchemaMonitor::start() {
+void SchemaMonitor::start(MrsStartObserver *observer) {
   if (state_.exchange(k_initializing, k_running)) {
     log_debug("SchemaMonitor::start");
+    if (observer != nullptr &&
+        observer->on_mrs_start() == MrsStartResult::kCancelled) {
+      stop();
+      return;
+    }
+
     run();
   }
 }
@@ -199,6 +206,9 @@ class MetadataSchemaVersionChange : public std::runtime_error {
 };
 
 void SchemaMonitor::run() {
+  // stop() may win after the readiness callback but before run() is entered.
+  if (!state_.is(k_running)) return;
+
   log_system("Starting MySQL REST Metadata monitor");
 
   bool force_clear{true};
@@ -241,8 +251,8 @@ void SchemaMonitor::run() {
       do {
         using namespace observability;
         auto session = (*session_check_version).empty()
-                           ? cache_->get_instance(
-                                 collector::kMySQLConnectionMetadataRW, true)
+                           ? cache_->get_control_plane_instance(
+                                 collector::kMySQLConnectionMetadataRW)
                            : std::move(*session_check_version);
 
         const auto schema_version = query_schema_version(session.get());
@@ -357,6 +367,13 @@ void SchemaMonitor::run() {
           session->execute(update.str());
 
           try {
+            // In component mode, the monitor session bypasses max_connections.
+            // It still counts as a connection. Close it before opening the
+            // statistics session, which must obey the limit.
+            session = {};
+            session = cache_->get_instance(
+                collector::kMySQLConnectionMetadataRW, /*wait=*/true);
+
             const auto actual_stored_time = std::chrono::system_clock::now();
             auto status_time =
                 std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -379,6 +396,7 @@ void SchemaMonitor::run() {
                 exc.what());
           }
         }
+
       } while (wait_until_next_refresh());
     } catch (const std::exception &) {
       force_clear = md_source_destination_.handle_error();
@@ -436,13 +454,14 @@ SchemaMonitor::get_router_name_and_address() {
 std::optional<collector::MysqlCacheManager::CachedObject>
 SchemaMonitor::MetadataSourceDestination::get_rw_session() {
   if (is_dynamic_) {
-    return cache_->get_instance(collector::kMySQLConnectionMetadataRW, true);
+    return cache_->get_control_plane_instance(
+        collector::kMySQLConnectionMetadataRW);
   }
 
   collector::MysqlCacheManager::CachedObject result_session;
   try {
-    result_session =
-        cache_->get_instance(collector::kMySQLConnectionMetadataRW, true);
+    result_session = cache_->get_control_plane_instance(
+        collector::kMySQLConnectionMetadataRW);
     if (current_destination_state_ == DestinationState::k_offline) {
       current_destination_state_ = DestinationState::k_ok;
     }
@@ -461,17 +480,13 @@ SchemaMonitor::MetadataSourceDestination::get_rw_session() {
   }
 
   if (previous_destination_state_ != current_destination_state_) {
-    if (current_destination_state_ != DestinationState::k_ok) {
-      const std::string node_id =
-          current_destination_state_ != DestinationState::k_offline
-              ? result_session.get()->get_address()
-              : "";
-      log_warning("Node %s is %s, stopping the REST service", node_id.c_str(),
-                  (current_destination_state_ == DestinationState::k_read_only)
-                      ? "read-only"
-                      : "offline");
+    if (current_destination_state_ == DestinationState::k_read_only) {
+      log_warning("Destination %s is read-only, stopping the REST service",
+                  result_session.get()->get_address().c_str());
+    } else if (current_destination_state_ == DestinationState::k_offline) {
+      log_warning("Destination is offline, stopping the REST service");
     } else {
-      log_info("Node %s is not read-only nor offline",
+      log_info("Destination %s is available again",
                result_session.get()->get_address().c_str());
     }
     previous_destination_state_ = current_destination_state_;
@@ -488,12 +503,10 @@ bool SchemaMonitor::MetadataSourceDestination::handle_error() {
   try {
     throw;
   } catch (const mrs::database::QueryState::NoRows &exc) {
-    log_error("Can't refresh MRDS layout, because of the following error:%s.",
-              exc.what());
+    log_error("MRS metadata refresh failed: %s", exc.what());
     force_clear = true;
   } catch (const mysqlrouter::MySQLSession::Error &exc) {
-    log_error("Can't refresh MRDS layout, because of the following error:%s.",
-              exc.what());
+    log_error("MRS metadata refresh failed: %s", exc.what());
     if (exc.code() == ER_BAD_DB_ERROR || exc.code() == ER_NO_SUCH_TABLE) {
       force_clear = true;
     }
@@ -523,8 +536,7 @@ bool SchemaMonitor::MetadataSourceDestination::handle_error() {
         "metadata");
     force_clear = true;
   } catch (const std::exception &exc) {
-    log_error("Can't refresh MRDS layout, because of the following error:%s.",
-              exc.what());
+    log_error("MRS metadata refresh failed: %s", exc.what());
   }
 
   return force_clear;

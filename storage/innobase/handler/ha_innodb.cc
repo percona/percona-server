@@ -8207,10 +8207,9 @@ int ha_innobase::open(const char *name, int, uint open_flags,
                   table->s->table_name.str);
     }
 
-    /* Allow an open because a proper DISCARD should have set
-    all the flags and index root page numbers to FIL_NULL that
-    should prevent any DML from running but it should allow DDL
-    operations. */
+    /* Allow opening a discarded table so DDL such as IMPORT can run. DML
+    checks the discarded state and does not access the unavailable
+    tablespace. */
     no_tablespace = false;
 
   } else if (ib_table->ibd_file_missing) {
@@ -10208,7 +10207,7 @@ static dberr_t calc_row_difference(
     TABLE *table,             /*!< in: table in MySQL data
                               dictionary */
     uchar *upd_buff,          /*!< in: buffer to use */
-    ulint buff_len,           /*!< in: buffer length */
+    size_t buff_len,          /*!< in: buffer length */
     row_prebuilt_t *prebuilt, /*!< in: InnoDB prebuilt struct */
     THD *thd)                 /*!< in: user thread */
 {
@@ -10713,6 +10712,21 @@ int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
 
     m_upd_buf_size =
         table->s->reclength + table->s->max_key_length + MAX_REF_PARTS * 3;
+
+    /*
+      Reserve an extra packed value for every virtual column.
+      calc_row_difference() may retain both new and old values for indexed
+      virtual columns, including columns indexed by an online rebuild.
+      The buffer is reused, so its capacity must also cover virtual columns
+      that become indexed after the initial allocation.
+    */
+    for (uint i = 0; i < table->s->fields; i++) {
+      Field *field = table->field[i];
+
+      if (innobase_is_v_fld(field)) {
+        m_upd_buf_size += field->pack_length();
+      }
+    }
 
     m_upd_buf = reinterpret_cast<uchar *>(
         my_malloc(PSI_INSTRUMENT_ME, m_upd_buf_size, MYF(MY_WME)));
@@ -11726,20 +11740,23 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
     }
   }
 
-  /* Parallel read is not currently supported for sampling. */
-  size_t max_threads = Parallel_reader::available_threads(1, false);
-
-  if (max_threads == 0) {
-    return HA_ERR_SAMPLING_INIT_FAILED;
-  }
+  /* Sampling uses one asynchronous worker to produce records for
+  sample_next(). A synchronous scan would block waiting for sample_next()
+  before sample_init() returns. Multiple workers cannot safely write to the
+  single caller-provided buffer. */
+  constexpr size_t max_threads = 1;
 
   Histogram_sampler *sampler = ut::new_withkey<Histogram_sampler>(
       UT_NEW_THIS_FILE_PSI_KEY, max_threads, sampling_seed, sampling_percentage,
       sampling_method);
 
   if (sampler == nullptr) {
-    Parallel_reader::release_threads(max_threads);
     return HA_ERR_OUT_OF_MEM;
+  }
+
+  if (sampler->max_threads() == 0) {
+    ut::delete_(sampler);
+    return HA_ERR_SAMPLING_INIT_FAILED;
   }
 
   scan_ctx = static_cast<void *>(sampler);
@@ -15087,6 +15104,7 @@ int create_table_info_t::create_table(const dd::Table *dd_table,
   size_t stmt_len;
 
   DBUG_TRACE;
+  DEBUG_SYNC_C("before_copy_ddl_tmp_table_fk_inserted");
   assert(m_form->s->keys <= MAX_KEY);
 
   /* Check if dd table has hidden fts doc id index.
@@ -15502,6 +15520,9 @@ int innobase_basic_ddl::create_impl(THD *thd, const char *name, TABLE *form,
   error = info.create_table_update_dict();
 
   if (evictable && !(info.is_temp_table() || info.is_intrinsic_temp_table())) {
+    /* COPY ALTER test sync point: the table and its FK metadata are in
+    the dictionary cache, but detach() below has not yet made it evictable. */
+    DEBUG_SYNC_C("after_copy_ddl_tmp_table_fk_inserted");
     info.detach();
   }
 
@@ -20438,11 +20459,7 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
 
     } else if (trx->isolation_level <= TRX_ISO_READ_COMMITTED &&
                trx_sys->mvcc->is_view_open(trx->read_view)) {
-      mutex_enter(&trx_sys->mutex);
-
-      trx_sys->mvcc->view_close(trx->read_view, true);
-
-      mutex_exit(&trx_sys->mutex);
+      trx_sys->mvcc->view_close(trx->read_view, false);
     }
   }
 
@@ -21038,11 +21055,7 @@ THR_LOCK_DATA **ha_innobase::store_lock(
       /* At low transaction isolation levels we let
       each consistent read set its own snapshot */
 
-      mutex_enter(&trx_sys->mutex);
-
-      trx_sys->mvcc->view_close(trx->read_view, true);
-
-      mutex_exit(&trx_sys->mutex);
+      trx_sys->mvcc->view_close(trx->read_view, false);
     }
   }
 
@@ -22937,6 +22950,11 @@ static int validate_innodb_redo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   if (srv_redo_log_encrypt == target) {
     /* No change */
     return (0);
+  }
+
+  /* Complete a physical redo block boundary using the current setting. */
+  if (!srv_read_only_mode) {
+    log_encryption_write_dummy_barrier();
   }
 
   /* If encryption is to be disabled. This will just make sure I/O doesn't

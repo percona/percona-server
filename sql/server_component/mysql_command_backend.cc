@@ -25,6 +25,7 @@
 #include "mysql_command_backend.h"
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/mysql_admin_session.h>
+#include <mysql/service_srv_session.h>
 #include "include/mysql.h"
 #include "include/sql_common.h"
 #include "my_dbug.h"
@@ -405,6 +406,7 @@ static mysql_state_machine_status acquire_services(
 
 mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
   MYSQL *mysql = ctx->mysql;
+  net_clear_error(&mysql->net);
   Mysql_handle mysql_handle;
   mysql_handle.mysql = mysql;
   auto mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(mysql);
@@ -422,6 +424,7 @@ mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
   mysql_service_registry_t *registry_service =
       no_lock_registry ? srv_registry_no_lock : srv_registry;
 
+<<<<<<< HEAD
   /* We need to handle the failure in this function.
      Setting mcs_extn->session_svc right after session open is not enough
      to handle user lookup errors (and following errors as well)
@@ -436,18 +439,33 @@ mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
         srv_session_close(*mysql_session_ptr);
       });
 
+||||||| merged common ancestors
+=======
+  /*
+    Avoid possibility of nested txn in the current thd.
+    If it is called, for example from a UDF.
+  */
+>>>>>>> mysql-26.10.0
   if (mcs_extn->mcs_thd == nullptr || mcs_extn->session_svc == nullptr) {
-    /*
-     Avoid possibility of nested txn in the current thd.
-     If it is called, for example from a UDF.
-    */
-    my_service<SERVICE_TYPE(mysql_admin_session)> service(
-        "mysql_admin_session.mysql_server", registry_service);
-    if (service.is_valid()) mysql_session = service->open(nullptr, ctx);
+    if (!mcs_extn->mcs_admin_session) {
+      // Embedded sessions have no authentication check for the reserved slot.
+      mysql_session = srv_session_open_internal(
+          [](void *context, unsigned int error, const char *message) {
+            set_command_service_error(static_cast<MYSQL *>(context), error,
+                                      message, nullptr);
+          },
+          mysql, /*ignore_max_connection_limit=*/false,
+          /*allow_extra_connection=*/false);
+    } else {
+      my_service<SERVICE_TYPE(mysql_admin_session)> service(
+          "mysql_admin_session.mysql_server", registry_service);
+      if (service.is_valid()) mysql_session = service->open(nullptr, ctx);
+    }
     if (mysql_session == nullptr) return STATE_MACHINE_FAILED;
     thd = mysql_session->get_thd();
     mcs_extn->is_thd_associated = false;
     Security_context_handle sc;
+    // Record ownership so failed-connect cleanup closes the session.
     mcs_extn->session_svc = mysql_session;
     if (mysql_security_context_imp::get(thd, &sc)) return STATE_MACHINE_FAILED;
     if (mysql_security_context_imp::lookup(sc, user, host, nullptr, db))
@@ -489,7 +507,12 @@ MYSQL *csi_connect(mysql_async_connect *ctx) {
 }
 
 bool csi_read_query_result(MYSQL *mysql) {
-  mysql->status = MYSQL_STATUS_GET_RESULT;
+  /*
+    Statements with no result have nothing for mysql_use_result() to consume.
+    Keep the handle ready so the next command is not rejected as out-of-sync.
+  */
+  mysql->status =
+      mysql->field_count > 0 ? MYSQL_STATUS_GET_RESULT : MYSQL_STATUS_READY;
   mysql->resultset_metadata = RESULTSET_METADATA_FULL;
   return false;
 }
@@ -510,6 +533,18 @@ bool csi_advanced_command(MYSQL *mysql, enum enum_server_command command,
   bool ret = true;
 
   /*
+    Match libmysql command ordering: accept a new command only when the handle
+    is ready and no multi-result statement has unread results. A DOM-backed
+    mysql_use_result() still owns an active result until EOF or free.
+  */
+  if (mysql->status != MYSQL_STATUS_READY ||
+      (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)) {
+    DBUG_PRINT("error", ("state: %d", mysql->status));
+    set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+    return true;
+  }
+
+  /*
     mysql_send_query() clears session-tracker cache before COM_QUERY reaches
     this backend. Other command-service commands enter through simple_command(),
     so keep cache invalidation at the backend boundary and clear the status bit
@@ -527,11 +562,18 @@ bool csi_advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
 
   mysql_handle.mysql = mysql;
+  /*
+    The default consumer owns MYSQL::field_alloc, so we must end it before
+    clearing the client-visible metadata. Clearing field_count here prevents a
+    posterior command with no result from inheriting the previous result shape.
+  */
   if (mcs_extn->consumer_srv_data != nullptr) {
     ((class mysql_command_consumer_refs *)(command_consumer_srv))
         ->factory_srv->end(mcs_extn->consumer_srv_data);
     mcs_extn->consumer_srv_data = nullptr;
   }
+  free_old_query(mysql);
+
   if (((class mysql_command_consumer_refs *)(command_consumer_srv))
           ->factory_srv->start(&srv_ctx_h, (MYSQL_H *)&mysql_handle)) {
     sprintf(*err_msg, "Could not create %s service",
@@ -567,6 +609,13 @@ bool csi_advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
   ret = false;
 error:
+  if (ret) {
+    // Metadata may already have moved the handle to GET_RESULT, but a failed
+    // command has no result that the caller can consume.
+    mysql->status = MYSQL_STATUS_READY;
+    mysql->server_status &= ~SERVER_MORE_RESULTS_EXISTS;
+  }
+
   // Debug hook to simulate a successful command execution even if an error
   // occurred. Useful for testing how consumers handle error codes without
   // triggering a failure.
@@ -585,10 +634,38 @@ MYSQL_DATA *csi_read_rows(MYSQL *mysql,
                           MYSQL_FIELD *mysql_fields [[maybe_unused]],
                           unsigned int fields [[maybe_unused]]) {
   auto mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(mysql);
+  mcs_extn->use_result_cursor = nullptr;
   return std::exchange(mcs_extn->data, nullptr);
 }
 
-MYSQL_RES *csi_use_result(MYSQL *mysql) { return use_result(mysql); }
+static void csi_clear_use_result_data(MYSQL *mysql) {
+  auto mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(mysql);
+  if (mcs_extn == nullptr) return;
+
+  free_rows(mcs_extn->data);
+  mcs_extn->data = nullptr;
+  mcs_extn->use_result_cursor = nullptr;
+}
+
+MYSQL_RES *csi_use_result(MYSQL *mysql) {
+  MYSQL_RES *result = use_result(mysql);
+  if (result == nullptr) return nullptr;
+
+  /*
+    Keep MYSQL_RES::data null so generic client APIs continue to treat this as
+    an unbuffered mysql_use_result() result. The DOM rows stay in
+    command-service private state and are released on EOF or
+    mysql_free_result().
+  */
+  auto mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(mysql);
+  if (mcs_extn == nullptr || mcs_extn->data == nullptr) {
+    mysql_free_result(result);
+    return nullptr;
+  }
+
+  mcs_extn->use_result_cursor = mcs_extn->data->data;
+  return result;
+}
 
 void csi_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count) {
   /*
@@ -610,10 +687,9 @@ void csi_fetch_lengths(ulong *to, MYSQL_ROW column, unsigned int field_count) {
   }
 }
 
-void csi_flush_use_result(MYSQL *, bool) {
-  // Dummy.
-  // We already have entire result set. Therefore, there is
-  // no need of the flusing the partial result set.
+void csi_flush_use_result(MYSQL *mysql, bool) {
+  // mysql_free_result() reaches here for partially consumed use_result rows
+  csi_clear_use_result_data(mysql);
 }
 
 int csi_read_change_user_result(MYSQL *) {
@@ -621,13 +697,50 @@ int csi_read_change_user_result(MYSQL *) {
 }
 
 MYSQL_ROW csi_fetch_row(MYSQL_RES *res) {
-  MYSQL_ROW tmp;
-  if (!res->data_cursor) {
+  /*
+    DOM rows are materialized already, but mysql_use_result() still exposes
+    unbuffered-result state. Keep the handle attached until EOF so fetch, free,
+    and command ordering follow libmysql.
+  */
+  if (res->handle != nullptr) {
+    MYSQL *mysql = res->handle;
+    auto mcs_extn = MYSQL_COMMAND_SERVICE_EXTN(mysql);
+    if (mysql->status != MYSQL_STATUS_USE_RESULT) {
+      set_mysql_error(mysql,
+                      res->unbuffered_fetch_cancelled ? CR_FETCH_CANCELED
+                                                      : CR_COMMANDS_OUT_OF_SYNC,
+                      unknown_sqlstate);
+    } else if (mcs_extn != nullptr && mcs_extn->use_result_cursor != nullptr) {
+      /*
+        Keep MYSQL_RES::data/data_cursor empty so generic client APIs do not
+        treat this mysql_use_result() result as rewindable buffered data.
+      */
+      MYSQL_ROW row = mcs_extn->use_result_cursor->data;
+      mcs_extn->use_result_cursor = mcs_extn->use_result_cursor->next;
+      csi_fetch_lengths(res->lengths, row, res->field_count);
+      res->data_cursor = nullptr;
+      ++res->row_count;
+      return res->current_row = row;
+    }
+
     DBUG_PRINT("info", ("end of data"));
-    return res->current_row = (MYSQL_ROW) nullptr;
+    csi_clear_use_result_data(mysql);
+    res->data_cursor = nullptr;
+    res->eof = true;
+    mysql->status = MYSQL_STATUS_READY;
+    if (mysql->unbuffered_fetch_owner == &res->unbuffered_fetch_cancelled)
+      mysql->unbuffered_fetch_owner = nullptr;
+    res->handle = nullptr;
+    return res->current_row = nullptr;
   }
-  tmp = res->data_cursor->data;
+
+  if (res->data == nullptr || res->data_cursor == nullptr) {
+    DBUG_PRINT("info", ("end of data"));
+    return res->current_row = nullptr;
+  }
+
+  MYSQL_ROW row = res->data_cursor->data;
   res->data_cursor = res->data_cursor->next;
-  return res->current_row = tmp;
+  return res->current_row = row;
 }
 }  // namespace cs

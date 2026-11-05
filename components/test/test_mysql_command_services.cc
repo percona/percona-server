@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <map>
 #include <string>
 #include <thread>
@@ -764,6 +765,179 @@ static char *test_mysql_command_services_row_semantics_udf(
   return result;
 }
 
+static char *test_mysql_command_services_authenticate_udf(
+    UDF_INIT *, UDF_ARGS *args, char *result, unsigned long *length,
+    unsigned char *is_null, unsigned char *error) {
+  *is_null = 0;
+  *error = 1;
+
+  if ((args->arg_count != 5 && args->arg_count != 6) ||
+      args->arg_type[0] != STRING_RESULT ||
+      args->arg_type[1] != STRING_RESULT ||
+      args->arg_type[2] != STRING_RESULT || args->arg_type[3] != INT_RESULT ||
+      args->arg_type[4] != STRING_RESULT || args->args[0] == nullptr ||
+      args->args[1] == nullptr || args->args[2] == nullptr ||
+      args->args[3] == nullptr ||
+      (args->arg_count == 6 &&
+       (args->arg_type[5] != STRING_RESULT || args->args[5] == nullptr))) {
+    return nullptr;
+  }
+
+  MYSQL_H authenticated_mysql_h = nullptr;
+  MYSQL_RES_H mysql_res = nullptr;
+  const std::string user(args->args[0], args->lengths[0]);
+  const std::string password(args->args[1], args->lengths[1]);
+  const std::string host(args->args[2], args->lengths[2]);
+  const long long port_arg = *reinterpret_cast<long long *>(args->args[3]);
+  const std::string socket = args->args[4] == nullptr
+                                 ? std::string()
+                                 : std::string(args->args[4], args->lengths[4]);
+  const std::string mode =
+      args->arg_count == 6 ? std::string(args->args[5], args->lengths[5]) : "";
+
+  auto cleanup = create_scope_guard([&mysql_res, &authenticated_mysql_h] {
+    cmd_query_result_srv->free_result(mysql_res);
+    if (authenticated_mysql_h != nullptr)
+      cmd_factory_srv->close(authenticated_mysql_h);
+  });
+
+  const auto authenticate = [&]() -> std::string {
+    if (port_arg < 0 ||
+        port_arg > static_cast<long long>(std::numeric_limits<int>::max())) {
+      return "SERVICE_ERROR";
+    }
+    const int port = static_cast<int>(port_arg);
+    int connect_port = port;
+    const char *connect_password = password.c_str();
+    const bool retry_after_validation_failure = mode == "retry_validation";
+    const bool retry_after_authentication_failure =
+        mode == "retry_authentication";
+    const bool same_handle_retry =
+        retry_after_validation_failure || retry_after_authentication_failure;
+    const bool authenticate_after_embedded_failure =
+        mode == "after_embedded_failure";
+
+    if (retry_after_validation_failure) {
+      connect_port =
+          port == std::numeric_limits<int>::max() ? port - 1 : port + 1;
+    } else if (retry_after_authentication_failure) {
+      connect_password = "wrong-password";
+    }
+
+    if (cmd_factory_srv->init(&authenticated_mysql_h) ||
+        authenticated_mysql_h == nullptr) {
+      return "SERVICE_ERROR";
+    }
+
+    if (authenticate_after_embedded_failure) {
+      constexpr char missing_user[] = "mcs_auth_missing";
+      if (cmd_options_srv->set(authenticated_mysql_h, MYSQL_COMMAND_USER_NAME,
+                               missing_user)) {
+        return "SERVICE_ERROR";
+      }
+      if (!cmd_factory_srv->connect(authenticated_mysql_h)) {
+        return "EMBEDDED_CONNECT_SUCCEEDED";
+      }
+    } else if (mode == "consumer") {
+      if (cmd_options_srv->set(authenticated_mysql_h,
+                               MYSQL_TEXT_CONSUMER_FACTORY, nullptr)) {
+        return "SERVICE_ERROR";
+      }
+    } else if (mode == "no_lock") {
+      const bool no_lock_registry = true;
+      if (cmd_options_srv->set(authenticated_mysql_h, MYSQL_NO_LOCK_REGISTRY,
+                               &no_lock_registry)) {
+        return "SERVICE_ERROR";
+      }
+    } else if (!mode.empty() && mode != "local_thd" && !same_handle_retry &&
+               !authenticate_after_embedded_failure) {
+      return "SERVICE_ERROR";
+    }
+
+    if (cmd_options_srv->set(authenticated_mysql_h, MYSQL_COMMAND_USER_NAME,
+                             user.c_str()) ||
+        cmd_options_srv->set(authenticated_mysql_h, MYSQL_COMMAND_PASSWORD,
+                             connect_password) ||
+        cmd_options_srv->set(authenticated_mysql_h, MYSQL_COMMAND_HOST_NAME,
+                             host.c_str()) ||
+        cmd_options_srv->set(authenticated_mysql_h, MYSQL_COMMAND_TCPIP_PORT,
+                             &connect_port) ||
+        (!socket.empty() &&
+         cmd_options_srv->set(authenticated_mysql_h, MYSQL_COMMAND_PROTOCOL,
+                              socket.c_str()))) {
+      return "SERVICE_ERROR";
+    }
+
+    if (mode == "local_thd" &&
+        cmd_options_srv->set(authenticated_mysql_h,
+                             MYSQL_COMMAND_LOCAL_THD_HANDLE, nullptr)) {
+      return "SERVICE_ERROR";
+    }
+
+    const auto connection_error = [&]() -> std::string {
+      unsigned int error_number = 0;
+      if (cmd_error_info_srv->sql_errno(authenticated_mysql_h, &error_number)) {
+        return "SERVICE_ERROR";
+      }
+      return "ERROR:" + std::to_string(error_number);
+    };
+
+    if (same_handle_retry) {
+      if (!cmd_factory_srv->connect(authenticated_mysql_h)) {
+        return "FIRST_CONNECT_SUCCEEDED";
+      }
+
+      const std::string first_error = connection_error();
+      const std::string expected_error =
+          retry_after_validation_failure ? "ERROR:2034" : "ERROR:1045";
+      if (first_error != expected_error) {
+        return "FIRST_" + first_error;
+      }
+
+      if (!cmd_factory_srv->connect(authenticated_mysql_h)) {
+        return "RETRY_CONNECTED";
+      }
+      const std::string retry_error = connection_error();
+      if (retry_error != "ERROR:2034") {
+        return "RETRY_" + retry_error;
+      }
+
+      if (!cmd_options_srv->set(authenticated_mysql_h, MYSQL_COMMAND_PASSWORD,
+                                password.c_str())) {
+        return "RETRY_SET_SUCCEEDED";
+      }
+      return connection_error();
+    }
+
+    if (cmd_factory_srv->connect(authenticated_mysql_h)) {
+      return connection_error();
+    }
+
+    constexpr const char query[] = "SELECT CURRENT_USER()";
+    if (cmd_query_srv->query(authenticated_mysql_h, query, strlen(query)) ||
+        cmd_query_result_srv->store_result(authenticated_mysql_h, &mysql_res) ||
+        mysql_res == nullptr) {
+      return connection_error();
+    }
+
+    MYSQL_ROW_H row = nullptr;
+    ulong *field_lengths = nullptr;
+    if (cmd_query_result_srv->fetch_row(mysql_res, &row) || row == nullptr ||
+        row[0] == nullptr ||
+        cmd_query_result_srv->fetch_lengths(mysql_res, &field_lengths) ||
+        field_lengths == nullptr) {
+      return "SERVICE_ERROR";
+    }
+
+    return std::string(row[0], field_lengths[0]);
+  };
+
+  const std::string output = authenticate();
+  store_string_result(result, length, output);
+  *error = 0;
+  return result;
+}
+
 // Run in thread + failed connect + cleanup
 static long long test_mysql_command_services_explicit_connect_fail_cleanup_udf(
     UDF_INIT *, UDF_ARGS *, unsigned char *is_null, unsigned char *error) {
@@ -1220,7 +1394,250 @@ err:
   return ret;
 }
 
+static char *test_mysql_command_session_admission_udf(
+    UDF_INIT *, UDF_ARGS *args, char *result, unsigned long *length,
+    unsigned char *is_null, unsigned char *error) {
+  *is_null = 0;
+  *error = 1;
+  *length = 2;
+  memcpy(result, "OK", *length);
+  MYSQL_H session = nullptr;
+  if (cmd_factory_srv->init(&session) || session == nullptr) return nullptr;
+  auto cleanup =
+      create_scope_guard([session] { cmd_factory_srv->close(session); });
+
+  constexpr bool normal_session = false;
+  constexpr bool admin_session = true;
+  bool configured = false;
+  if (cmd_options_srv->get(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                           &configured) ||
+      configured != admin_session) {
+    return nullptr;
+  }
+
+  const auto error_matches = [session](unsigned int expected_number,
+                                       const char *expected_sqlstate) {
+    unsigned int error_number = 0;
+    char *sqlstate = nullptr;
+    return !cmd_error_info_srv->sql_errno(session, &error_number) &&
+           !cmd_error_info_srv->sql_state(session, &sqlstate) &&
+           error_number == expected_number && sqlstate != nullptr &&
+           strcmp(sqlstate, expected_sqlstate) == 0;
+  };
+
+  const auto security_context_matches = [session, &error_matches](
+                                            const std::string &expected_user) {
+    for (const auto option :
+         {MYSQL_COMMAND_USER_NAME, MYSQL_COMMAND_HOST_NAME}) {
+      if (!cmd_options_srv->set(session, option, "changed") ||
+          !cmd_options_srv->set(session, option, nullptr)) {
+        return false;
+      }
+    }
+    {
+      constexpr char query[] = "SELECT USER(), CURRENT_USER()";
+      MYSQL_RES_H query_result = nullptr;
+      if (cmd_query_srv->query(session, query, sizeof(query) - 1) ||
+          cmd_query_result_srv->store_result(session, &query_result) ||
+          query_result == nullptr) {
+        return false;
+      }
+      auto free_result = create_scope_guard(
+          [query_result] { cmd_query_result_srv->free_result(query_result); });
+      MYSQL_ROW_H row = nullptr;
+      unsigned long *field_lengths = nullptr;
+      if (cmd_query_result_srv->fetch_row(query_result, &row) ||
+          row == nullptr || row[0] == nullptr || row[1] == nullptr ||
+          cmd_query_result_srv->fetch_lengths(query_result, &field_lengths) ||
+          field_lengths == nullptr ||
+          std::string(row[0], field_lengths[0]) != expected_user ||
+          std::string(row[1], field_lengths[1]) != expected_user) {
+        return false;
+      }
+    }
+    // Admission exemption must not add SQL privileges to this account.
+    constexpr char denied_query[] = "SELECT * FROM mysql.user LIMIT 0";
+    if (!cmd_query_srv->query(session, denied_query,
+                              sizeof(denied_query) - 1) ||
+        !error_matches(1142, "42000")) {
+      return false;
+    }
+    // Clear the expected error also reported on the enclosing UDF's THD.
+    uint16_t da_status = STATUS_DA_EMPTY;
+    return !thd_attributes_srv->set(nullptr, "da_status", &da_status);
+  };
+
+  if (args->arg_count == 0) {
+    // Reject incompatible settings in either order without changing the option.
+    if (!cmd_options_srv->set(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                              nullptr) ||
+        cmd_options_srv->set(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                             &normal_session) ||
+        !cmd_options_srv->set(session, MYSQL_COMMAND_LOCAL_THD_HANDLE,
+                              nullptr) ||
+        !cmd_options_srv->set(session, MYSQL_COMMAND_PASSWORD, "") ||
+        cmd_options_srv->get(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                             &configured) ||
+        configured != normal_session ||
+        cmd_options_srv->set(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                             &admin_session) ||
+        cmd_options_srv->set(session, MYSQL_COMMAND_PASSWORD, "") ||
+        !cmd_options_srv->set(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                              &normal_session) ||
+        cmd_options_srv->set(session, MYSQL_COMMAND_PASSWORD, nullptr) ||
+        cmd_options_srv->set(session, MYSQL_COMMAND_LOCAL_THD_HANDLE,
+                             nullptr) ||
+        !cmd_options_srv->set(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                              &normal_session)) {
+      return nullptr;
+    }
+  } else if (args->arg_type[0] == STRING_RESULT && args->args[0] != nullptr) {
+    if ((args->arg_count != 1 && args->arg_count != 3) ||
+        std::string(args->args[0], args->lengths[0]) != "recovery" ||
+        cmd_options_srv->set(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                             &normal_session)) {
+      return nullptr;
+    }
+    std::string expected_user;
+    if (args->arg_count == 3) {
+      if (args->arg_type[1] != STRING_RESULT || args->args[1] == nullptr ||
+          args->arg_type[2] != STRING_RESULT || args->args[2] == nullptr) {
+        return nullptr;
+      }
+      // set() must copy the names before these buffers go out of scope.
+      const std::string user(args->args[1], args->lengths[1]);
+      const std::string host(args->args[2], args->lengths[2]);
+      expected_user = user + "@" + host;
+      if (cmd_options_srv->set(session, MYSQL_COMMAND_USER_NAME,
+                               user.c_str()) ||
+          cmd_options_srv->set(session, MYSQL_COMMAND_HOST_NAME,
+                               host.c_str())) {
+        return nullptr;
+      }
+    }
+    {
+      // MTR leaves one slot free. Hold it until this handle is rejected.
+      MYSQL_H blocker = nullptr;
+      if (cmd_factory_srv->init(&blocker) || blocker == nullptr) return nullptr;
+      auto close_blocker =
+          create_scope_guard([blocker] { cmd_factory_srv->close(blocker); });
+      if (cmd_options_srv->set(blocker, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                               &normal_session) ||
+          cmd_factory_srv->connect(blocker)) {
+        return nullptr;
+      }
+      for (int attempt = 0; attempt < 2; ++attempt) {
+        if (!cmd_factory_srv->connect(session) ||
+            !error_matches(1040, "08004") ||
+            cmd_options_srv->get(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                                 &configured) ||
+            configured != normal_session) {
+          return nullptr;
+        }
+      }
+    }
+    // Retry the same handle after releasing capacity, without resetting
+    // options.
+    char message[512];
+    char *message_ptr = message;
+    if (cmd_factory_srv->connect(session) || !error_matches(0, "00000") ||
+        cmd_error_info_srv->sql_error(session, &message_ptr) ||
+        message[0] != '\0' || cmd_query_srv->query(session, "DO 1", 4) ||
+        !cmd_options_srv->set(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                              &admin_session) ||
+        cmd_options_srv->get(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                             &configured) ||
+        configured != normal_session) {
+      return nullptr;
+    }
+    if (args->arg_count == 3 && !security_context_matches(expected_user)) {
+      return nullptr;
+    }
+  } else {
+    if ((args->arg_count != 2 && args->arg_count != 3) ||
+        (args->args[0] != nullptr && args->arg_type[0] != INT_RESULT) ||
+        args->arg_type[1] != INT_RESULT || args->args[1] == nullptr) {
+      return nullptr;
+    }
+    const auto attempts = *reinterpret_cast<const long long *>(args->args[1]);
+    if (attempts < 1 || attempts > 32) return nullptr;
+
+    bool requested_admin_session = true;
+    if (args->args[0] != nullptr) {
+      const auto value = *reinterpret_cast<const long long *>(args->args[0]);
+      if (value != 0 && value != 1) return nullptr;
+      requested_admin_session = value != 0;
+      if (cmd_options_srv->set(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                               &requested_admin_session)) {
+        return nullptr;
+      }
+    }
+    std::string user;
+    if (args->arg_count == 3) {
+      if (args->arg_type[2] != STRING_RESULT || args->args[2] == nullptr)
+        return nullptr;
+      user.assign(args->args[2], args->lengths[2]);
+      if (cmd_options_srv->set(session, MYSQL_COMMAND_USER_NAME, user.c_str()))
+        return nullptr;
+    }
+
+    unsigned int first_error_number = 0;
+    std::string first_sqlstate;
+    for (long long attempt = 0; attempt < attempts; ++attempt) {
+      if (cmd_factory_srv->connect(session)) {
+        unsigned int error_number = 0;
+        char *sqlstate = nullptr;
+        char message[512];
+        char *message_ptr = message;
+        if (cmd_error_info_srv->sql_errno(session, &error_number) ||
+            cmd_error_info_srv->sql_state(session, &sqlstate) ||
+            sqlstate == nullptr ||
+            cmd_error_info_srv->sql_error(session, &message_ptr)) {
+          return nullptr;
+        }
+        if (attempt == 0) {
+          first_error_number = error_number;
+          first_sqlstate = sqlstate;
+          snprintf(result, 255, "%u/%s/%.200s", error_number, sqlstate,
+                   message);
+          *length = strlen(result);
+        } else if (error_number != first_error_number ||
+                   sqlstate != first_sqlstate) {
+          return nullptr;
+        }
+      } else {
+        // Multiple attempts must all fail with the diagnostic checked by MTR.
+        if (attempts != 1 ||
+            !cmd_options_srv->set(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                                  &admin_session) ||
+            cmd_query_srv->query(session, "DO 1", 4)) {
+          return nullptr;
+        }
+        if (!user.empty() && !security_context_matches(user + "@localhost")) {
+          return nullptr;
+        }
+      }
+      // Failed connect() frees the command extension. The option must survive.
+      if (cmd_options_srv->get(session, MYSQL_COMMAND_BYPASS_MAX_CONNECTIONS,
+                               &configured) ||
+          configured != requested_admin_session) {
+        return nullptr;
+      }
+    }
+  }
+  *error = 0;
+  return result;
+}
+
 static mysql_service_status_t init() {
+  Udf_func_string udf_admission = test_mysql_command_session_admission_udf;
+  if (udf_srv->udf_register(
+          "test_mysql_command_session_admission_udf", STRING_RESULT,
+          reinterpret_cast<Udf_func_any>(udf_admission), nullptr, nullptr)) {
+    fprintf(stderr,
+            "Can't register test_mysql_command_session_admission_udf UDF\n");
+    return 1;
+  }
   Udf_func_string udf1 = test_mysql_command_services_udf;
   if (udf_srv->udf_register("test_mysql_command_services_udf", STRING_RESULT,
                             reinterpret_cast<Udf_func_any>(udf1), nullptr,
@@ -1363,11 +1780,26 @@ static mysql_service_status_t init() {
     return 1;
   }
 
+  Udf_func_string udf_authenticate =
+      test_mysql_command_services_authenticate_udf;
+  if (udf_srv->udf_register(
+          "test_mysql_command_services_authenticate_udf", STRING_RESULT,
+          reinterpret_cast<Udf_func_any>(udf_authenticate), nullptr, nullptr)) {
+    fprintf(stderr,
+            "Can't register the "
+            "test_mysql_command_services_authenticate_udf UDF\n");
+    return 1;
+  }
+
   return 0;
 }
 
 static mysql_service_status_t deinit() {
   int was_present = 0;
+  if (udf_srv->udf_unregister("test_mysql_command_session_admission_udf",
+                              &was_present))
+    fprintf(stderr,
+            "Can't unregister test_mysql_command_session_admission_udf UDF\n");
   if (udf_srv->udf_unregister("test_mysql_command_services_udf", &was_present))
     fprintf(stderr,
             "Can't unregister the test_mysql_command_services_udf UDF\n");
@@ -1439,6 +1871,11 @@ static mysql_service_status_t deinit() {
     fprintf(stderr,
             "Can't unregister the "
             "test_mysql_command_services_row_semantics_udf UDF\n");
+  if (udf_srv->udf_unregister("test_mysql_command_services_authenticate_udf",
+                              &was_present))
+    fprintf(stderr,
+            "Can't unregister the "
+            "test_mysql_command_services_authenticate_udf UDF\n");
   return 0; /* success */
 }
 

@@ -14,7 +14,7 @@
 # (1. starts executing now)
 # 3. Query innodb_buffer_pool_load_status, expecting 'completed', but it
 #    contains something like 'Loading page 100/150'
-
+-- source include/restart_mysqld.inc
 
 # Restart mysqld to ensure that the status variables below do not contain
 # stale value from previous executions of this or other tests. The following

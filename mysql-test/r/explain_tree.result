@@ -10,6 +10,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1;
 EXPLAIN
 -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f1 INT );
@@ -18,6 +20,8 @@ EXPLAIN
 -> Insert into t2
     -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f2 INT );
@@ -29,6 +33,8 @@ EXPLAIN
         -> Filter: (t2.f2 = t1.f1)  (rows=1)
             -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`f1` = (`test`.`t1`.`f1` + 2),`test`.`t2`.`f2` = (`test`.`t2`.`f2` + 1) where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f2 INT );
@@ -39,6 +45,8 @@ EXPLAIN
         -> Table scan on t1  (rows=1)
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2`
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
@@ -57,6 +65,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,((/* select#2 */ select min(`i`.`f1`) from `test`.`t1` `i` where (`i`.`f1` > `test`.`t1`.`f1`)) < 3) AS `(SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) < 3` from `test`.`t1`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -69,6 +78,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
 EXPLAIN
 -> Covering index scan on t1 using PRIMARY (reverse)  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` order by `test`.`t1`.`f1` desc
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT, INDEX ( f1 ) );
 INSERT INTO t1 VALUES ( 1 );
@@ -82,21 +93,29 @@ EXPLAIN
 -> Aggregate: sum(t1.f1)  (rows=1)
     -> Covering index scan on t1 using f1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`f1`) AS `SUM(f1)` from `test`.`t1`
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
 EXPLAIN
 -> Group (no aggregates)  (rows=1.73)
     -> Covering index scan on t1 using f1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` group by `test`.`t1`.`f1`
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1;
 EXPLAIN
 -> Group aggregate: count(0)  (rows=1.73)
     -> Covering index scan on t1 using f1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,count(0) AS `COUNT(*)` from `test`.`t1` group by `test`.`t1`.`f1`
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1 WITH ROLLUP;
 EXPLAIN
 -> Group aggregate with rollup: count(0)  (rows=2.73)
     -> Covering index scan on t1 using f1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`f1`,0) AS `f1`,rollup_sum_switcher(count(0)) AS `COUNT(*)` from `test`.`t1` group by `test`.`t1`.`f1` with rollup
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -109,6 +128,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1=2;
 EXPLAIN
 -> Rows fetched before execution  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select '2' AS `f1` from `test`.`t1` where true
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -127,6 +148,8 @@ EXPLAIN
     -> Filter: (t1.f1 = <cache>((3 + 2)))  (rows=1)
         -> Constant row from t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`f1` = 3) and (`test`.`t1`.`f1` = <cache>((3 + 2))))) where true
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -144,6 +167,8 @@ EXPLAIN
     -> Filter: (t2.f1 = 2)  (rows=3)
         -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select '2' AS `f1` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`f1` = 2)) where true
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( a INT );
 CREATE TABLE t2 ( a INT );
@@ -166,6 +191,8 @@ EXPLAIN
             -> Filter: (t3.a = t2.a)  (rows=1)
                 -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`b` is null)) where true
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -184,6 +211,8 @@ EXPLAIN
         -> Filter: (t2.f1 = t1.f1)  (rows=1)
             -> Table scan on t2  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`f1` = `test`.`t1`.`f1`)) where (`test`.`t2`.`f1` is null)
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, c INT, KEY(a));
@@ -207,6 +236,8 @@ EXPLAIN
                 -> Filter: (t2.c <= 3)  (rows=1.67)
                     -> Index lookup on t2 using a (a = t1.a)  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`c` <= 3))
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
@@ -220,6 +251,8 @@ EXPLAIN
 -> Sort: t1.f1 DESC  (rows=3)
     -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` order by `test`.`t1`.`f1` desc
 DROP TABLE t1;
 CREATE TABLE t1 ( a LONGBLOB, b INT );
 INSERT INTO t1 VALUES ('a', 0);
@@ -239,6 +272,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 0 AS `foo` from `test`.`t1` where (0 = (/* select#2 */ select group_concat(`test`.`t1`.`b` separator ',') from `test`.`t1` `t` group by `test`.`t1`.`a`))
 DROP TABLE t1;
 CREATE TABLE t1 (a text, b varchar(10));
 INSERT INTO t1 VALUES (repeat('1', 1300),'one'), (repeat('1', 1300),'two');
@@ -251,6 +285,8 @@ EXPLAIN
     -> Temporary table with deduplication  (rows=2)
         -> Table scan on t1  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select substr(`test`.`t1`.`a`,1,10) AS `SUBSTRING(a,1,10)`,length(`test`.`t1`.`a`) AS `LENGTH(a)` from `test`.`t1` group by `test`.`t1`.`a`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 VARCHAR(100) );
 INSERT INTO t1 VALUES ('abc');
@@ -269,6 +305,8 @@ EXPLAIN
             -> Limit table size: 2 unique row(s)
                 -> Table scan on t1  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`f1` AS `f1` from `test`.`t1` limit 2
 DROP TABLE t1;
 CREATE TABLE t1 (a int PRIMARY KEY);
 INSERT INTO t1 values (1), (2);
@@ -284,6 +322,8 @@ EXPLAIN
                 -> Limit table size: 1 row(s)
                     -> Covering index scan on t1 using PRIMARY  (rows=2)
 
+Warnings:
+Note	1003	insert into `test`.`t1` /* select#1 */ select sql_buffer_result (`test`.`t1`.`a` + 2) AS `a + 2` from `test`.`t1` limit 1
 DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
@@ -302,6 +342,8 @@ EXPLAIN
                     -> Sort: t1.a  (rows=11)
                         -> Table scan on t1  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select distinct (count(distinct `test`.`t1`.`b`) + 1) AS `c` from `test`.`t1` group by `test`.`t1`.`a`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -321,6 +363,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = (/* select#2 */ select min(`i`.`f1`) from `test`.`t1` `i` where (`i`.`f1` > `test`.`t1`.`f1`)))
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 EXPLAIN
 -> Filter: (t1.f1 > (select #2))  (rows=2)
@@ -329,6 +372,8 @@ EXPLAIN
         -> Limit: 1 row(s)  (rows=1)
             -> Covering index scan on t1 using PRIMARY  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` > (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` limit 1))
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -350,6 +395,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` = (/* select#2 */ select ((/* select#3 */ select min(`ii`.`f1`) from `test`.`t1` `ii` where (`ii`.`f1` > `test`.`t1`.`f1`)) > `i`.`f1`) from `test`.`t1` `i`))
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -370,6 +416,7 @@ Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #4 was resolved in SELECT #1
 Note	1249	Select 3 was reduced during optimization
 Note	1249	Select 2 was reduced during optimization
+Note	1003	/* select#1 */ select (((/* select#4 */ select min(`i`.`f1`) from `test`.`t1` `i` where (`i`.`f1` > `test`.`t1`.`f1`)) + 1) + 1) AS `( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1 ) + 1 ) + 1 )` from `test`.`t1`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -390,6 +437,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `inner_t1`.`f1` from `test`.`t1` `inner_t1` where (`inner_t1`.`f1` > `test`.`t1`.`f1`) limit 1) AS `tmp1` from `test`.`t1` order by `tmp1`
 DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
@@ -404,6 +452,8 @@ EXPLAIN
     -> Filter: (t1.a > 3)  (rows=11)
         -> Table scan on t1  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` > 3) order by `test`.`t1`.`b`
 DROP TABLE t1;
 CREATE TABLE t1 (i INT);
 EXPLAIN INSERT INTO t1 VALUES (10);
@@ -416,6 +466,11 @@ EXPLAIN
 -> Insert into t1
     -> Rows fetched before execution
 
+Warnings:
+Note	1003	insert into `test`.`t1` values (10)
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	insert into `test`.`t1` values (10)
 EXPLAIN REPLACE INTO t1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
@@ -426,7 +481,35 @@ EXPLAIN
 -> Replace into t1
     -> Rows fetched before execution
 
+Warnings:
+Note	1003	replace into `test`.`t1` values (10)
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	replace into `test`.`t1` values (10)
 DROP TABLE t1;
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (i INT);
+EXPLAIN FORMAT=tree UPDATE t1 SET i = i + 1
+WHERE i = (SELECT MIN(i) FROM t2);
+EXPLAIN
+-> <not executable by iterator executor>
+
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`i` = (`test`.`t1`.`i` + 1) where (`test`.`t1`.`i` = (/* select#2 */ select min(`test`.`t2`.`i`) from `test`.`t2`))
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	update `test`.`t1` set `test`.`t1`.`i` = (`test`.`t1`.`i` + 1) where (`test`.`t1`.`i` = (/* select#2 */ select min(`test`.`t2`.`i`) from `test`.`t2`))
+EXPLAIN FORMAT=tree DELETE FROM t1
+WHERE i = (SELECT MAX(i) FROM t2);
+EXPLAIN
+-> <not executable by iterator executor>
+
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`i` = (/* select#2 */ select max(`test`.`t2`.`i`) from `test`.`t2`))
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`i` = (/* select#2 */ select max(`test`.`t2`.`i`) from `test`.`t2`))
+DROP TABLE t1, t2;
 CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (1,3), (2,1), (1,5), (1,7), (3,1),
@@ -440,6 +523,8 @@ EXPLAIN
     -> Sort: t1.b, limit input to 3 row(s) per chunk  (rows=11)
         -> Table scan on t1  (rows=11)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` limit 3
 DROP TABLE t1;
 CREATE TABLE t1 ( a INTEGER );
 CREATE TABLE t2 ( a INTEGER );
@@ -470,6 +555,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`t3d`.`a` AS `a`,`t4d`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) join lateral (/* select#2 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where (`test`.`t3`.`a` = `test`.`t2`.`a`) limit 1) `t3d` join lateral (/* select#3 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where (`test`.`t3`.`a` > `test`.`t1`.`a`) limit 1) `t4d` where true
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1 ( a INTEGER );
 CREATE TABLE t2 ( a INTEGER );
@@ -496,6 +582,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`t4d`.`a` AS `a` from `test`.`t1` left join (`test`.`t2` left join `test`.`t3` on((`test`.`t3`.`a` = `test`.`t2`.`a`)) join lateral (/* select#2 */ select `test`.`t4`.`a` AS `a` from `test`.`t4` where (`test`.`t4`.`a` = `test`.`t3`.`a`) limit 1) `t4d`) on((`t4d`.`a` = `test`.`t1`.`a`)) where true
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 ( f1 INTEGER );
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT * FROM t1 LIMIT 2 OFFSET 1 ) AS alias1
@@ -511,6 +598,8 @@ EXPLAIN
             -> Aggregate: max(t1.f1)  (rows=1)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `alias1`.`f1` AS `f1` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` limit 1,2) `alias1` where <nop>((`alias1`.`f1` <= (/* select#3 */ select max(`test`.`t1`.`f1`) from `test`.`t1`))) order by `alias1`.`f1`
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT );
 CREATE TABLE t2 ( f1 INT );
@@ -523,6 +612,8 @@ EXPLAIN
             -> Limit: 3 row(s)  (rows=1)
                 -> Table scan on t1  (rows=1)
 
+Warnings:
+Note	1003	with `my_cte` as (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` limit 3) /* select#1 */ select `my_cte`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `my_cte` join `test`.`t2`
 DROP TABLE t1;
 DROP TABLE t2;
 CREATE TABLE t1 (i INTEGER);
@@ -534,6 +625,8 @@ EXPLAIN
     -> Filter: (t2.i = t1.i)  (rows=1)
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`i` = `test`.`t1`.`i`)
 DROP TABLE t1, t2;
 CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER);
 CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER);
@@ -553,6 +646,8 @@ EXPLAIN
             -> Table scan on t3  (rows=1)
         -> Table scan on t4  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select '2' AS `pk`,'3' AS `i`,'4' AS `pk`,'5' AS `i` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t4`) where ((`test`.`t3`.`i` = '3'))
 DROP TABLE t1, t2, t3, t4;
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
@@ -568,6 +663,8 @@ EXPLAIN
             -> Filter: (t2.i = t3.i)  (rows=1)
                 -> Table scan on t3  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2` left join `test`.`t3` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and ((`test`.`t3`.`j` = 1234) or (`test`.`t3`.`j` is null)))
 DROP TABLE t1, t2, t3;
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='firstmatch=off';
@@ -587,6 +684,8 @@ EXPLAIN
     -> Filter: (t1.a = `<subquery2>`.a)  (rows=1)
         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = `<subquery2>`.`a`) and (`test`.`t1`.`b` = 2))
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
 set @old_opt_switch=@@optimizer_switch;
@@ -606,6 +705,8 @@ EXPLAIN
                 -> Filter: (t1.b > 2)  (rows=3)
                     -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` anti join (`test`.`t1`) on(((`<subquery2>`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`b` > 2))) where true
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
 set @old_opt_switch=@@optimizer_switch;
@@ -626,6 +727,8 @@ EXPLAIN
                     -> Filter: (t1.b = 2)  (rows=1)
                         -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1` where (`test`.`t1`.`b` = 2) having (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(max(`test`.`t1`.`a`)))))
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
 set @old_opt_switch=@@optimizer_switch;
@@ -646,6 +749,8 @@ EXPLAIN
         -> Filter: (t1.i = t2.i)  (rows=1)
             -> Table scan on t1  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`i` = `test`.`t2`.`i`)
 DROP TABLE t1;
 DROP TABLE t2;
 set @@optimizer_switch=@old_opt_switch;
@@ -667,6 +772,8 @@ EXPLAIN
         -> Filter: (t2.i = t1.i)  (rows=1)
             -> Table scan on t2  (rows=4)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`i` = `test`.`t1`.`i`)
 DROP TABLE t1;
 DROP TABLE t2;
 set @@optimizer_switch=@old_opt_switch;
@@ -688,6 +795,8 @@ EXPLAIN
             -> Covering index scan on t2 using i1  (rows=4)
     -> Single-row covering index lookup on t1 using PRIMARY (i = t2.i)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`i` = `test`.`t2`.`i`)
 DROP TABLE t1;
 DROP TABLE t2;
 set @@optimizer_switch=@old_opt_switch;
@@ -711,6 +820,8 @@ EXPLAIN
     -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (rows=1)
         -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array) = json'"1"')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_BNL(`t1`@`select#1`) NO_BNL(`t2`@`select#1`) */ `test`.`t2`.`col_int` AS `col_int`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_json` AS `col_json` from `test`.`t2` join `test`.`t1` where json'"1"' member of (cast(json_extract(`col_json`,_utf8mb4'$[*]') as char(40) array))
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY ( a ));
 INSERT INTO t1 VALUES (1,3), (2,4), (3,5);
@@ -739,6 +850,9 @@ EXPLAIN ANALYZE FOR CONNECTION 1;
 ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE FOR CONNECTION'
 EXPLAIN ANALYZE FORMAT=TRADITIONAL SELECT 1;
 ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE with TRADITIONAL format'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1235	This version of MySQL doesn't yet support 'EXPLAIN ANALYZE with TRADITIONAL format'
 SET explain_json_format_version = 1;
 EXPLAIN ANALYZE FORMAT=JSON SELECT 1;
 ERROR 0A000: EXPLAIN ANALYZE does not support FORMAT=JSON with explain_json_format_version=1.
@@ -759,7 +873,7 @@ EXPLAIN
     "estimated_first_row_cost": "elided"
   },
   "query_type": "select",
-  "json_schema_version": "2.0"
+  "json_schema_version": "2.1"
 }
 EXPLAIN ANALYZE FORMAT=TREE SELECT 1;
 EXPLAIN
@@ -770,6 +884,16 @@ EXPLAIN
 -> Table scan on ENGINES  (rows=2)
     -> Fill information schema table ENGINES
 
+SET @explain_tree_into = 'unchanged';
+EXPLAIN FORMAT=TREE INTO @explain_tree_into SELECT 1;
+ERROR 0A000: EXPLAIN INTO does not support FORMAT=TREE.
+SHOW WARNINGS;
+Level	Code	Message
+Error	6007	EXPLAIN INTO does not support FORMAT=TREE.
+SELECT @explain_tree_into;
+@explain_tree_into
+unchanged
+SET @explain_tree_into = NULL;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES (1), (2), (3);
 ANALYZE TABLE t1;
@@ -784,6 +908,8 @@ EXPLAIN
             -> Covering index scan on t1 using PRIMARY  (rows=3)
             -> Covering index scan on t1 using PRIMARY  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`d1`.`f1` AS `f1` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` union /* select#3 */ select (`test`.`t1`.`f1` + 10) AS `f1 + 10` from `test`.`t1`) `d1`
 EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION ALL SELECT f1 + 10 FROM t1 ) d1;
 EXPLAIN
 -> Nested loop inner join  (rows=18)
@@ -793,6 +919,8 @@ EXPLAIN
             -> Covering index scan on t1 using PRIMARY  (rows=3)
             -> Covering index scan on t1 using PRIMARY  (rows=3)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`d1`.`f1` AS `f1` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` union all /* select#3 */ select (`test`.`t1`.`f1` + 10) AS `f1 + 10` from `test`.`t1`) `d1`
 DROP TABLE t1;
 #
 # Bug #30444266: EXPLAIN ANALYZE DOES NOT EXECUTE THE SUBQUERIES IN THE SELECT LIST
@@ -829,6 +957,8 @@ EXPLAIN
         -> Table scan on t1  (rows=1)
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 1,`test`.`t2`.`b` = 1
 EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1 WHERE t2.a=t1.a;
 EXPLAIN
 -> Update t1 (buffered), t2 (buffered)
@@ -837,6 +967,8 @@ EXPLAIN
         -> Filter: (t2.a = t1.a)  (rows=1)
             -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 1,`test`.`t2`.`b` = 1 where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 EXPLAIN FORMAT=TREE DELETE t1.*,t2.* FROM t1,t2;
 EXPLAIN
 -> Delete from t1 (immediate), t2 (buffered)  (rows=1)
@@ -844,6 +976,8 @@ EXPLAIN
         -> Table scan on t1  (rows=1)
         -> Table scan on t2  (rows=1)
 
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2`
 EXPLAIN FORMAT=TREE DELETE t1.*,t1bis.* FROM t1, t1 AS t1bis;
 EXPLAIN
 -> Delete from t1 (buffered), t1bis (buffered)  (rows=1)
@@ -851,6 +985,8 @@ EXPLAIN
         -> Table scan on t1  (rows=1)
         -> Table scan on t1bis  (rows=1)
 
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t1` from `test`.`t1` join `test`.`t1` `t1bis`
 DROP TABLE t1,t2;
 #
 # Bug #30941336: EXPLAIN ANAYLZE SELECT COUNT(*) FROM MYSQL.USER COREDUMP UNDER DEBUG VERSION
@@ -869,6 +1005,8 @@ EXPLAIN FORMAT=tree SELECT (1 IN (SELECT 1 FROM t1)) WHERE FALSE;
 EXPLAIN
 -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select <in_optimizer>(1,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(1) = 1))) AS `(1 IN (SELECT 1 FROM t1))` from DUAL  where false
 DROP TABLE t1;
 #
 # Bug #32688540: MATERIALIZE ITERATORS HAVE SKEWED TIMINGS FROM SKIPPED MATERIALIZATIONS
@@ -910,6 +1048,7 @@ EXPLAIN
 
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Note	1003	/* select#1 */ select <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in d on <auto_key0> checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = `d`.`a`) or (`d`.`a` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`d`.`a`), true)))) AS `a IN (SELECT a FROM (table t1) AS d)` from `test`.`t1` group by (@b:=5)
 SET sql_mode=DEFAULT;
 DROP TABLE t1;
 #
@@ -927,6 +1066,8 @@ EXPLAIN
     -> Stream results  (rows=0)
         -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` union all /* select#2 */ select <in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t1` where (<cache>(1) = 1))) AS `1 IN (SELECT 1 FROM t1)` from `test`.`t1` where false
 DROP TABLE t1;
 CREATE TABLE t1 (pk INTEGER NOT NULL, a INTEGER, b INTEGER, KEY (a), KEY (b), PRIMARY KEY (pk));
 ANALYZE TABLE t1;
@@ -937,11 +1078,15 @@ SELECT * FROM t1 WHERE a IN (2,4,6,8,10);
 EXPLAIN
 -> Index range scan (Multi-Range Read) on t1 using a over (a = 2) OR (a = 4) OR (3 more), with index condition: (t1.a in (2,4,6,8,10))  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (2,4,6,8,10))
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 WHERE a IN (2,4,6,8,10) ORDER BY a DESC;
 EXPLAIN
 -> Index range scan (Multi-Range Read) on t1 using a over (a = 2) OR (a = 4) OR (3 more) (reverse), with index condition: (t1.a in (2,4,6,8,10))  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` in (2,4,6,8,10)) order by `test`.`t1`.`a` desc
 EXPLAIN ANALYZE
 SELECT /*+ INDEX_MERGE(t1) */ * FROM t1 WHERE pk > 1 OR a > 2 OR b > 3;
 EXPLAIN
@@ -963,6 +1108,8 @@ EXPLAIN
 -> Filter: ((t1.b = 5) and (t1.a in (2,4,6,8,10)) and (t1.e between 100 and 200))  (rows=5)
     -> Covering index skip scan on t1 using idx1 over a IN (2, 4, (3 more)), b = 5, 100 <= e <= 200  (rows=5)
 
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where ((`test`.`t1`.`b` = 5) and (`test`.`t1`.`a` in (2,4,6,8,10)) and (`test`.`t1`.`e` between 100 and 200))
 DROP TABLE t1;
 #
 # Bug#33343948: Multi-valued index ranges are printed as binary
@@ -977,12 +1124,16 @@ EXPLAIN
 -> Filter: ((t.a > 'abc') and (t.a < 'ghi'))  (rows=1)
     -> Covering index range scan on t using a over ('abc' < a < 'ghi')  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where ((`test`.`t`.`a` > 'abc') and (`test`.`t`.`a` < 'ghi'))
 EXPLAIN FORMAT=tree
 SELECT * FROM t WHERE a > 'abc''def' AND a < CONCAT('z', UNHEX('090A1A5C0D'));
 EXPLAIN
 -> Filter: ((t.a > 'abc\'def') and (t.a < <cache>(concat('z',unhex('090A1A5C0D')))))  (rows=2)
     -> Covering index range scan on t using a over ('abc\'def' < a < 'z	\n\Z\\\r')  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where ((`test`.`t`.`a` > 'abc\'def') and (`test`.`t`.`a` < <cache>(concat('z',unhex('090A1A5C0D')))))
 DROP TABLE t;
 #
 # Bug#33364732: Preliminary fixes for WL#14673
@@ -997,6 +1148,8 @@ EXPLAIN
 -> Delete from t (buffered)  (rows=0)
     -> Zero rows (Impossible WHERE)  (rows=0)
 
+Warnings:
+Note	1003	delete `test`.`t` from `test`.`t` where false
 EXPLAIN ANALYZE DELETE t1 FROM t t1, t t2 WHERE t1.x = t2.x + 1;
 EXPLAIN
 -> Delete from t1 (buffered)  (rows=9) (actual rows=0 loops=1)
@@ -1087,6 +1240,8 @@ EXPLAIN
         -> Table scan on tx  (rows=1)
             -> Materialize CTE tx if needed (query plan printed elsewhere)  (rows=1)
 
+Warnings:
+Note	1003	with `tx` as (/* select#2 */ select floor((5 * rand(0))) AS `i1` from `test`.`t1` `j1` join `test`.`t1` `j2` where (`j2`.`a` = `j1`.`b`)) /* select#1 */ select 1 AS `1` from `test`.`t1` `d1` join `test`.`t1` `d2` join `tx` where ((`d2`.`b` = `tx`.`i1`) and (`d1`.`a` = -(`d2`.`a`))) union /* select#3 */ select 2 AS `2` from `tx`
 EXPLAIN ANALYZE
 WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 SELECT 2 FROM tx UNION
@@ -1247,6 +1402,8 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t;
 EXPLAIN
 -> Covering index scan on t using x  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t`
 EXPLAIN ANALYZE SELECT 1 FROM t;
 EXPLAIN
 -> Covering index scan on t using x  (rows=160) (actual rows=160 loops=1)
@@ -1255,6 +1412,8 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x = 4;
 EXPLAIN
 -> Covering index lookup on t using x (x = 4)  (rows=16)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where (`test`.`t`.`x` = 4)
 EXPLAIN ANALYZE SELECT 1 FROM t WHERE x = 4;
 EXPLAIN
 -> Covering index lookup on t using x (x = 4)  (rows=16) (actual rows=16 loops=1)
@@ -1264,6 +1423,8 @@ EXPLAIN
 -> Filter: (t.x > 4)  (rows=96)
     -> Covering index range scan on t using x over (4 < x)  (rows=96)
 
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where (`test`.`t`.`x` > 4)
 EXPLAIN ANALYZE SELECT 1 FROM t WHERE x > 4;
 EXPLAIN
 -> Filter: (t.x > 4)  (rows=96) (actual rows=96 loops=1)
@@ -1274,6 +1435,8 @@ EXPLAIN
 -> Sort: (t.x % 2)  (rows=160)
     -> Covering index scan on t using x  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` order by (`test`.`t`.`x` % 2)
 EXPLAIN ANALYZE SELECT x FROM t ORDER BY MOD(x, 2);
 EXPLAIN
 -> Sort: (t.x % 2)  (rows=160) (actual rows=160 loops=1)
@@ -1286,6 +1449,8 @@ EXPLAIN
     -> Filter: (t1.x < t2.y)  (rows=53.3)
         -> Index range scan on t1 (re-planned for each iteration)  (rows=160)
 
+Warnings:
+Note	1003	/* select#1 */ select `t1`.`x` AS `x` from `test`.`t` `t1` join `test`.`t` `t2` where (`t1`.`x` < `t2`.`y`)
 EXPLAIN ANALYZE SELECT t1.x FROM t t1, t t2 WHERE t1.x < t2.y;
 EXPLAIN
 -> Nested loop inner join  (rows=8532) (actual rows=11520 loops=1)
@@ -1315,6 +1480,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x2`.`a` AS `a`,`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`x2`.`a` = (/* select#2 */ select min(`x3`.`a`) from `test`.`t1` `x3` where (`x1`.`a` = `x3`.`a`)))
 EXPLAIN FORMAT=TREE
 SELECT * FROM t1 x1 LEFT JOIN t1 x2 ON x2.a<
 (SELECT MIN(x3.a) FROM t1 x3 WHERE x1.a=x3.a);
@@ -1330,6 +1496,7 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `x1`.`a` AS `a`,`x1`.`b` AS `b`,`x2`.`a` AS `a`,`x2`.`b` AS `b` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`x2`.`a` < (/* select#2 */ select min(`x3`.`a`) from `test`.`t1` `x3` where (`x1`.`a` = `x3`.`a`)))) where true
 DROP TABLE t1;
 #
 # Bug#34569685 No explain output for subquery
@@ -1349,6 +1516,8 @@ EXPLAIN
 
 Warnings:
 Note	1276	Field or reference 'test.x1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select last_value((/* select#2 */ select `x1`.`a` from `test`.`t1`)) OVER (PARTITION BY `x1`.`b` )  AS `LAST_VALUE((SELECT x1.a FROM t1))
+OVER (PARTITION BY b)` from `test`.`t1` `x1`
 DROP TABLE t1;
 #
 # Bug#36773414: Explain format=tree does not display
@@ -1374,6 +1543,8 @@ EXPLAIN
             -> Filter: (4 = (t.b + 1))  (rows=2)
                 -> Table scan on t  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` semi join (`test`.`t`) where (4 = (`test`.`t`.`b` + 1))
 EXPLAIN FORMAT=JSON INTO @var SELECT a FROM t WHERE 4 IN (SELECT b+1 FROM t);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
@@ -1394,6 +1565,8 @@ EXPLAIN
     -> Hash
         -> Table scan on t  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t`) where (`test`.`t`.`a` = `test`.`t`.`b`)
 EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE b IN (SELECT a FROM t);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS first_match,
@@ -1420,6 +1593,8 @@ EXPLAIN
         -> Filter: (t2.b = t.a)  (rows=1)
             -> Table scan on t2  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where ((`t1`.`a` = `test`.`t`.`a`) and (`t2`.`b` = `test`.`t`.`a`))
 EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE a IN (SELECT t1.a FROM t AS t1
 JOIN t AS t2 ON t1.a=t2.b);
 SELECT
@@ -1445,6 +1620,8 @@ EXPLAIN
             -> Covering index scan on t1 using b  (rows=2)
     -> Covering index lookup on t using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1`) where (`test`.`t`.`a` = `t1`.`b`)
 EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN (SELECT t1.b FROM t AS t1);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS loosescan,
@@ -1470,6 +1647,8 @@ EXPLAIN
         -> Covering index scan on t2 using b  (rows=2)
     -> Covering index lookup on t using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where ((`test`.`t`.`a` = `t1`.`b`) and (0 <> `t1`.`b`))
 EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a  IN (SELECT t1.b
 FROM t AS t1 JOIN t AS t2 ON t1.b);
 SELECT
@@ -1480,6 +1659,14 @@ first_match_with_loosescan	operation_contains_loosescan
 ["firstmatch_with_loosescan"]	1
 set optimizer_switch="loosescan=off,duplicateweedout=on";
 EXPLAIN SELECT b FROM t WHERE a IN (SELECT t1.b
+FROM t AS t1 JOIN t AS t2 ON t1.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	b	b	5	NULL	2	50.00	Using where; Using index; Start temporary
+1	SIMPLE	t	NULL	ref	a	a	5	test.t1.b	1	100.00	Using index
+1	SIMPLE	t2	NULL	index	NULL	b	5	NULL	2	100.00	Using index; End temporary; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where ((`test`.`t`.`a` = `test`.`t1`.`b`) and (0 <> `test`.`t1`.`b`))
+EXPLAIN FORMAT=TRADITIONAL SELECT b FROM t WHERE a IN (SELECT t1.b
 FROM t AS t1 JOIN t AS t2 ON t1.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	b	b	5	NULL	2	50.00	Using where; Using index; Start temporary
@@ -1499,14 +1686,30 @@ EXPLAIN
                     -> Covering index scan on t1 using b  (rows=2)
                 -> Covering index lookup on t using a (a = t1.b)  (rows=1)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1` join `test`.`t` `t2`) where ((`test`.`t`.`a` = `t1`.`b`) and (0 <> `t1`.`b`))
 EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN (SELECT t1.b
 FROM t AS t1 JOIN t AS t2 ON t1.b);
 SELECT
 JSON_EXTRACT(@var, '$**.semijoin_strategy') AS weedout,
 JSON_SEARCH(@var, 'one', '%weedout%', NULL, '$**.operation') IS NOT NULL
-AS operation_contains_weedout;
-weedout	operation_contains_weedout
-["weedout"]	1
+AS operation_contains_weedout,
+JSON_SEARCH(@var, 'one', 'weedout', NULL, '$**.access_type') IS NOT NULL
+AS access_type_is_weedout;
+weedout	operation_contains_weedout	access_type_is_weedout
+["weedout"]	1	1
+SET @saved_explain_json_format_version = @@explain_json_format_version;
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON INTO @var SELECT b FROM t WHERE a IN (SELECT t1.b
+FROM t AS t1 JOIN t AS t2 ON t1.b);
+SELECT
+JSON_CONTAINS_PATH(@var, 'one', '$**.duplicates_removal')
+AS json_v1_duplicates_removal,
+JSON_SEARCH(@var, 'one', 'weedout', NULL, '$**.access_type') IS NULL
+AS json_v1_has_no_weedout_access_type;
+json_v1_duplicates_removal	json_v1_has_no_weedout_access_type
+1	1
+SET explain_json_format_version = @saved_explain_json_format_version;
 set optimizer_switch="materialization=on,duplicateweedout=off";
 EXPLAIN SELECT * FROM t WHERE t.a IN (SELECT a FROM t AS t1
 WHERE t1.b <> 30);
@@ -1528,6 +1731,8 @@ EXPLAIN
                 -> Filter: (t1.b <> 30)  (rows=2)
                     -> Covering index scan on t1 using a  (rows=2)
 
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` semi join (`test`.`t` `t1`) where ((`<subquery2>`.`a` = `test`.`t`.`a`) and (`t1`.`b` <> 30))
 EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t WHERE t.a IN (SELECT a FROM t AS t1
 WHERE t1.b <> 30);
 SELECT
@@ -1537,3 +1742,1113 @@ JSON_SEARCH(@var, 'one', '%Materialize with deduplication%', NULL,
 materialization	operation_contains_materialzation
 1	1
 DROP TABLE t;
+#
+# WL#17309: Add Selected Partition Information to Iterator-Based EXPLAIN
+#
+SET @wl17309_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch =
+'batched_key_access=off,block_nested_loop=off,mrr_cost_based=off';
+CREATE TABLE t_range_pk (
+id INT NOT NULL,
+payload VARCHAR(20),
+PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_range_pk VALUES (110, 'a'), (120, 'b'), (210, 'c');
+ANALYZE TABLE t_range_pk;
+Table	Op	Msg_type	Msg_text
+test.t_range_pk	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_range_pk WHERE id BETWEEN 110 AND 210;
+EXPLAIN
+-> Filter: (t_range_pk.id between 110 and 210)  (rows=3)
+    -> Index range scan on t_range_pk using PRIMARY in partitions (p1,p2) over (110 <= id <= 210)  (rows=3)
+
+EXPLAIN ANALYZE
+SELECT * FROM t_range_pk WHERE id BETWEEN 110 AND 210;
+EXPLAIN
+-> Filter: (t_range_pk.id between 110 and 210)  (rows=3) (actual rows=3 loops=1)
+    -> Index range scan on t_range_pk using PRIMARY in partitions (p1,p2) over (110 <= id <= 210)  (rows=3) (actual rows=3 loops=1)
+
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_range_pk
+WHERE id BETWEEN 110 AND 120
+ORDER BY id DESC;
+EXPLAIN
+-> Filter: (t_range_pk.id between 110 and 120)  (rows=2)
+    -> Index range scan on t_range_pk using PRIMARY in partitions (p1) over (110 <= id <= 120) (reverse)  (rows=2)
+
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON
+SELECT * FROM t_range_pk WHERE id BETWEEN 110 AND 210;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "elided"
+    },
+    "table": {
+      "table_name": "t_range_pk",
+      "partitions": [
+        "p1",
+        "p2"
+      ],
+      "access_type": "range",
+      "possible_keys": [
+        "PRIMARY"
+      ],
+      "key": "PRIMARY",
+      "used_key_parts": [
+        "id"
+      ],
+      "key_length": "4",
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 3,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "elided",
+        "eval_cost": "elided",
+        "prefix_cost": "elided",
+        "data_read_per_join": "264"
+      },
+      "used_columns": [
+        "id",
+        "payload"
+      ],
+      "attached_condition": "(`test`.`t_range_pk`.`id` between 110 and 210)"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_range_pk`.`id` AS `id`,`test`.`t_range_pk`.`payload` AS `payload` from `test`.`t_range_pk` where (`test`.`t_range_pk`.`id` between 110 and 210)
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_range_pk WHERE id BETWEEN 110 AND 210;
+SELECT
+JSON_EXTRACT(@var, '$**.operation') AS range_pk_operations,
+JSON_EXTRACT(@var, '$**.partitions') AS range_pk_partitions,
+JSON_EXTRACT(@var, '$.json_schema_version') AS range_pk_schema_version;
+range_pk_operations	range_pk_partitions	range_pk_schema_version
+["Filter: (t_range_pk.id between 110 and 210)", "Index range scan on t_range_pk using PRIMARY in partitions (p1,p2) over (110 <= id <= 210)"]	[["p1", "p2"]]	"2.1"
+SET explain_json_format_version = DEFAULT;
+EXPLAIN FORMAT=TREE SELECT * FROM t_range_pk WHERE id = 110;
+EXPLAIN
+-> Rows fetched before execution from t_range_pk over partitions (p1)  (rows=1)
+
+EXPLAIN ANALYZE SELECT * FROM t_range_pk WHERE id = 110;
+EXPLAIN
+-> Rows fetched before execution from t_range_pk over partitions (p1)  (rows=1) (actual rows=1 loops=1)
+
+EXPLAIN SELECT * FROM t_range_pk WHERE id = 110;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_range_pk	p1	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '110' AS `id`,'a' AS `payload` from `test`.`t_range_pk` where true
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t_range_pk WHERE id = 110;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS top_level_const_partitions_v1;
+top_level_const_partitions_v1
+[["p1"]]
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var SELECT * FROM t_range_pk WHERE id = 110;
+SELECT
+JSON_EXTRACT(@var, '$.query_plan.access_type')
+AS top_level_const_access_type_v2,
+JSON_EXTRACT(@var, '$.query_plan.table_name')
+AS top_level_const_table_v2,
+JSON_EXTRACT(@var, '$.query_plan.partitions')
+AS top_level_const_partitions_v2,
+JSON_EXTRACT(@var, '$.query_plan.operation')
+AS top_level_const_operation_v2;
+top_level_const_access_type_v2	top_level_const_table_v2	top_level_const_partitions_v2	top_level_const_operation_v2
+"rows_fetched_before_execution"	"t_range_pk"	["p1"]	"Rows fetched before execution from t_range_pk over partitions (p1)"
+SET explain_json_format_version = DEFAULT;
+EXPLAIN FORMAT=TREE
+SELECT MIN(id) FROM t_range_pk PARTITION (p1);
+EXPLAIN
+-> Rows fetched before execution from t_range_pk over partitions (p1)  (rows=1)
+
+EXPLAIN ANALYZE
+SELECT MIN(id) FROM t_range_pk PARTITION (p1);
+EXPLAIN
+-> Rows fetched before execution from t_range_pk over partitions (p1)  (rows=1) (actual rows=1 loops=1)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT MIN(id) FROM t_range_pk PARTITION (p1);
+SELECT
+JSON_EXTRACT(@var, '$.query_plan.access_type')
+AS optimized_aggregate_access_type,
+JSON_EXTRACT(@var, '$.query_plan.table_name')
+AS optimized_aggregate_table,
+JSON_EXTRACT(@var, '$.query_plan.partitions')
+AS optimized_aggregate_partitions,
+JSON_EXTRACT(@var, '$.query_plan.operation')
+AS optimized_aggregate_operation;
+optimized_aggregate_access_type	optimized_aggregate_table	optimized_aggregate_partitions	optimized_aggregate_operation
+"rows_fetched_before_execution"	"t_range_pk"	["p1"]	"Rows fetched before execution from t_range_pk over partitions (p1)"
+SET explain_json_format_version = DEFAULT;
+CREATE TABLE t_const_outer (id INT NOT NULL);
+INSERT INTO t_const_outer VALUES (110);
+ANALYZE TABLE t_const_outer;
+Table	Op	Msg_type	Msg_text
+test.t_const_outer	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT t_const_outer.id, t_const.payload
+FROM t_const_outer
+LEFT JOIN t_range_pk AS t_const
+ON t_const_outer.id = t_const.id AND t_const.id = 110;
+EXPLAIN
+-> Nested loop left join  (rows=1)
+    -> Table scan on t_const_outer  (rows=1)
+    -> Filter: (t_const_outer.id = 110)  (rows=1)
+        -> Constant row from t_const over partitions (p1)  (rows=1)
+
+EXPLAIN ANALYZE
+SELECT t_const_outer.id, t_const.payload
+FROM t_const_outer
+LEFT JOIN t_range_pk AS t_const
+ON t_const_outer.id = t_const.id AND t_const.id = 110;
+EXPLAIN
+-> Nested loop left join  (rows=1) (actual rows=1 loops=1)
+    -> Table scan on t_const_outer  (rows=1) (actual rows=1 loops=1)
+    -> Filter: (t_const_outer.id = 110)  (rows=1) (actual rows=1 loops=1)
+        -> Constant row from t_const over partitions (p1)  (rows=1) (actual rows=1 loops=1)
+
+EXPLAIN
+SELECT t_const_outer.id, t_const.payload
+FROM t_const_outer
+LEFT JOIN t_range_pk AS t_const
+ON t_const_outer.id = t_const.id AND t_const.id = 110;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_const_outer	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t_const	p1	const	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_const_outer`.`id` AS `id`,`test`.`t_const`.`payload` AS `payload` from `test`.`t_const_outer` left join `test`.`t_range_pk` `t_const` on(((`test`.`t_const_outer`.`id` = 110) and (`test`.`t_const`.`id` = 110))) where true
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT t_const_outer.id, t_const.payload
+FROM t_const_outer
+LEFT JOIN t_range_pk AS t_const
+ON t_const_outer.id = t_const.id AND t_const.id = 110;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS const_partitions_v1;
+const_partitions_v1
+[["p1"]]
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT t_const_outer.id, t_const.payload
+FROM t_const_outer
+LEFT JOIN t_range_pk AS t_const
+ON t_const_outer.id = t_const.id AND t_const.id = 110;
+SET @const_access_path = JSON_UNQUOTE(
+JSON_SEARCH(@var, 'one', 'constant_row', NULL, '$**.access_type'));
+SELECT
+JSON_EXTRACT(@var, @const_access_path) AS const_access_type,
+JSON_EXTRACT(
+@var, REPLACE(@const_access_path, '.access_type', '.table_name'))
+AS const_table_name,
+JSON_EXTRACT(
+@var, REPLACE(@const_access_path, '.access_type', '.partitions'))
+AS const_partitions,
+JSON_EXTRACT(
+@var, REPLACE(@const_access_path, '.access_type', '.operation'))
+AS const_operation;
+const_access_type	const_table_name	const_partitions	const_operation
+"constant_row"	"t_range_pk"	["p1"]	"Constant row from t_const over partitions (p1)"
+SET @const_access_path = NULL;
+SET explain_json_format_version = DEFAULT;
+EXPLAIN FORMAT=TREE
+SELECT i.payload
+FROM t_const_outer AS o
+STRAIGHT_JOIN t_range_pk PARTITION (p1) AS i ON i.id = o.id;
+EXPLAIN
+-> Nested loop inner join  (rows=1)
+    -> Table scan on o  (rows=1)
+    -> Single-row index lookup on i using PRIMARY in partitions (p1) (id = o.id)  (rows=1)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT i.payload
+FROM t_const_outer AS o
+STRAIGHT_JOIN t_range_pk PARTITION (p1) AS i ON i.id = o.id;
+SELECT
+JSON_EXTRACT(@var, '$**.index_access_type') AS eq_ref_index_access,
+JSON_EXTRACT(@var, '$**.partitions') AS eq_ref_partitions,
+JSON_SEARCH(@var, 'one',
+'%Single-row index lookup on i using PRIMARY in partitions (p1)%',
+NULL, '$**.operation') IS NOT NULL
+AS eq_ref_operation_has_partitions;
+eq_ref_index_access	eq_ref_partitions	eq_ref_operation_has_partitions
+["index_lookup"]	[["p1"]]	1
+SET explain_json_format_version = DEFAULT;
+CREATE TABLE t_range_scan (
+id INT NOT NULL,
+payload VARCHAR(20)
+)
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_range_scan VALUES (110, 'a'), (120, 'b'), (210, 'c');
+ANALYZE TABLE t_range_scan;
+Table	Op	Msg_type	Msg_text
+test.t_range_scan	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_range_scan WHERE id BETWEEN 110 AND 210;
+EXPLAIN
+-> Filter: (t_range_scan.id between 110 and 210)  (rows=1)
+    -> Table scan on t_range_scan over partitions (p1,p2)  (rows=3)
+
+EXPLAIN ANALYZE
+SELECT * FROM t_range_scan WHERE id BETWEEN 110 AND 210;
+EXPLAIN
+-> Filter: (t_range_scan.id between 110 and 210)  (rows=1) (actual rows=3 loops=1)
+    -> Table scan on t_range_scan over partitions (p1,p2)  (rows=3) (actual rows=3 loops=1)
+
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON
+SELECT * FROM t_range_scan WHERE id BETWEEN 110 AND 210;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "elided"
+    },
+    "table": {
+      "table_name": "t_range_scan",
+      "partitions": [
+        "p1",
+        "p2"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 3,
+      "rows_produced_per_join": 1,
+      "filtered": "33.33",
+      "cost_info": {
+        "read_cost": "elided",
+        "eval_cost": "elided",
+        "prefix_cost": "elided",
+        "data_read_per_join": "88"
+      },
+      "used_columns": [
+        "id",
+        "payload"
+      ],
+      "attached_condition": "(`test`.`t_range_scan`.`id` between 110 and 210)"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_range_scan`.`id` AS `id`,`test`.`t_range_scan`.`payload` AS `payload` from `test`.`t_range_scan` where (`test`.`t_range_scan`.`id` between 110 and 210)
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_range_scan WHERE id BETWEEN 110 AND 210;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS range_scan_partitions;
+range_scan_partitions
+[["p1", "p2"]]
+SET explain_json_format_version = DEFAULT;
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_range_pk PARTITION (p1) WHERE id BETWEEN 110 AND 120;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS explicit_partitions;
+explicit_partitions
+[["p1"]]
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_range_pk PARTITION (p0, p1)
+WHERE id BETWEEN 110 AND 120;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS explicit_pruned_partitions;
+explicit_pruned_partitions
+[["p1"]]
+EXPLAIN FORMAT=JSON INTO @var
+INSERT INTO t_range_scan
+SELECT * FROM t_range_pk PARTITION (p1) WHERE id BETWEEN 110 AND 120;
+SELECT
+JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+AS dml_node_has_partitions,
+JSON_EXTRACT(@var, '$**.partitions') AS access_partitions;
+dml_node_has_partitions	access_partitions
+0	[["p1"]]
+EXPLAIN FORMAT=JSON INTO @var
+REPLACE INTO t_range_scan
+SELECT * FROM t_range_pk PARTITION (p1) WHERE id BETWEEN 110 AND 120;
+SELECT
+JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+AS replace_root_has_partitions,
+JSON_EXTRACT(@var, '$**.partitions') AS replace_read_partitions;
+replace_root_has_partitions	replace_read_partitions
+0	[["p1"]]
+EXPLAIN FORMAT=JSON INTO @var
+UPDATE t_range_pk AS target
+JOIN t_const_outer AS source ON target.id = source.id
+SET target.payload = 'updated'
+WHERE target.id BETWEEN 110 AND 120;
+SELECT
+JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+AS update_root_has_partitions,
+JSON_EXTRACT(@var, '$**.partitions') AS update_read_partitions;
+update_root_has_partitions	update_read_partitions
+0	[["p1"]]
+EXPLAIN FORMAT=JSON INTO @var
+DELETE target
+FROM t_range_pk AS target
+JOIN t_const_outer AS source ON target.id = source.id
+WHERE target.id BETWEEN 110 AND 120;
+SELECT
+JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+AS delete_root_has_partitions,
+JSON_EXTRACT(@var, '$**.partitions') AS delete_read_partitions;
+delete_root_has_partitions	delete_read_partitions
+0	[["p1"]]
+SET explain_json_format_version = DEFAULT;
+CREATE TABLE t_hash (
+id INT NOT NULL,
+payload VARCHAR(20),
+PRIMARY KEY (id)
+)
+PARTITION BY HASH (id) PARTITIONS 3;
+INSERT INTO t_hash VALUES (1, 'a'), (4, 'b'), (2, 'c');
+ANALYZE TABLE t_hash;
+Table	Op	Msg_type	Msg_text
+test.t_hash	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_hash WHERE id IN (1, 4);
+EXPLAIN
+-> Filter: (t_hash.id in (1,4))  (rows=2)
+    -> Index range scan on t_hash using PRIMARY in partitions (p1) over (id = 1) OR (id = 4)  (rows=2)
+
+EXPLAIN ANALYZE
+SELECT * FROM t_hash WHERE id IN (1, 4);
+EXPLAIN
+-> Filter: (t_hash.id in (1,4))  (rows=2) (actual rows=2 loops=1)
+    -> Index range scan on t_hash using PRIMARY in partitions (p1) over (id = 1) OR (id = 4)  (rows=2) (actual rows=2 loops=1)
+
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON
+SELECT * FROM t_hash WHERE id IN (1, 4);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "elided"
+    },
+    "table": {
+      "table_name": "t_hash",
+      "partitions": [
+        "p1"
+      ],
+      "access_type": "range",
+      "possible_keys": [
+        "PRIMARY"
+      ],
+      "key": "PRIMARY",
+      "used_key_parts": [
+        "id"
+      ],
+      "key_length": "4",
+      "rows_examined_per_scan": 2,
+      "rows_produced_per_join": 2,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "elided",
+        "eval_cost": "elided",
+        "prefix_cost": "elided",
+        "data_read_per_join": "176"
+      },
+      "used_columns": [
+        "id",
+        "payload"
+      ],
+      "attached_condition": "(`test`.`t_hash`.`id` in (1,4))"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_hash`.`id` AS `id`,`test`.`t_hash`.`payload` AS `payload` from `test`.`t_hash` where (`test`.`t_hash`.`id` in (1,4))
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_hash WHERE id IN (1, 4);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS hash_partitions;
+hash_partitions
+[["p1"]]
+SET explain_json_format_version = DEFAULT;
+CREATE TABLE t_key (
+id INT NOT NULL,
+payload VARCHAR(20),
+PRIMARY KEY (id)
+)
+PARTITION BY KEY (id) PARTITIONS 3;
+INSERT INTO t_key VALUES (1, 'a'), (4, 'b'), (2, 'c');
+ANALYZE TABLE t_key;
+Table	Op	Msg_type	Msg_text
+test.t_key	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_key WHERE id IN (1, 4);
+EXPLAIN
+-> Filter: (t_key.id in (1,4))  (rows=2)
+    -> Index range scan on t_key using PRIMARY in partitions (p0,p1) over (id = 1) OR (id = 4)  (rows=2)
+
+EXPLAIN ANALYZE
+SELECT * FROM t_key WHERE id IN (1, 4);
+EXPLAIN
+-> Filter: (t_key.id in (1,4))  (rows=2) (actual rows=2 loops=1)
+    -> Index range scan on t_key using PRIMARY in partitions (p0,p1) over (id = 1) OR (id = 4)  (rows=2) (actual rows=2 loops=1)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_key WHERE id IN (1, 4);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS key_partitions;
+key_partitions
+[["p0", "p1"]]
+SET explain_json_format_version = DEFAULT;
+CREATE TABLE t_list (
+id INT NOT NULL,
+payload VARCHAR(20),
+PRIMARY KEY (id)
+)
+PARTITION BY LIST (id) (
+PARTITION p0 VALUES IN (1, 4),
+PARTITION p1 VALUES IN (2, 5),
+PARTITION p2 VALUES IN (3, 6)
+);
+INSERT INTO t_list VALUES (1, 'a'), (4, 'b'), (2, 'c');
+ANALYZE TABLE t_list;
+Table	Op	Msg_type	Msg_text
+test.t_list	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_list WHERE id IN (1, 4);
+EXPLAIN
+-> Filter: (t_list.id in (1,4))  (rows=2)
+    -> Index range scan on t_list using PRIMARY in partitions (p0) over (id = 1) OR (id = 4)  (rows=2)
+
+EXPLAIN ANALYZE
+SELECT * FROM t_list WHERE id IN (1, 4);
+EXPLAIN
+-> Filter: (t_list.id in (1,4))  (rows=2) (actual rows=2 loops=1)
+    -> Index range scan on t_list using PRIMARY in partitions (p0) over (id = 1) OR (id = 4)  (rows=2) (actual rows=2 loops=1)
+
+SET explain_json_format_version = 1;
+EXPLAIN FORMAT=JSON
+SELECT * FROM t_list WHERE id IN (1, 4);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "elided"
+    },
+    "table": {
+      "table_name": "t_list",
+      "partitions": [
+        "p0"
+      ],
+      "access_type": "range",
+      "possible_keys": [
+        "PRIMARY"
+      ],
+      "key": "PRIMARY",
+      "used_key_parts": [
+        "id"
+      ],
+      "key_length": "4",
+      "rows_examined_per_scan": 2,
+      "rows_produced_per_join": 2,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "elided",
+        "eval_cost": "elided",
+        "prefix_cost": "elided",
+        "data_read_per_join": "176"
+      },
+      "used_columns": [
+        "id",
+        "payload"
+      ],
+      "attached_condition": "(`test`.`t_list`.`id` in (1,4))"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_list`.`id` AS `id`,`test`.`t_list`.`payload` AS `payload` from `test`.`t_list` where (`test`.`t_list`.`id` in (1,4))
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_list WHERE id IN (1, 4);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS list_partitions;
+list_partitions
+[["p0"]]
+SET explain_json_format_version = DEFAULT;
+CREATE TABLE t_partition_skip (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+KEY idx1 (a, b, c, d, e)
+)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_partition_skip VALUES
+(110, 5, 1, 1, 150), (120, 5, 1, 1, 150),
+(130, 5, 1, 1, 150), (140, 5, 1, 1, 150),
+(150, 5, 1, 1, 150);
+ANALYZE TABLE t_partition_skip;
+Table	Op	Msg_type	Msg_text
+test.t_partition_skip	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT /*+ SKIP_SCAN(t_partition_skip) */ *
+FROM t_partition_skip PARTITION (p1)
+WHERE a IN (110, 120, 130, 140, 150) AND b = 5 AND e BETWEEN 100 AND 200;
+EXPLAIN
+-> Filter: ((t_partition_skip.b = 5) and (t_partition_skip.a in (110,120,130,140,150)) and (t_partition_skip.e between 100 and 200))  (rows=5)
+    -> Covering index skip scan on t_partition_skip using idx1 in partitions (p1) over a IN (110, 120, (3 more)), b = 5, 100 <= e <= 200  (rows=5)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT /*+ SKIP_SCAN(t_partition_skip) */ *
+FROM t_partition_skip PARTITION (p1)
+WHERE a IN (110, 120, 130, 140, 150) AND b = 5 AND e BETWEEN 100 AND 200;
+SELECT
+JSON_EXTRACT(@var, '$**.index_access_type') AS skip_scan_index_access,
+JSON_EXTRACT(@var, '$**.partitions') AS skip_scan_partitions,
+JSON_SEARCH(@var, 'one',
+'%skip scan on t_partition_skip using idx1 in partitions (p1)%',
+NULL, '$**.operation') IS NOT NULL
+AS skip_scan_operation_has_partitions;
+skip_scan_index_access	skip_scan_partitions	skip_scan_operation_has_partitions
+["index_skip_scan"]	[["p1"]]	1
+SET explain_json_format_version = DEFAULT;
+DROP TABLE t_partition_skip;
+EXPLAIN FORMAT=TREE
+WITH RECURSIVE qn AS
+(SELECT 1 AS n UNION ALL SELECT n + 1 FROM qn WHERE n < 3)
+SELECT * FROM qn;
+EXPLAIN
+-> Table scan on qn  (rows=2)
+    -> Materialize recursive CTE qn  (rows=2)
+        -> Rows fetched before execution  (rows=1)
+        -> Repeat until convergence
+            -> Filter: (qn.n < 3)  (rows=1)
+                -> Scan new records on qn  (rows=2)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+WITH RECURSIVE qn AS
+(SELECT 1 AS n UNION ALL SELECT n + 1 FROM qn WHERE n < 3)
+SELECT * FROM qn;
+SET @follow_tail_access_path = JSON_UNQUOTE(
+JSON_SEARCH(@var, 'one', 'scan_new_records', NULL, '$**.access_type'));
+SELECT
+JSON_EXTRACT(@var, @follow_tail_access_path) AS follow_tail_access_type,
+JSON_EXTRACT(
+@var, REPLACE(@follow_tail_access_path, '.access_type', '.operation'))
+AS follow_tail_operation,
+JSON_EXTRACT(
+@var, REPLACE(@follow_tail_access_path, '.access_type', '.partitions'))
+IS NULL AS follow_tail_has_no_partitions;
+follow_tail_access_type	follow_tail_operation	follow_tail_has_no_partitions
+"scan_new_records"	"Scan new records on qn"	1
+SET @follow_tail_access_path = NULL;
+SET explain_json_format_version = DEFAULT;
+CREATE TABLE t_dynamic (
+x INT NOT NULL,
+y INT DEFAULT (x),
+z VARCHAR(128) DEFAULT (REPEAT('z', 128)),
+KEY (x)
+)
+PARTITION BY RANGE (x) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_dynamic(x) VALUES (10), (20), (30), (40), (110), (120), (130),
+(140), (210), (220);
+INSERT INTO t_dynamic SELECT * FROM t_dynamic;
+INSERT INTO t_dynamic SELECT * FROM t_dynamic;
+INSERT INTO t_dynamic SELECT * FROM t_dynamic;
+ANALYZE TABLE t_dynamic;
+Table	Op	Msg_type	Msg_text
+test.t_dynamic	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT t_inner.x
+FROM t_dynamic PARTITION (p0, p1) AS t_inner,
+t_dynamic AS t_outer
+WHERE t_inner.x < t_outer.y;
+EXPLAIN
+-> Nested loop inner join  (rows=1706)
+    -> Table scan on t_outer over partitions (p0,p1,p2)  (rows=80)
+    -> Filter: (t_inner.x < t_outer.y)  (rows=21.3)
+        -> Index range scan on t_inner (re-planned for each iteration) in partitions (p0,p1)  (rows=64)
+
+EXPLAIN ANALYZE
+SELECT t_inner.x
+FROM t_dynamic PARTITION (p0, p1) AS t_inner,
+t_dynamic AS t_outer
+WHERE t_inner.x < t_outer.y;
+EXPLAIN
+-> Nested loop inner join  (rows=1706) (actual rows=2816 loops=1)
+    -> Table scan on t_outer over partitions (p0,p1,p2)  (rows=80) (actual rows=80 loops=1)
+    -> Filter: (t_inner.x < t_outer.y)  (rows=21.3) (actual rows=35.2 loops=80)
+        -> Index range scan on t_inner (re-planned for each iteration) in partitions (p0,p1)  (rows=64) (actual rows=35.2 loops=80)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT t_inner.x
+FROM t_dynamic PARTITION (p0, p1) AS t_inner,
+t_dynamic AS t_outer
+WHERE t_inner.x < t_outer.y;
+SELECT
+JSON_EXTRACT(@var, '$**.index_access_type') AS dynamic_index_access,
+JSON_EXTRACT(@var, '$**.partitions') AS dynamic_candidate_partitions,
+JSON_SEARCH(@var, 'one',
+'%re-planned for each iteration) in partitions (p0,p1)%',
+NULL, '$**.operation') IS NOT NULL
+AS dynamic_operation_has_partitions;
+dynamic_index_access	dynamic_candidate_partitions	dynamic_operation_has_partitions
+["dynamic_index_range_scan"]	[["p0", "p1", "p2"], ["p0", "p1"]]	1
+SET explain_json_format_version = DEFAULT;
+EXPLAIN FORMAT=TREE
+SELECT y FROM t_dynamic PARTITION (p0, p1) WHERE x IN (10, 20, 30);
+EXPLAIN
+-> Index range scan (Multi-Range Read) on t_dynamic using x in partitions (p0) over (x = 10) OR (x = 20) OR (x = 30), with index condition: (t_dynamic.x in (10,20,30))  (rows=24)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT y FROM t_dynamic PARTITION (p0, p1) WHERE x IN (10, 20, 30);
+SELECT
+JSON_EXTRACT(@var, '$**.multi_range_read') AS mrr_enabled,
+JSON_EXTRACT(@var, '$**.partitions') AS mrr_partitions,
+JSON_SEARCH(@var, 'one', '%Multi-Range Read%', NULL, '$**.operation')
+IS NOT NULL AS mrr_operation;
+mrr_enabled	mrr_partitions	mrr_operation
+[true]	[["p0"]]	1
+EXPLAIN FORMAT=JSON INTO @var
+SELECT i.y
+FROM t_const_outer AS o
+STRAIGHT_JOIN t_dynamic PARTITION (p1) AS i ON i.x = o.id;
+SELECT
+JSON_EXTRACT(@var, '$**.index_access_type') AS ref_index_access,
+JSON_EXTRACT(@var, '$**.partitions') AS ref_partitions,
+JSON_SEARCH(@var, 'one',
+'%Index lookup on i using x in partitions (p1)%',
+NULL, '$**.operation') IS NOT NULL
+AS ref_operation_has_partitions;
+ref_index_access	ref_partitions	ref_operation_has_partitions
+["index_lookup"]	[["p1"]]	1
+SET explain_json_format_version = DEFAULT;
+CREATE TABLE t_count (
+id INT NOT NULL,
+payload VARCHAR(20),
+PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_count VALUES (10, 'a'), (110, 'b'), (210, 'c');
+ANALYZE TABLE t_count;
+Table	Op	Msg_type	Msg_text
+test.t_count	analyze	status	OK
+CREATE TABLE t_count_other (
+id INT NOT NULL,
+payload VARCHAR(20),
+PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+PARTITION q0 VALUES LESS THAN (100),
+PARTITION q1 VALUES LESS THAN (200),
+PARTITION q2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_count_other VALUES (10, 'a'), (110, 'b'), (210, 'c');
+ANALYZE TABLE t_count_other;
+Table	Op	Msg_type	Msg_text
+test.t_count_other	analyze	status	OK
+EXPLAIN ANALYZE
+SELECT COUNT(*) FROM t_count PARTITION (p0, p1);
+EXPLAIN
+-> Count rows in t_count over partitions (p0,p1)  (actual rows=1 loops=1)
+
+EXPLAIN ANALYZE
+SELECT COUNT(*)
+FROM t_count PARTITION (p0) AS p,
+t_count_other PARTITION (q1) AS q;
+EXPLAIN
+-> Count rows in p  (actual rows=1 loops=1)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT COUNT(*)
+FROM t_count PARTITION (p0) AS p,
+t_count_other PARTITION (q1) AS q;
+SELECT
+JSON_EXTRACT(@var, '$.query_plan.operation') AS multi_count_operation,
+JSON_EXTRACT(@var, '$.query_plan.table_name') AS multi_count_table_name,
+JSON_EXTRACT(@var, '$.query_plan.schema_name') AS multi_count_schema_name,
+JSON_EXTRACT(@var, '$.query_plan.alias') AS multi_count_alias,
+JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+AS multi_count_has_partitions;
+multi_count_operation	multi_count_table_name	multi_count_schema_name	multi_count_alias	multi_count_has_partitions
+"Count rows in p"	"t_count"	"test"	"p"	0
+SET explain_json_format_version = DEFAULT;
+EXPLAIN ANALYZE
+SELECT t_range_pk.id, t_count.id
+FROM t_range_pk, t_count
+WHERE t_range_pk.id = 110 AND t_count.id = 110;
+EXPLAIN
+-> Rows fetched before execution  (rows=1) (actual rows=1 loops=1)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT t_range_pk.id, t_count.id
+FROM t_range_pk, t_count
+WHERE t_range_pk.id = 110 AND t_count.id = 110;
+SELECT
+JSON_EXTRACT(@var, '$.query_plan.operation') AS multi_const_operation,
+JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.table_name')
+AS multi_const_has_table,
+JSON_CONTAINS_PATH(@var, 'one', '$.query_plan.partitions')
+AS multi_const_has_partitions;
+multi_const_operation	multi_const_has_table	multi_const_has_partitions
+"Rows fetched before execution"	0	0
+SET explain_json_format_version = DEFAULT;
+EXPLAIN FORMAT=TREE SELECT 1;
+EXPLAIN
+-> Rows fetched before execution  (rows=1)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var SELECT 1;
+SELECT
+JSON_EXTRACT(@var, '$.query_plan.operation') AS fake_row_operation,
+JSON_CONTAINS_PATH(@var, 'one', '$**.table_name') AS fake_row_has_table,
+JSON_CONTAINS_PATH(@var, 'one', '$**.partitions')
+AS fake_row_has_partitions;
+fake_row_operation	fake_row_has_table	fake_row_has_partitions
+"Rows fetched before execution"	0	0
+SET explain_json_format_version = DEFAULT;
+EXPLAIN FORMAT=TREE VALUES ROW(1), ROW(2);
+EXPLAIN
+-> Rows fetched before execution  (rows=2)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var VALUES ROW(1), ROW(2);
+SELECT
+JSON_EXTRACT(@var, '$.query_plan.operation') AS values_operation,
+JSON_CONTAINS_PATH(@var, 'one', '$**.table_name') AS values_has_table,
+JSON_CONTAINS_PATH(@var, 'one', '$**.partitions')
+AS values_has_partitions;
+values_operation	values_has_table	values_has_partitions
+"Rows fetched before execution"	0	0
+SET explain_json_format_version = DEFAULT;
+CREATE TABLE t_subpart (
+id INT NOT NULL,
+payload VARCHAR(20),
+KEY (id)
+)
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH (id) (
+PARTITION p0 VALUES LESS THAN (100) (
+SUBPARTITION p0s0,
+SUBPARTITION p0s1
+),
+PARTITION p1 VALUES LESS THAN (200) (
+SUBPARTITION p1s0,
+SUBPARTITION p1s1
+),
+PARTITION p2 VALUES LESS THAN MAXVALUE (
+SUBPARTITION p2s0,
+SUBPARTITION p2s1
+)
+);
+INSERT INTO t_subpart VALUES (110, 'a'), (111, 'b'), (210, 'c');
+ANALYZE TABLE t_subpart;
+Table	Op	Msg_type	Msg_text
+test.t_subpart	analyze	status	OK
+SET @wl17309_subpart_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch = 'mrr=off,index_condition_pushdown=off';
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_subpart PARTITION (p1) WHERE id BETWEEN 100 AND 199;
+EXPLAIN
+-> Filter: (t_subpart.id between 100 and 199)  (rows=2)
+    -> Index range scan on t_subpart using id in partitions (p1_p1s0,p1_p1s1) over (100 <= id <= 199)  (rows=2)
+
+EXPLAIN ANALYZE
+SELECT * FROM t_subpart PARTITION (p1) WHERE id BETWEEN 100 AND 199;
+EXPLAIN
+-> Filter: (t_subpart.id between 100 and 199)  (rows=2) (actual rows=2 loops=1)
+    -> Index range scan on t_subpart using id in partitions (p1_p1s0,p1_p1s1) over (100 <= id <= 199)  (rows=2) (actual rows=2 loops=1)
+
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_subpart WHERE id BETWEEN 100 AND 250;
+EXPLAIN
+-> Filter: (t_subpart.id between 100 and 250)  (rows=3)
+    -> Index range scan on t_subpart using id in partitions (p1_p1s0,p1_p1s1,p2_p2s0,p2_p2s1) over (100 <= id <= 250)  (rows=3)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_subpart PARTITION (p1) WHERE id BETWEEN 100 AND 199;
+SELECT
+JSON_EXTRACT(@var, '$**.partitions') AS subpartitions,
+JSON_SEARCH(@var, 'one', '%in partitions (p1_p1s0,p1_p1s1)%',
+NULL, '$**.operation') IS NOT NULL
+AS subpartition_operation_has_partitions,
+JSON_SEARCH(@var, 'one', 'p0_p0s0', NULL, '$**.partitions') IS NULL
+AS p0s0_absent,
+JSON_SEARCH(@var, 'one', 'p0_p0s1', NULL, '$**.partitions') IS NULL
+AS p0s1_absent,
+JSON_SEARCH(@var, 'one', 'p2_p2s0', NULL, '$**.partitions') IS NULL
+AS p2s0_absent,
+JSON_SEARCH(@var, 'one', 'p2_p2s1', NULL, '$**.partitions') IS NULL
+AS p2s1_absent;
+subpartitions	subpartition_operation_has_partitions	p0s0_absent	p0s1_absent	p2s0_absent	p2s1_absent
+[["p1_p1s0", "p1_p1s1"]]	1	1	1	1	1
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_subpart WHERE id BETWEEN 100 AND 250;
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS ordered_subpartitions;
+ordered_subpartitions
+[["p1_p1s0", "p1_p1s1", "p2_p2s0", "p2_p2s1"]]
+SET explain_json_format_version = DEFAULT;
+SET optimizer_switch = @wl17309_subpart_optimizer_switch;
+CREATE TABLE t_subpart_range_key (
+id INT NOT NULL,
+payload VARCHAR(20),
+KEY (id)
+)
+PARTITION BY RANGE (id)
+SUBPARTITION BY KEY (id) (
+PARTITION p0 VALUES LESS THAN (100) (
+SUBPARTITION p0s0,
+SUBPARTITION p0s1
+),
+PARTITION p1 VALUES LESS THAN (200) (
+SUBPARTITION p1s0,
+SUBPARTITION p1s1
+),
+PARTITION p2 VALUES LESS THAN MAXVALUE (
+SUBPARTITION p2s0,
+SUBPARTITION p2s1
+)
+);
+CREATE TABLE t_subpart_list_hash (
+id INT NOT NULL,
+payload VARCHAR(20),
+KEY (id)
+)
+PARTITION BY LIST (id)
+SUBPARTITION BY HASH (id) (
+PARTITION p0 VALUES IN (1) (
+SUBPARTITION p0s0,
+SUBPARTITION p0s1
+),
+PARTITION p1 VALUES IN (2) (
+SUBPARTITION p1s0,
+SUBPARTITION p1s1
+),
+PARTITION p2 VALUES IN (3) (
+SUBPARTITION p2s0,
+SUBPARTITION p2s1
+)
+);
+CREATE TABLE t_subpart_list_key (
+id INT NOT NULL,
+payload VARCHAR(20),
+KEY (id)
+)
+PARTITION BY LIST (id)
+SUBPARTITION BY KEY (id) (
+PARTITION p0 VALUES IN (1) (
+SUBPARTITION p0s0,
+SUBPARTITION p0s1
+),
+PARTITION p1 VALUES IN (2) (
+SUBPARTITION p1s0,
+SUBPARTITION p1s1
+),
+PARTITION p2 VALUES IN (3) (
+SUBPARTITION p2s0,
+SUBPARTITION p2s1
+)
+);
+INSERT INTO t_subpart_range_key VALUES (110, 'a');
+INSERT INTO t_subpart_list_hash VALUES (2, 'a');
+INSERT INTO t_subpart_list_key VALUES (2, 'a');
+EXPLAIN FORMAT=TREE SELECT * FROM t_subpart_range_key PARTITION (p1);
+EXPLAIN
+-> Table scan on t_subpart_range_key over partitions (p1_p1s0,p1_p1s1)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t_subpart_list_hash PARTITION (p1);
+EXPLAIN
+-> Table scan on t_subpart_list_hash over partitions (p1_p1s0,p1_p1s1)  (rows=1)
+
+EXPLAIN FORMAT=TREE SELECT * FROM t_subpart_list_key PARTITION (p1);
+EXPLAIN
+-> Table scan on t_subpart_list_key over partitions (p1_p1s0,p1_p1s1)  (rows=1)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_subpart_range_key PARTITION (p1);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS range_key_subpartitions;
+range_key_subpartitions
+[["p1_p1s0", "p1_p1s1"]]
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_subpart_list_hash PARTITION (p1);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS list_hash_subpartitions;
+list_hash_subpartitions
+[["p1_p1s0", "p1_p1s1"]]
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_subpart_list_key PARTITION (p1);
+SELECT JSON_EXTRACT(@var, '$**.partitions') AS list_key_subpartitions;
+list_key_subpartitions
+[["p1_p1s0", "p1_p1s1"]]
+SET explain_json_format_version = DEFAULT;
+DROP TABLE t_range_pk;
+DROP TABLE t_range_scan;
+DROP TABLE t_const_outer;
+DROP TABLE t_hash;
+DROP TABLE t_key;
+DROP TABLE t_list;
+DROP TABLE t_dynamic;
+DROP TABLE t_count, t_count_other;
+DROP TABLE t_subpart;
+DROP TABLE t_subpart_range_key;
+DROP TABLE t_subpart_list_hash;
+DROP TABLE t_subpart_list_key;
+CREATE TABLE t_plan_outer (x INT);
+CREATE TABLE t_plan_inner (
+id INT NOT NULL,
+j INT NOT NULL,
+PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_plan_outer VALUES (0);
+INSERT INTO t_plan_inner VALUES (110, 0);
+ANALYZE TABLE t_plan_outer, t_plan_inner;
+Table	Op	Msg_type	Msg_text
+test.t_plan_outer	analyze	status	OK
+test.t_plan_inner	analyze	status	OK
+EXPLAIN ANALYZE
+SELECT STRAIGHT_JOIN i.*
+FROM t_plan_outer AS o
+JOIN t_plan_inner AS i ON i.j = o.x
+WHERE o.x = 999 AND i.id BETWEEN 110 AND 120;
+EXPLAIN
+-> Nested loop inner join  (rows=1) (actual rows=0 loops=1)
+    -> Filter: (o.x = 999)  (rows=1) (actual rows=0 loops=1)
+        -> Table scan on o  (rows=1) (actual rows=1 loops=1)
+    -> Filter: ((i.j = 999) and (i.id between 110 and 120))  (rows=1) (never executed)
+        -> Index range scan on i using PRIMARY in partitions (p1) over (110 <= id <= 120)  (rows=1) (never executed)
+
+DROP TABLE t_plan_outer, t_plan_inner;
+CREATE TABLE t_unpartitioned (id INT NOT NULL);
+INSERT INTO t_unpartitioned VALUES (110);
+ANALYZE TABLE t_unpartitioned;
+Table	Op	Msg_type	Msg_text
+test.t_unpartitioned	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_unpartitioned WHERE id BETWEEN 110 AND 120;
+EXPLAIN
+-> Filter: (t_unpartitioned.id between 110 and 120)  (rows=1)
+    -> Table scan on t_unpartitioned  (rows=1)
+
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_unpartitioned WHERE id BETWEEN 110 AND 120;
+SELECT JSON_CONTAINS_PATH(@var, 'one', '$**.partitions')
+AS unpartitioned_has_partitions;
+unpartitioned_has_partitions
+0
+SELECT JSON_EXTRACT(@var, '$.json_schema_version') AS json_schema_version;
+json_schema_version
+"2.1"
+CREATE TABLE t_all_pruned (
+id INT NOT NULL,
+PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200)
+);
+INSERT INTO t_all_pruned VALUES (110);
+ANALYZE TABLE t_all_pruned;
+Table	Op	Msg_type	Msg_text
+test.t_all_pruned	analyze	status	OK
+EXPLAIN FORMAT=TREE
+SELECT * FROM t_all_pruned WHERE id BETWEEN 210 AND 220;
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+EXPLAIN FORMAT=JSON INTO @var
+SELECT * FROM t_all_pruned WHERE id BETWEEN 210 AND 220;
+SELECT JSON_CONTAINS_PATH(@var, 'one', '$**.partitions')
+AS all_pruned_has_partitions;
+all_pruned_has_partitions
+0
+SET explain_json_format_version = DEFAULT;
+DROP TABLE t_unpartitioned, t_all_pruned;
+CREATE TABLE t_analyze_json_range (
+id INT NOT NULL,
+payload VARCHAR(20),
+PRIMARY KEY (id)
+)
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (1000),
+PARTITION p1 VALUES LESS THAN (2000),
+PARTITION p2 VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t_analyze_json_range WITH RECURSIVE qn(n) AS
+(SELECT 0 UNION ALL SELECT n + 1 FROM qn WHERE n < 999)
+SELECT 1000 + n, CONCAT('value-', n) FROM qn;
+CREATE TABLE t_analyze_json_outer (id INT NOT NULL);
+INSERT INTO t_analyze_json_outer VALUES (1100);
+ANALYZE TABLE t_analyze_json_range, t_analyze_json_outer;
+Table	Op	Msg_type	Msg_text
+test.t_analyze_json_range	analyze	status	OK
+test.t_analyze_json_outer	analyze	status	OK
+SET explain_json_format_version = 2;
+EXPLAIN ANALYZE FORMAT=JSON INTO @var
+SELECT * FROM t_analyze_json_range WHERE id BETWEEN 1100 AND 1101;
+SELECT
+JSON_EXTRACT(@var, '$**.partitions') AS analyze_range_partitions,
+JSON_SEARCH(@var, 'one', '%Index range scan%', NULL, '$**.operation')
+IS NOT NULL AS analyze_range_is_range_scan,
+JSON_SEARCH(@var, 'one', '%in partitions (p1)%', NULL, '$**.operation')
+IS NOT NULL AS analyze_range_operation_has_partitions,
+JSON_CONTAINS_PATH(@var, 'all', '$**.actual_rows', '$**.actual_loops')
+AS analyze_range_has_actual_metrics,
+JSON_EXTRACT(@var, '$.json_schema_version')
+AS analyze_range_schema_version;
+analyze_range_partitions	analyze_range_is_range_scan	analyze_range_operation_has_partitions	analyze_range_has_actual_metrics	analyze_range_schema_version
+[["p1"]]	1	1	1	"2.1"
+EXPLAIN ANALYZE FORMAT=JSON INTO @var
+SELECT i.payload
+FROM t_analyze_json_outer AS o
+STRAIGHT_JOIN t_analyze_json_range PARTITION (p1) AS i FORCE INDEX (PRIMARY)
+ON i.id = o.id;
+SELECT
+JSON_EXTRACT(@var, '$**.partitions') AS analyze_lookup_partitions,
+JSON_SEARCH(@var, 'one', '%Single-row index lookup%', NULL, '$**.operation')
+IS NOT NULL AS analyze_lookup_is_single_row,
+JSON_SEARCH(@var, 'one', '%in partitions (p1)%', NULL, '$**.operation')
+IS NOT NULL AS analyze_lookup_operation_has_partitions,
+JSON_CONTAINS_PATH(@var, 'all', '$**.actual_rows', '$**.actual_loops')
+AS analyze_lookup_has_actual_metrics,
+JSON_EXTRACT(@var, '$.json_schema_version')
+AS analyze_lookup_schema_version;
+analyze_lookup_partitions	analyze_lookup_is_single_row	analyze_lookup_operation_has_partitions	analyze_lookup_has_actual_metrics	analyze_lookup_schema_version
+[["p1"]]	1	1	1	"2.1"
+SET explain_json_format_version = DEFAULT;
+DROP TABLE t_analyze_json_range, t_analyze_json_outer;
+SET optimizer_switch = @wl17309_optimizer_switch;

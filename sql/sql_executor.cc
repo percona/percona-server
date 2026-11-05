@@ -752,6 +752,9 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
   */
   const size_t record_size = record_prefix_size(table);
 
+  // A record larger than the maximum buffer cannot fit in a record buffer.
+  if (record_size > MAX_RECORD_BUFFER_SIZE) return false;
+
   if (record_size > 0) {
     const ha_rows min_rows =
         std::ceil(double{MIN_RECORD_BUFFER_SIZE} / record_size);
@@ -3202,7 +3205,18 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     // Only const tables, so add a fake single row to join in all
     // the const tables (only inner-joined tables are promoted to
     // const tables in the optimizer).
-    path = NewFakeSingleRowAccessPath(thd, /*count_examined_rows=*/true);
+    // If exactly one const table is partitioned, retain its TABLE pointer for
+    // EXPLAIN so that the fake-row node can report selected read partitions.
+    // Iterator creation and execution do not use this pointer.
+    TABLE *explain_table = nullptr;
+    if (const_tables == 1) {
+      TABLE *const_table = qep_tab[0].table();
+      if (const_table != nullptr && const_table->part_info != nullptr) {
+        explain_table = const_table;
+      }
+    }
+    path = NewFakeSingleRowAccessPath(thd, /*count_examined_rows=*/true,
+                                      explain_table);
     qep_tab_map conditions_depend_on_outer_tables = 0;
     if (where_cond != nullptr) {
       path = PossiblyAttachFilter(path, vector<Item *>{where_cond}, thd,

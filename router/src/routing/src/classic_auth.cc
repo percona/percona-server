@@ -65,33 +65,16 @@ struct OsslDeleter<X509> {
   void operator()(X509 *x) { X509_free(x); }
 };
 
-#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 1, 0)
-template <>
-struct OsslDeleter<RSA> {
-  void operator()(RSA *rsa) { RSA_free(rsa); }
-};
-#endif
-
 using Bio = std::unique_ptr<BIO, OsslDeleter<BIO>>;
 using EvpPkey = std::unique_ptr<EVP_PKEY, OsslDeleter<EVP_PKEY>>;
 using X509_managed = std::unique_ptr<X509, OsslDeleter<X509>>;
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
 using EvpPkeyCtx = std::unique_ptr<EVP_PKEY_CTX, OsslDeleter<EVP_PKEY_CTX>>;
 #endif
-#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 1, 0)
-using Rsa = std::unique_ptr<RSA, OsslDeleter<RSA>>;
-#endif
 
 stdx::expected<std::string, std::error_code>
 AuthBase::public_key_from_ssl_ctx_as_pem(SSL_CTX *ssl_ctx) {
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
   const auto *pubkey = X509_get0_pubkey(SSL_CTX_get0_certificate(ssl_ctx));
-#elif OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
-  EvpPkey pubkey_managed(X509_get_pubkey(SSL_CTX_get0_certificate(ssl_ctx)));
-
-  const auto *pubkey = pubkey_managed.get();
-#endif
   Bio bio{BIO_new(BIO_s_mem())};
 
   PEM_write_bio_PUBKEY(bio.get(), const_cast<EVP_PKEY *>(pubkey));
@@ -101,17 +84,10 @@ AuthBase::public_key_from_ssl_ctx_as_pem(SSL_CTX *ssl_ctx) {
 
   return stdx::expected<std::string, std::error_code>{std::in_place, data,
                                                       data + data_len};
-#else
-  // 1.0.1 has no SSL_CTX_get_certificate
-  (void)ssl_ctx;
-
-  return stdx::unexpected(make_error_code(std::errc::function_not_supported));
-#endif
 }
 
 stdx::expected<EvpPkey, std::error_code> AuthBase::public_key_from_pem(
     std::string_view pubkey) {
-  // openssl 1.0.1 needs to the const-cast.
   Bio bio{BIO_new_mem_buf(const_cast<char *>(pubkey.data()), pubkey.size())};
 
   EvpPkey pkey{PEM_read_bio_PUBKEY(bio.get(), nullptr, nullptr, nullptr)};
@@ -127,26 +103,25 @@ stdx::expected<std::string, std::error_code> AuthBase::public_key_encrypt(
   std::string data;
 
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(3, 0, 0)
-  data.resize(EVP_PKEY_get_size(pkey));
-
   EvpPkeyCtx key_ctx{EVP_PKEY_CTX_new(pkey, nullptr)};
-  EVP_PKEY_encrypt_init(key_ctx.get());
-  EVP_PKEY_CTX_set_rsa_padding(key_ctx.get(), RSA_PKCS1_OAEP_PADDING);
+  if (!key_ctx || EVP_PKEY_encrypt_init(key_ctx.get()) != 1 ||
+      EVP_PKEY_CTX_set_rsa_padding(key_ctx.get(), RSA_PKCS1_OAEP_PADDING) !=
+          1) {
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
+  }
 
-  size_t encrypted_len;
+  data.resize(EVP_PKEY_get_size(pkey));
+  size_t encrypted_len = data.size();
 
-  EVP_PKEY_encrypt(key_ctx.get(),  //
-                   reinterpret_cast<unsigned char *>(data.data()),
-                   &encrypted_len,
-                   reinterpret_cast<const unsigned char *>(plaintext.data()),
-                   plaintext.size());
+  if (EVP_PKEY_encrypt(
+          key_ctx.get(), reinterpret_cast<unsigned char *>(data.data()),
+          &encrypted_len,
+          reinterpret_cast<const unsigned char *>(plaintext.data()),
+          plaintext.size()) != 1) {
+    return stdx::unexpected(make_error_code(std::errc::bad_message));
+  }
 #else
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
   auto *rsa = EVP_PKEY_get0_RSA(pkey);
-#else
-  Rsa rsa_managed(EVP_PKEY_get1_RSA(pkey));
-  auto *rsa = rsa_managed.get();
-#endif
   data.resize(RSA_size(rsa));
 
   int encrypted_len = RSA_public_encrypt(
@@ -210,12 +185,7 @@ stdx::expected<std::string, std::error_code> AuthBase::private_key_decrypt(
     }
   }
 #else
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
   auto *rsa = EVP_PKEY_get0_RSA(priv);
-#else
-  Rsa rsa_managed(EVP_PKEY_get1_RSA(priv));
-  auto *rsa = rsa_managed.get();
-#endif
 
   // encrypted password
   int decrypted_len = RSA_private_decrypt(
@@ -243,7 +213,6 @@ static void xor_plaintext(std::string &plaintext, std::string_view pattern) {
 
 stdx::expected<std::string, std::error_code> AuthBase::rsa_decrypt_password(
     SSL_CTX *ssl_ctx, std::string_view encrypted, std::string_view nonce) {
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
   auto decrypted_res = AuthBase::private_key_decrypt(
       encrypted, SSL_CTX_get0_privatekey(ssl_ctx));
   if (!decrypted_res) return stdx::unexpected(decrypted_res.error());
@@ -261,13 +230,6 @@ stdx::expected<std::string, std::error_code> AuthBase::rsa_decrypt_password(
   plaintext.resize(plaintext.size() - 1);
 
   return plaintext;
-#else
-  (void)ssl_ctx;
-  (void)encrypted;
-  (void)nonce;
-
-  return stdx::unexpected(make_error_code(std::errc::function_not_supported));
-#endif
 }
 
 stdx::expected<std::string, std::error_code> AuthBase::rsa_encrypt_password(
@@ -287,16 +249,27 @@ stdx::expected<std::string, std::error_code> AuthBase::rsa_encrypt_password(
   return AuthBase::public_key_encrypt(plaintext, pkey.get());
 }
 
+stdx::expected<std::string, std::error_code> RsaTlsContext::public_key() const {
+  if (!tls_context_) {
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
+  }
+  return AuthBase::public_key_from_ssl_ctx_as_pem(tls_context_->get());
+}
+
+stdx::expected<std::string, std::error_code> RsaTlsContext::decrypt_password(
+    std::string_view encrypted, std::string_view nonce) const {
+  if (!tls_context_) {
+    return stdx::unexpected(make_error_code(std::errc::invalid_argument));
+  }
+  return AuthBase::rsa_decrypt_password(tls_context_->get(), encrypted, nonce);
+}
+
 bool AuthBase::connection_has_public_key(
     MysqlRoutingClassicConnectionBase *connection) {
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
   if (!connection->context().source_ssl_ctx()) return false;
 
-  SSL_CTX *ssl_ctx = connection->context().source_ssl_ctx()->get();
+  auto tls_context = connection->context().source_ssl_ctx();
+  SSL_CTX *ssl_ctx = tls_context->get();
 
   return SSL_CTX_get0_certificate(ssl_ctx) != nullptr;
-#else
-  (void)connection;
-  return false;
-#endif
 }

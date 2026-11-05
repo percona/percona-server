@@ -102,6 +102,7 @@
 
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8mb4"
 
+<<<<<<< HEAD
 /* Chars needed to store LONGLONG, excluding trailing '\0'. */
 static constexpr const auto LONGLONG_LEN = 20;
 
@@ -109,6 +110,13 @@ enum class key_type_t { NONE, PRIMARY, UNIQUE, NON_UNIQUE, CONSTRAINT };
 
 /* Maximum number of fields per table */
 #define MAX_FIELDS 4000
+||||||| merged common ancestors
+/* Maximum number of fields per table */
+#define MAX_FIELDS 4000
+=======
+/* Maximum number of fields per table. Keep in sync with sql/sql_const.h. */
+#define MAX_FIELDS 4096
+>>>>>>> mysql-26.10.0
 
 /* One year in seconds */
 #define LONG_TIMEOUT (3600UL * 24UL * 365UL)
@@ -120,6 +128,8 @@ enum class key_type_t { NONE, PRIMARY, UNIQUE, NON_UNIQUE, CONSTRAINT };
 #define FIRST_REPLICA_COMMAND_VERSION 80023
 /*  First mysql version supporting source statements. */
 #define FIRST_SOURCE_COMMAND_VERSION 80200
+/* First mysql version supporting JSON relational duality views. */
+#define FIRST_JSON_DUALITY_VIEW_VERSION 90500
 
 using std::string;
 
@@ -858,8 +868,18 @@ static int init_dumping_tables(char *);
 static int init_dumping(char *, int init_func(char *));
 static int dump_databases(char **);
 static int dump_all_databases();
-static char *quote_name(char *name, char *buff, bool force);
-static const char *quote_name(const char *name, char *buff, bool force);
+static char *quote_name(char *name, char *buff, size_t buff_size, bool force);
+template <size_t BufferSize>
+static char *quote_name(char *name, char (&buff)[BufferSize], bool force) {
+  return quote_name(name, buff, BufferSize, force);
+}
+template <size_t BufferSize>
+static const char *quote_name(const char *name, char (&buff)[BufferSize],
+                              bool force) {
+  return quote_name(const_cast<char *>(name), buff, BufferSize, force);
+}
+static void check_identifier_length(const char *identifier,
+                                    const char *identifier_type);
 char check_if_ignore_table(const char *table_name, char *table_type);
 bool is_infoschema_db(const char *db);
 static char *primary_key_fields(const char *table_name, const bool desc);
@@ -2222,6 +2242,7 @@ static bool test_if_special_chars(const char *str) {
 
   name                 Unquoted string containing that which will be quoted
   buff                 The buffer that contains the quoted value, also returned
+  buff_size            Size of buff in bytes
   force                Flag to make it ignore 'test_if_special_chars'
 
   Returns
@@ -2229,21 +2250,52 @@ static bool test_if_special_chars(const char *str) {
   buff                 quoted string
 
 */
-static char *quote_name(char *name, char *buff, bool force) {
+static char *quote_name(char *name, char *buff, size_t buff_size, bool force) {
   char *to = buff;
   const char qtype = ansi_quotes_mode ? '"' : '`';
 
+  DBUG_EXECUTE_IF("mysqldump_oversized_quoted_identifier", {
+    static char oversized_identifier[NAME_LEN + 2];
+    memset(oversized_identifier, qtype, sizeof(oversized_identifier) - 1);
+    oversized_identifier[sizeof(oversized_identifier) - 1] = 0;
+    name = oversized_identifier;
+  });
+
+  if (name == nullptr) {
+    die(EX_CONSCHECK, "Cannot quote a NULL identifier");
+    return nullptr;
+  }
+
   if (!force && !opt_quoted && !test_if_special_chars(name)) return name;
+
+  if (buff_size < 3) {
+    die(EX_CONSCHECK, "Buffer is too small to quote an identifier");
+    return nullptr;
+  }
+
+  size_t remaining = buff_size;
   *to++ = qtype;
+  --remaining;
   while (*name) {
-    if (*name == qtype) *to++ = qtype;
+    const size_t quoted_char_size = (*name == qtype) ? 2 : 1;
+    /* Reserve two bytes for the closing quote and terminating null. */
+    if (remaining < quoted_char_size + 2) {
+      die(EX_CONSCHECK, "Identifier is too long to quote safely");
+      return nullptr;
+    }
+    if (*name == qtype) {
+      *to++ = qtype;
+      --remaining;
+    }
     *to++ = *name++;
+    --remaining;
   }
   to[0] = qtype;
   to[1] = 0;
   return buff;
 } /* quote_name */
 
+<<<<<<< HEAD
 /**
    Unquotes char string, taking into account compatible mode
 
@@ -2285,6 +2337,29 @@ static const char *unquote_name(const char *opt_quoted_name,
 
 static const char *quote_name(const char *name, char *buff, bool force) {
   return quote_name(const_cast<char *>(name), buff, force);
+||||||| merged common ancestors
+static const char *quote_name(const char *name, char *buff, bool force) {
+  return quote_name(const_cast<char *>(name), buff, force);
+=======
+static void check_identifier_length(const char *identifier,
+                                    const char *identifier_type) {
+  if (identifier == nullptr)
+    die(EX_CONSCHECK, "%s name is NULL", identifier_type);
+  DBUG_EXECUTE_IF("mysqldump_oversized_identifier", {
+    static char oversized_identifier[NAME_LEN + 2];
+    memset(oversized_identifier, 'x', sizeof(oversized_identifier) - 1);
+    oversized_identifier[sizeof(oversized_identifier) - 1] = 0;
+    identifier = oversized_identifier;
+  });
+  /**
+    MYSQL_ROW text fields are null-terminated by the client library. NAME_LEN
+    is an encoded byte limit (NAME_CHAR_LEN * SYSTEM_CHARSET_MBMAXLEN), so
+    strlen() intentionally validates bytes rather than characters.
+  */
+  if (strlen(identifier) > NAME_LEN)
+    die(EX_CONSCHECK, "%s name exceeds the maximum length of %d bytes",
+        identifier_type, NAME_LEN);
+>>>>>>> mysql-26.10.0
 }
 
 /*
@@ -2309,17 +2384,63 @@ static const char *quote_name(const char *name, char *buff, bool force) {
     Example: "t\1" => "t\\\\1"
 
 */
-static char *quote_for_like(const char *name, char *buff) {
+static constexpr size_t MAX_ESCAPED_LIKE_IDENTIFIER_SIZE = NAME_LEN * 4 + 3;
+
+template <size_t BufferSize>
+static char *quote_for_like(const char *name, char (&buff)[BufferSize]) {
   char *to = buff;
+  size_t remaining = BufferSize;
+
+  if constexpr (BufferSize == MAX_ESCAPED_LIKE_IDENTIFIER_SIZE) {
+    DBUG_EXECUTE_IF("mysqldump_maximum_like_identifier", {
+      static char maximum_identifier[NAME_LEN + 1];
+      memset(maximum_identifier, '\\', sizeof(maximum_identifier) - 1);
+      maximum_identifier[sizeof(maximum_identifier) - 1] = 0;
+      name = maximum_identifier;
+    });
+
+    DBUG_EXECUTE_IF("mysqldump_oversized_like_identifier", {
+      static char oversized_identifier[NAME_LEN + 2];
+      memset(oversized_identifier, '\\', sizeof(oversized_identifier) - 1);
+      oversized_identifier[sizeof(oversized_identifier) - 1] = 0;
+      name = oversized_identifier;
+    });
+  }
+
+  if (name == nullptr) {
+    die(EX_CONSCHECK, "Cannot quote a NULL identifier");
+    return nullptr;
+  }
+
+  if (remaining < 3) {
+    die(EX_CONSCHECK, "Buffer is too small to quote an identifier for LIKE");
+    return nullptr;
+  }
+
   *to++ = '\'';
+  --remaining;
   while (*name) {
+    size_t quoted_char_size = 1;
+    if (*name == '\\')
+      quoted_char_size = 4;
+    else if (*name == '\'' || *name == '_' || *name == '%')
+      quoted_char_size = 2;
+    /* Reserve two bytes for the closing quote and terminating null. */
+    if (remaining < quoted_char_size + 2) {
+      die(EX_CONSCHECK, "Identifier is too long to quote safely for LIKE");
+      return nullptr;
+    }
     if (*name == '\\') {
       *to++ = '\\';
       *to++ = '\\';
       *to++ = '\\';
-    } else if (*name == '\'' || *name == '_' || *name == '%')
+      remaining -= 3;
+    } else if (*name == '\'' || *name == '_' || *name == '%') {
       *to++ = '\\';
+      --remaining;
+    }
     *to++ = *name++;
+    --remaining;
   }
   to[0] = '\'';
   to[1] = 0;
@@ -3868,11 +3989,13 @@ static inline bool is_innodb_stats_tables_included(int argc, char **argv) {
     table_type   - table type, e.g. "MyISAM" or "InnoDB", but also "VIEW"
     ignore_flag  - what we must particularly ignore - see IGNORE_ defines above
     real_columns - Contains one byte per column, 0 means unused, 1 is used
-                   Generated columns are marked as unused
+                   Generated columns are marked as unused. It has MAX_FIELDS
+                   entries; tables exceeding that limit are rejected.
     column_list  - Contains column list when table has invisible columns.
 
   RETURN
-    number of fields in table, 0 if error
+    Number of fields in the table, or 0 if a query fails or the table has
+    MAX_FIELDS or more columns.
 */
 
 static uint get_table_structure(const char *table, char *db, char *table_type,
@@ -3882,7 +4005,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
   uint64_t num_fields;
   const char *result_table, *opt_quoted_table;
   const char *insert_option;
-  char name_buff[NAME_LEN + 3], table_buff[NAME_LEN * 2 + 3];
+  char name_buff[NAME_LEN * 2 + 3], table_buff[NAME_LEN * 2 + 3];
   char table_buff2[NAME_LEN * 2 + 3], query_buff[QUERY_LENGTH];
   const char *show_fields_stmt =
       "SELECT `COLUMN_NAME` AS `Field`, "
@@ -4215,6 +4338,14 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
 
     colno = 0;
     while ((row = mysql_fetch_row(result))) {
+      DBUG_EXECUTE_IF("mysqldump_too_many_columns", colno = MAX_FIELDS;);
+      if (colno >= MAX_FIELDS) {
+        mysql_free_result(result);
+        die(EX_CONSCHECK, "Table '%s' has more than %d columns.", table,
+            MAX_FIELDS);
+        return 0;
+      }
+
       if (row[SHOW_EXTRA]) {
         real_columns[colno] =
             (strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
@@ -4337,6 +4468,13 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
     while ((row = mysql_fetch_row(result))) {
       ulong *lengths = mysql_fetch_lengths(result);
 
+      if (colno >= MAX_FIELDS) {
+        mysql_free_result(result);
+        die(EX_CONSCHECK, "Table '%s' has more than %d columns.", table,
+            MAX_FIELDS);
+        return 0;
+      }
+
       if (row[SHOW_EXTRA]) {
         real_columns[colno] =
             (strcmp(row[SHOW_EXTRA], "STORED GENERATED") != 0 &&
@@ -4453,13 +4591,16 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
 
       /* Get MySQL specific create options */
       if (create_options) {
-        char show_name_buff[NAME_LEN * 2 + 2 + 24];
+        char show_name_buff[MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
+        char show_table_status_query[sizeof("show table status like ") +
+                                     MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
 
-        /* Check memory for quote_for_like() */
-        snprintf(buff, sizeof(buff), "show table status like %s",
+        snprintf(show_table_status_query, sizeof(show_table_status_query),
+                 "show table status like %s",
                  quote_for_like(table, show_name_buff));
 
-        if (mysql_query_with_error_report(mysql, &result, buff)) {
+        if (mysql_query_with_error_report(mysql, &result,
+                                          show_table_status_query)) {
           if (mysql_errno(mysql) != ER_PARSE_ERROR) { /* If old MySQL version */
             verbose_msg(
                 "-- Warning: Couldn't get status information for "
@@ -4518,6 +4659,8 @@ static void dump_trigger_old(FILE *sql_file, MYSQL_RES *show_triggers_rs,
       "statement. Skipping..\n";
 
   DBUG_TRACE;
+
+  check_identifier_length((*show_trigger_row)[0], "Trigger");
 
   if (opt_xml) {
     print_xml_comment(sql_file, strlen(xml_msg), xml_msg);
@@ -4647,7 +4790,7 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
 */
 
 static int dump_triggers_for_table(char *table_name, char *db_name) {
-  char name_buff[NAME_LEN * 4 + 3];
+  char name_buff[MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
   char query_buff[QUERY_LENGTH];
   const bool old_ansi_quotes_mode = ansi_quotes_mode;
   MYSQL_RES *show_triggers_rs;
@@ -4689,6 +4832,7 @@ static int dump_triggers_for_table(char *table_name, char *db_name) {
     print_xml_tag(sql_file, "\t", "\n", "triggers", "name=", table_name, NullS);
 
   while ((row = mysql_fetch_row(show_triggers_rs))) {
+    check_identifier_length(row[0], "Trigger");
     snprintf(query_buff, sizeof(query_buff), "SHOW CREATE TRIGGER %s",
              quote_name(row[0], name_buff, true));
 
@@ -4945,7 +5089,7 @@ static void dump_skipped_keys(const char *table) {
 
 static void dump_table(char *table, char *db) {
   char ignore_flag;
-  char buf[240], table_buff[NAME_LEN + 3];
+  char buf[240], table_buff[NAME_LEN * 2 + 3];
   DYNAMIC_STRING query_string;
   DYNAMIC_STRING extended_row;
   char table_type[NAME_LEN];
@@ -4960,6 +5104,9 @@ static void dump_table(char *table, char *db) {
   bool real_columns[MAX_FIELDS];
   DBUG_TRACE;
   char *order_by = nullptr;
+
+  check_identifier_length(table, "Table");
+  check_identifier_length(db, "Database");
 
   /*
     Make sure you get the create table info before the following check for
@@ -5143,7 +5290,8 @@ static void dump_table(char *table, char *db) {
     auto res_guard = create_scope_guard([&] { mysql_free_result(res); });
 
     verbose_msg("-- Retrieving rows...\n");
-    if (mysql_num_fields(res) != num_fields) {
+    const uint result_num_fields = mysql_num_fields(res);
+    if (result_num_fields != num_fields || result_num_fields > MAX_FIELDS) {
       fprintf(stderr, "%s: Error in field count for table: %s !  Aborting.\n",
               my_progname, result_table);
       error = EX_CONSCHECK;
@@ -5189,7 +5337,7 @@ static void dump_table(char *table, char *db) {
         check_io(md_result_file);
       }
 
-      for (i = 0; i < mysql_num_fields(res); i++) {
+      for (i = 0; i < result_num_fields; i++) {
         int is_blob;
         const ulong length = lengths[i];
 
@@ -5433,7 +5581,10 @@ static char *getTableName(int reset) {
   if (!res) {
     if (!(res = mysql_list_tables(mysql, NullS))) return (nullptr);
   }
-  if ((row = mysql_fetch_row(res))) return ((char *)row[0]);
+  if ((row = mysql_fetch_row(res))) {
+    check_identifier_length(row[0], "Table");
+    return ((char *)row[0]);
+  }
 
   if (reset)
     mysql_data_seek(res, 0); /* We want to read again */
@@ -5954,6 +6105,7 @@ static int dump_all_tables_in_db(char *database) {
 
   DBUG_TRACE;
 
+  check_identifier_length(database, "Database");
   afterdot = my_stpcpy(hash_key, database);
   *afterdot++ = '.';
 
@@ -6111,6 +6263,7 @@ static bool dump_all_views_in_db(char *database) {
 
   if (opt_ignore_views) return false;
 
+  check_identifier_length(database, "Database");
   afterdot = my_stpcpy(hash_key, database);
   *afterdot++ = '.';
 
@@ -6171,12 +6324,10 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root) {
   char *name = nullptr;
   MYSQL_RES *table_res;
   MYSQL_ROW row;
-  char query[4 * NAME_LEN];
-  char show_name_buff[FN_REFLEN];
+  char query[sizeof("SHOW TABLES LIKE ") + MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
+  char show_name_buff[MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
   DBUG_TRACE;
 
-  /* Check memory for quote_for_like() */
-  assert(2 * sizeof(old_table_name) < sizeof(show_name_buff));
   snprintf(query, sizeof(query), "SHOW TABLES LIKE %s",
            quote_for_like(old_table_name, show_name_buff));
 
@@ -6192,6 +6343,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root) {
       */
       row = mysql_fetch_row(table_res);
       lengths = mysql_fetch_lengths(table_res);
+      check_identifier_length(row[0], "Table");
       name = strmake_root(root, row[0], lengths[0]);
     }
     mysql_free_result(table_res);
@@ -6686,13 +6838,13 @@ static void print_value(FILE *file, MYSQL_RES *result, MYSQL_ROW row,
 
 char check_if_ignore_table(const char *table_name, char *table_type) {
   char result = IGNORE_NONE;
-  char buff[FN_REFLEN + 80], show_name_buff[FN_REFLEN];
+  char buff[sizeof("show table status like ") +
+            MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
+  char show_name_buff[MAX_ESCAPED_LIKE_IDENTIFIER_SIZE];
   MYSQL_RES *res = nullptr;
   MYSQL_ROW row;
   DBUG_TRACE;
 
-  /* Check memory for quote_for_like() */
-  assert(2 * sizeof(table_name) < sizeof(show_name_buff));
   snprintf(buff, sizeof(buff), "show table status like %s",
            quote_for_like(table_name, show_name_buff));
   if (mysql_query_with_error_report(mysql, &res, buff)) {
@@ -7258,12 +7410,21 @@ static bool get_view_structure(char *table, char *db) {
   verbose_msg("-- Dropping the temporary view structure created\n");
   fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n", opt_quoted_table);
 
+  const char *is_json_duality_view_expression =
+      mysql_get_server_version(mysql) >= FIRST_JSON_DUALITY_VIEW_VERSION
+          ? "EXISTS(SELECT 1 "
+            "       FROM information_schema.json_duality_views jdv "
+            "       WHERE jdv.table_name=v.table_name "
+            "         AND jdv.table_schema=v.table_schema)"
+          : "FALSE";
+
   snprintf(query, sizeof(query),
            "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE, "
-           "       CHARACTER_SET_CLIENT, COLLATION_CONNECTION "
-           "FROM information_schema.views "
-           "WHERE table_name='%s' AND table_schema='%s'",
-           table_string_buff, db_string_buff);
+           "       CHARACTER_SET_CLIENT, COLLATION_CONNECTION, "
+           "       %s "
+           "FROM information_schema.views v "
+           "WHERE v.table_name='%s' AND v.table_schema='%s'",
+           is_json_duality_view_expression, table_string_buff, db_string_buff);
 
   if (mysql_query(mysql, query)) {
     /*
@@ -7299,27 +7460,32 @@ static bool get_view_structure(char *table, char *db) {
     }
 
     lengths = mysql_fetch_lengths(table_res);
+    const char *view_version_comment_begin = "";
+    const char *view_version_comment_end = "";
+    if (row[5] == nullptr || strcmp(row[5], "1") != 0) {
+      view_version_comment_begin = "/*!50001 ";
+      view_version_comment_end = " */";
 
-    /*
-      "WITH %s CHECK OPTION" is available from 5.0.2
-      Surround it with !50002 comments
-    */
-    if (strcmp(row[0], "NONE") != 0) {
-      ptr = search_buf;
-      search_len =
-          (ulong)(strxmov(ptr, "WITH ", row[0], " CHECK OPTION", NullS) - ptr);
-      ptr = replace_buf;
-      replace_len = (ulong)(strxmov(ptr, "*/\n/*!50002 WITH ", row[0],
-                                    " CHECK OPTION", NullS) -
-                            ptr);
-      replace(&ds_view, search_buf, search_len, replace_buf, replace_len);
-    }
+      /*
+        "WITH %s CHECK OPTION" is available from 5.0.2
+        Surround it with !50002 comments
+      */
+      if (strcmp(row[0], "NONE") != 0) {
+        ptr = search_buf;
+        search_len =
+            (ulong)(strxmov(ptr, "WITH ", row[0], " CHECK OPTION", NullS) -
+                    ptr);
+        ptr = replace_buf;
+        replace_len = (ulong)(strxmov(ptr, "*/\n/*!50002 WITH ", row[0],
+                                      " CHECK OPTION", NullS) -
+                              ptr);
+        replace(&ds_view, search_buf, search_len, replace_buf, replace_len);
+      }
 
-    /*
-      "DEFINER=%s SQL SECURITY %s" is available from 5.0.13
-      Surround it with !50013 comments
-    */
-    {
+      /*
+        "DEFINER=%s SQL SECURITY %s" is available from 5.0.13
+        Surround it with !50013 comments
+      */
       size_t user_name_len;
       char user_name_str[USERNAME_LENGTH + 1];
       char quoted_user_name_str[USERNAME_LENGTH * 2 + 3];
@@ -7363,13 +7529,14 @@ static bool get_view_structure(char *table, char *db) {
             "/*!50001 SET character_set_client      = %s */;\n"
             "/*!50001 SET character_set_results     = %s */;\n"
             "/*!50001 SET collation_connection      = %s */;\n"
-            "/*!50001 %s */;\n"
+            "%s%s%s;\n"
             "/*!50001 SET character_set_client      = @saved_cs_client */;\n"
             "/*!50001 SET character_set_results     = @saved_cs_results */;\n"
             "/*!50001 SET collation_connection      = @saved_col_connection "
             "*/;\n",
             (const char *)row[3], (const char *)row[3], (const char *)row[4],
-            (const char *)ds_view.str);
+            view_version_comment_begin, (const char *)ds_view.str,
+            view_version_comment_end);
 
     check_io(sql_file);
     mysql_free_result(table_res);

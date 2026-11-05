@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <cassert>
+#include <memory>
 #include <sstream>
 
 #include <mysql/components/services/log_builtins.h>
@@ -322,6 +323,10 @@ bool is_view_change_log_event_required() {
 
 bool get_plugin_is_stopping() { return lv.plugin_is_stopping; }
 
+bool get_plugin_is_being_uninstalled() {
+  return lv.plugin_is_being_uninstalled;
+}
+
 bool get_wait_on_engine_initialization() {
   return lv.wait_on_engine_initialization;
 }
@@ -432,24 +437,24 @@ uint get_auto_evict_timeout() { return ov.auto_evict_timeout; }
  * @param fd      File descriptor of the connections
  * @param ssl_ctx SSL data of the connection
  *
- * @return int Returns 1 in case of any error. 0 otherwise.
+ * @return the result of handing the connection to Group Replication
  */
 
-int handle_group_replication_incoming_connection(THD *thd, int fd,
-                                                 SSL *ssl_ctx) {
-  auto *new_connection = new Network_connection(fd, ssl_ctx);
+Gr_incoming_connection_status handle_group_replication_incoming_connection(
+    THD *thd, int fd, SSL *ssl_ctx) {
+  auto new_connection = std::make_unique<Network_connection>(fd, ssl_ctx);
   new_connection->has_error = false;
-  int error_return = 1;
 
-  if (auto mysql_provider = gcs_module->get_mysql_network_provider();
-      mysql_provider) {
-    mysql_provider->set_new_connection(thd, new_connection);
-    error_return = 0;
-  } else {
-    delete new_connection;
-  }
+  auto *mysql_provider = gcs_module->get_mysql_network_provider();
+  if (mysql_provider == nullptr) return Gr_incoming_connection_status::ERROR;
 
-  return error_return;
+  const auto result =
+      mysql_provider->set_new_connection(thd, new_connection.get());
+
+  if (result == Gr_incoming_connection_status::ACCEPTED)
+    new_connection.release();
+
+  return result;
 }
 
 /**
@@ -2422,6 +2427,21 @@ int plugin_group_replication_deinit(void *p) {
     lv.auto_increment_handler = nullptr;
   }
 
+  /*
+    The call unregister_udfs(), with implicit
+    wait_for_references = false, is made during plugin
+    deinitialization and serves as an idempotent cleanup operation.
+    For a normal UNINSTALL PLUGIN operation, the uninstall check
+    has already called unregister_udfs(true), while the plugin
+    state is still valid, and waited until every UDF reference was
+    released.
+
+    Waiting at this point would be too late because deinitialization
+    has already destroyed some plugin state that an active UDF might
+    access. Consequently, synchronization belongs in the uninstall
+    check, while this deinitialization call only attempts
+    non-blocking cleanup for any remaining registrations.
+  */
   unregister_udfs();
   sql_service_interface_deinit();
   mysql_thread_handler_finalize();
@@ -2497,6 +2517,32 @@ static int plugin_group_replication_check_uninstall(void *) {
              "Please uninstall the component"
              " 'component_group_replication_flow_control_stats'"
              " and then UNINSTALL PLUGIN group_replication.");
+    return 1;
+  }
+
+  /*
+    Prevent new UDF executions while outstanding references are released.
+    Two flags are needed because they have different semantics:
+    * plugin_is_stopping is checked by regular GR UDFs, which must not
+      start while GR is stopping.
+    * plugin_is_being_uninstalled is checked by member-action UDFs. Those
+      UDFs must remain usable after a normal STOP GROUP_REPLICATION, but
+      must not start during plugin uninstall.
+  */
+  bool const was_stopping = lv.plugin_is_stopping.exchange(true);
+  bool const was_being_uninstalled =
+      lv.plugin_is_being_uninstalled.exchange(true);
+
+  /*
+    Plugin deinitialization errors do not prevent the shared object from being
+    unloaded. Unregister the UDF callbacks while the module is still loaded,
+    and wait until any outstanding UDF references are released.
+    If the unregistration fails, the plugin deinitialization will also fail,
+    thus revert back the flags to their prior state.
+  */
+  if (unregister_udfs(true)) {
+    lv.plugin_is_stopping = was_stopping;
+    lv.plugin_is_being_uninstalled = was_being_uninstalled;
     return 1;
   }
 
@@ -3998,7 +4044,7 @@ static int check_sysvar_bool(MYSQL_THD, SYS_VAR *, void *save,
 
 static bool tls_force_pqc_supported_for_version(const char *tls_version
                                                 [[maybe_unused]]) {
-#if !defined(HAVE_TLSv13) || OPENSSL_VERSION_NUMBER < 0x30500000L
+#if OPENSSL_VERSION_NUMBER < 0x30500000L
   return false;
 #else
   return !(process_tls_version(tls_version) & SSL_OP_NO_TLSv1_3);
@@ -4014,7 +4060,7 @@ static int validate_group_replication_force_pqc_tls_version(
 }
 
 static void adjust_startup_group_replication_force_pqc_for_tls_version() {
-#if defined(HAVE_TLSv13) && OPENSSL_VERSION_NUMBER >= 0x30500000L
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
   if (!ov.force_pqc_var ||
       tls_force_pqc_supported_for_version(ov.recovery_tls_version_var))
     return;

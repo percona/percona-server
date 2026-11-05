@@ -1842,6 +1842,7 @@ dberr_t srv_start(bool create_new_db) {
     }
     pages_persistence->enable_checkpointing();
 
+    /* A newly created log must remain empty until start_writing() returns. */
     ut_a(ib::redo::handler->peek_first_unassigned_lsn() == flushed_lsn);
     ut_a(ib::redo::handler->peek_first_nonpersisted_lsn() == flushed_lsn);
 
@@ -1941,9 +1942,10 @@ dberr_t srv_start(bool create_new_db) {
       to actual B-tree pages during pages_persistence->recover_tables() -
       an operation on pages which itself needs to be redo logged.
       Even in srv_read_only_mode we call start_writing(), because many places
-      in innodb assume that log_start() was called - in particular, that we can
-      call peek_unassigned_lsn() in buf_page_lsn_check after reads. However in
-      srv_read_only_mode, the background threads will not be started. */
+      in InnoDB assume that the redo system was initialized for writing - in
+      particular, that we can call peek_unassigned_lsn() in buf_page_lsn_check
+      after reads. However in srv_read_only_mode, the background threads will
+      not be started. */
       const auto start_result = ib::redo::handler->start_writing(recovered_lsn);
       if (start_result != ib::redo::Status::SUCCESS) {
         ut_ad(start_result == ib::redo::Status::WRITE_ERROR);

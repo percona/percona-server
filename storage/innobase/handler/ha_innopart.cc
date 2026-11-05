@@ -919,10 +919,9 @@ int ha_innopart::open(const char *name, int mode [[maybe_unused]],
                     table->s->table_name.str);
       }
 
-      /* Allow an open because a proper DISCARD should have set
-      all the flags and index root page numbers to FIL_NULL that
-      should prevent any DML from running but it should allow DDL
-      operations. */
+      /* Allow opening a discarded table so DDL such as IMPORT can run. DML
+      checks the discarded state and does not access the unavailable
+      tablespace. */
       no_tablespace = false;
 
     } else if (ib_table->ibd_file_missing) {
@@ -2062,20 +2061,23 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
     }
   }
 
-  /* Parallel read is not currently supported for sampling. */
-  size_t max_threads = Parallel_reader::available_threads(1, false);
-
-  if (max_threads == 0) {
-    return HA_ERR_SAMPLING_INIT_FAILED;
-  }
+  /* Sampling uses one asynchronous worker to produce records for
+  sample_next(). A synchronous scan would block waiting for sample_next()
+  before sample_init() returns. Multiple workers cannot safely write to the
+  single caller-provided buffer. */
+  constexpr size_t max_threads = 1;
 
   Histogram_sampler *sampler = ut::new_withkey<Histogram_sampler>(
       UT_NEW_THIS_FILE_PSI_KEY, max_threads, sampling_seed, sampling_percentage,
       sampling_method);
 
   if (sampler == nullptr) {
-    Parallel_reader::release_threads(max_threads);
     return HA_ERR_OUT_OF_MEM;
+  }
+
+  if (sampler->max_threads() == 0) {
+    ut::delete_(sampler);
+    return HA_ERR_SAMPLING_INIT_FAILED;
   }
 
   scan_ctx = sampler;
@@ -2835,6 +2837,7 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
 
       dd::Properties &p = dd_index->se_private_data();
       p.set(dd_index_key_strings[DD_INDEX_ROOT], index->page);
+      p.set(dd_index_key_strings[DD_INDEX_TRX_ID], index->trx_id);
     }
   }
 
@@ -3219,8 +3222,6 @@ int ha_innopart::records(ha_rows *num_rows) {
   auto trx = thd_to_trx(ha_thd());
   size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
 
-  n_threads = Parallel_reader::available_threads(n_threads, false);
-
   if (n_threads > 1 && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
       m_prebuilt->select_lock_type == LOCK_NONE &&
       trx->mysql_n_tables_locked == 0 && !m_prebuilt->ins_sel_stmt) {
@@ -3238,10 +3239,6 @@ int ha_innopart::records(ha_rows *num_rows) {
       if (dict_table_is_discarded(m_prebuilt->table)) {
         ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                     m_prebuilt->table->name.m_name);
-
-        /* Restore the parallel read thread count if parallel read is not
-        executed */
-        Parallel_reader::release_threads(n_threads);
 
         *num_rows = HA_POS_ERROR;
         return (HA_ERR_NO_SUCH_TABLE);
@@ -3280,10 +3277,6 @@ int ha_innopart::records(ha_rows *num_rows) {
     /* The index scan is probably so expensive, so the overhead
     of the rest of the function is neglectable for each partition.
     So no current reason for optimizing this further. */
-
-    /* Restore the parallel read thread count if parallel read is not
-    executed */
-    Parallel_reader::release_threads(n_threads);
 
     for (uint i = m_part_info->get_first_used_partition(); i < m_tot_parts;
          i = m_part_info->get_next_used_partition(i)) {
@@ -4246,6 +4239,28 @@ int ha_innopart::bulk_load_end(THD *thd, void *load_ctx, bool is_error) {
   m_prebuilt->table = saved_table;
 
   return error;
+}
+
+int ha_innopart::bulk_load_preserve_auto_increment(
+    ulonglong auto_increment_value) {
+  const int error =
+      ha_innobase::bulk_load_preserve_auto_increment(auto_increment_value);
+  if (error != 0 || table->found_next_number_field == nullptr) {
+    return error;
+  }
+
+  dict_table_t *innodb_table = m_prebuilt->table;
+  dict_table_autoinc_lock(innodb_table);
+  const uint64_t next_auto_increment = dict_table_autoinc_read(innodb_table);
+  dict_table_autoinc_unlock(innodb_table);
+
+  lock_auto_increment();
+  m_part_share->next_auto_inc_val =
+      std::max<ulonglong>(m_part_share->next_auto_inc_val, next_auto_increment);
+  m_part_share->auto_inc_initialized = true;
+  unlock_auto_increment();
+
+  return 0;
 }
 
 void ha_innopart::clear_blob_heaps() {

@@ -4141,6 +4141,8 @@ class Item_func_uuid_short final : public Item_int_func {
 class Item_func_version final : public Item_static_string_func {
   typedef Item_static_string_func super;
 
+  Item_func_version(const POS &pos, const LEX_CSTRING &version);
+
  public:
   explicit Item_func_version(const POS &pos);
 
@@ -4149,6 +4151,8 @@ class Item_func_version final : public Item_static_string_func {
 
 class Item_func_version_with_update final : public Item_static_string_func {
   typedef Item_static_string_func super;
+
+  Item_func_version_with_update(const POS &pos, const LEX_CSTRING &version);
 
  public:
   explicit Item_func_version_with_update(const POS &pos);

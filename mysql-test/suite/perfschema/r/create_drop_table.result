@@ -1,7 +1,8 @@
 TRUNCATE TABLE performance_schema.events_stages_history_long;
 CREATE TABLE test.t1(a int);
 DROP TABLE test.t1;
-SELECT EVENT_NAME FROM performance_schema.events_stages_history_long ORDER BY EVENT_ID;
+SELECT EVENT_NAME FROM performance_schema.events_stages_history_long
+WHERE THREAD_ID = PS_CURRENT_THREAD_ID() ORDER BY EVENT_ID;
 EVENT_NAME
 stage/sql/System lock
 stage/sql/waiting for handler commit
@@ -48,7 +49,8 @@ stage/sql/preparing
 TRUNCATE TABLE performance_schema.events_stages_history_long;
 CREATE TEMPORARY TABLE test.t1(a int);
 DROP TABLE test.t1;
-SELECT EVENT_NAME FROM performance_schema.events_stages_history_long ORDER BY EVENT_ID;
+SELECT EVENT_NAME FROM performance_schema.events_stages_history_long
+WHERE THREAD_ID = PS_CURRENT_THREAD_ID() ORDER BY EVENT_ID;
 EVENT_NAME
 stage/sql/System lock
 stage/sql/waiting for handler commit

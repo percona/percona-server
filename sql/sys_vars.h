@@ -78,6 +78,7 @@
 #include "sql/sys_vars_shared.h"  // throw_bounds_warning
 #include "sql/tztime.h"           // Time_zone
 #include "sql_string.h"
+#include "template_utils.h"  // down_cast
 #include "typelib.h"
 
 class Sys_var_bit;
@@ -1066,6 +1067,17 @@ class Sys_var_charptr : public sys_var {
     assert(size == sizeof(char *));
   }
 
+  /**
+    @returns the global value of the variable.
+
+    The caller must hold LOCK_global_system_variables and must not use
+    the returned pointer after releasing it.
+  */
+  virtual const char *global_value_str() {
+    mysql_mutex_assert_owner(&LOCK_global_system_variables);
+    return global_var(const char *);
+  }
+
   void cleanup() override {
     if (flags & ALLOCATED) my_free(global_var(char *));
     flags &= ~ALLOCATED;
@@ -1158,33 +1170,44 @@ class Sys_var_version : public Sys_var_charptr {
 
   ~Sys_var_version() override = default;
 
-  const uchar *global_value_ptr(THD *thd,
-                                std::string_view keycache_name) override {
-    const char *const *version_ptr = reinterpret_cast<const char *const *>(
-        Sys_var_charptr::global_value_ptr(thd, keycache_name));
-    if (version_ptr == nullptr || *version_ptr == nullptr) return nullptr;
+  /**
+    @returns the base version followed by @@version_suffix.
 
+    The value is built in a buffer shared by all callers, so the caller must
+    hold LOCK_global_system_variables and must copy the value before
+    releasing it.
+  */
+  const char *global_value_str() override {
+    const char *version = Sys_var_charptr::global_value_str();
+    if (version == nullptr) return nullptr;
+
+    const char *suffix = nullptr;
     sys_var *suffix_var = find_static_system_variable("version_suffix");
-    if (suffix_var == nullptr)
-      return reinterpret_cast<const uchar *>(version_ptr);
+    if (suffix_var != nullptr)
+      suffix = down_cast<Sys_var_charptr *>(suffix_var)->global_value_str();
+    if (suffix == nullptr) return version;
 
-    const char *const *suffix_ptr = reinterpret_cast<const char *const *>(
-        suffix_var->value_ptr(thd, OPT_GLOBAL, {}));
-    if (suffix_ptr == nullptr || *suffix_ptr == nullptr)
-      return reinterpret_cast<const uchar *>(version_ptr);
-
-    size_t suffix_ptr_len = strlen(*suffix_ptr);
-    size_t version_ptr_len = strlen(*version_ptr);
+    size_t suffix_len = strlen(suffix);
+    const size_t version_len = strlen(version);
 
     /* prepare concatenated @@version variable */
-    if (suffix_ptr_len + version_ptr_len + 1 > SERVER_VERSION_LENGTH)
-      suffix_ptr_len = SERVER_VERSION_LENGTH - version_ptr_len - 1;
+    if (suffix_len + version_len + 1 > SERVER_VERSION_LENGTH)
+      suffix_len = SERVER_VERSION_LENGTH - version_len - 1;
 
-    memcpy(withsuffix, *version_ptr, version_ptr_len);
-    memcpy(withsuffix + version_ptr_len, *suffix_ptr, suffix_ptr_len);
-    withsuffix[suffix_ptr_len + version_ptr_len] = 0;
+    memcpy(withsuffix, version, version_len);
+    memcpy(withsuffix + version_len, suffix, suffix_len);
+    withsuffix[suffix_len + version_len] = 0;
 
-    return reinterpret_cast<uchar *>(&withsuffix_ptr);
+    return withsuffix;
+  }
+
+  const uchar *global_value_ptr(THD *thd,
+                                std::string_view keycache_name) override {
+    const char *value = global_value_str();
+    if (value == nullptr) return nullptr;
+    if (value != withsuffix)
+      return Sys_var_charptr::global_value_ptr(thd, keycache_name);
+    return reinterpret_cast<const uchar *>(&withsuffix_ptr);
   }
 };
 

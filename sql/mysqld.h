@@ -732,6 +732,17 @@ extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
 extern char server_version_with_update[SERVER_VERSION_LENGTH];
 extern "C" MYSQL_PLUGIN_IMPORT char
     server_version_suffix[SERVER_VERSION_LENGTH];
+/**
+  Get the current value of @@version or @@version_with_update, which include
+  @@version_suffix, copied to the THD mem_root.
+
+  @param thd          Thread handle
+  @param with_update  true for @@version_with_update, false for @@version
+
+  @returns the version string, or the startup value (server_version or
+           server_version_with_update) if it cannot be read or copied
+*/
+LEX_CSTRING get_server_version(THD *thd, bool with_update);
 extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
 extern MYSQL_PLUGIN_IMPORT struct System_variables global_system_variables;

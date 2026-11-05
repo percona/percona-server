@@ -55,13 +55,6 @@ sql_context::sql_context(
   assert(local_mysql_h != nullptr);
   impl_.reset(local_mysql_h);
 
-  if (initialize_thread) {
-    if ((*get_services().options->set)(
-            local_mysql_h, MYSQL_COMMAND_LOCAL_THD_HANDLE, nullptr) != 0) {
-      raise_with_error_message("Couldn't set local THD handle");
-    }
-  }
-
   // setting MYSQL_NO_LOCK_REGISTRY is needed for cases when we destroy
   // 'sql_context' from the 'UNINSTALL COMPONENT' handler (component's
   // 'deinit()' function)
@@ -93,6 +86,16 @@ sql_context::sql_context(
   if ((*get_services().options->set)(local_mysql_h, MYSQL_COMMAND_HOST_NAME,
                                      nullptr) != 0) {
     raise_with_error_message("Couldn't set hostname");
+  }
+
+  // Must be the last option set before connect(): a null local THD handle
+  // opens the internal session right away, and once a session exists the
+  // command service rejects MYSQL_COMMAND_USER_NAME / MYSQL_COMMAND_HOST_NAME.
+  if (initialize_thread) {
+    if ((*get_services().options->set)(
+            local_mysql_h, MYSQL_COMMAND_LOCAL_THD_HANDLE, nullptr) != 0) {
+      raise_with_error_message("Couldn't set local THD handle");
+    }
   }
 
   if ((*get_services().factory->connect)(local_mysql_h) != 0) {

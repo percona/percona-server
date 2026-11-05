@@ -486,6 +486,7 @@ void update_connection_type_pseudo_to_numeric(std::string &type) {
       connection_type_pseudo{
           {"::undefined", "0"},  {"::tcp/ip", "1"}, {"::socket", "2"},
           {"::named_pipe", "3"}, {"::ssl", "4"},    {"::shared_memory", "5"},
+          {"::internal", "6"},   {"::plugin", "7"},
       };
 
   const auto it = connection_type_pseudo.find(type);
@@ -495,7 +496,7 @@ void update_connection_type_pseudo_to_numeric(std::string &type) {
 }
 
 bool is_valid_connection_type_value(std::string_view value) {
-  return value.size() == 1 && value[0] >= '0' && value[0] <= '5';
+  return value.size() == 1 && value[0] >= '0' && value[0] <= '7';
 }
 
 AuditRecordFieldsList get_audit_record_fields(

@@ -1053,6 +1053,8 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
          *   3 or "::named_pipe": Named pipe
          *   4 or "::ssl": TCP/IP with encryption
          *   5 or "::shared_memory": Shared memory
+         *   6 or "::internal": Internal
+         *   7 or "::plugin": Plugin
          */
         update_connection_type_pseudo_to_numeric(field_value);
 
@@ -1062,9 +1064,10 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
                           audit_rule->get_rule_name().c_str());
           audit_rule->set_parse_error(
               "invalid 'connection_type' value '" + field_value +
-              "'; expected integer 0..5 or one of "
+              "'; expected integer 0..7 or one of "
               "\"::undefined\", \"::tcp/ip\", \"::socket\", "
-              "\"::named_pipe\", \"::ssl\", \"::shared_memory\"");
+              "\"::named_pipe\", \"::ssl\", \"::shared_memory\", "
+              "\"::internal\", \"::plugin\"");
           return nullptr;
         }
       }

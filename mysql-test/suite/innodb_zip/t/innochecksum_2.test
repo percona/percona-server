@@ -54,8 +54,15 @@ my $file= 'help_output_long.txt';
 # open file in write mode
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+# The debug-only --debug option is dropped together with its continuation
+# lines: the help text wraps the refman URL once the version is long enough
+# (e.g. ".../refman/26.10/en/dbug-package.ht" + "ml").
+my $in_debug_opt = 0;
 while(<IN_FILE>) {
- unless ($_=~ /^debug.*$/ || $_=~ /\-#, \-\-debug.*$/ || $_=~ /http:.*html/) {
+ if ($_=~ /\-#, \-\-debug.*$/) { $in_debug_opt = 1; next; }
+ if ($in_debug_opt && $_=~ /^\s{20,}\S/) { next; }
+ $in_debug_opt = 0;
+ unless ($_=~ /^debug.*$/ || $_=~ /http:.*html/) {
     $_=~ s/^\S*innochecksum.+Ver.+[0-9]*\.[0-9]*\.[0-9]*.+$/innochecksum Ver #.#.#/g;
     $_=~ s/(Copyright\s\(c\))\s([0-9]*),\s([0-9]*)(.*)/$1 YEAR, YEAR $4/g;
     $_=~ s/(Copyright\s\(c\))\s([0-9]*)-([0-9]*)(.*)/$1 YEAR-YEAR $4/g;

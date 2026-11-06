@@ -1,0 +1,85 @@
+#
+# PS-11907: A failed INSERT can leave the saved HNSW graph naming a
+#           node that has no row; after a restart the index is declared
+#           corrupt.
+#
+# An INSERT whose aux write fails must leave no trace in the saved graph.
+#
+# The failed node is already linked into its neighbours' in-memory
+# lists when its own row fails to be written. Later inserts save those
+# lists, so the saved graph must not name the failed node: after a
+# restart, a walk that reaches it would find no row and declare the
+# index corrupt.
+#
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+v VECTOR(8) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+# n rows from a fixed sequence, one statement each.
+CREATE PROCEDURE add_rows(seq INT, n INT)
+BEGIN
+DECLARE i INT DEFAULT seq;
+WHILE i < seq + n DO
+INSERT INTO t1 (v) VALUES (STRING_TO_VECTOR(CONCAT('[',
+SIN(i * 1.1), ',', COS(i * 1.7), ',', SIN(i * 2.3), ',',
+COS(i * 2.9), ',', SIN(i * 3.7), ',', COS(i * 4.3), ',',
+SIN(i * 5.1), ',', COS(i * 5.9), ']')));
+SET i = i + 1;
+END WHILE;
+END|
+# Every row, as the index returns them.
+CREATE PROCEDURE ann_all()
+BEGIN
+SELECT COUNT(*) AS ann_rows FROM (
+SELECT id FROM t1 FORCE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0,0,0,0,0]'), 'euclidean')
+LIMIT 100000) AS x;
+END|
+CALL add_rows(1, 300);
+# 20 times: one INSERT fails on its aux write, then 5 succeed.
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+ERROR HY000: The table 't1' is full
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+400
+CALL ann_all();
+ann_rows
+400
+# restart
+# After the restart the index takes rows and finds every row.
+CALL add_rows(3000, 20);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+420
+CALL ann_all();
+ann_rows
+420
+INSERT INTO t1 VALUES (10000, STRING_TO_VECTOR('[9,9,9,9,9,9,9,9]'));
+SELECT id FROM t1 FORCE INDEX (vk)
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[9,9,9,9,9,9,9,8]'), 'euclidean')
+LIMIT 1;
+id
+10000
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP PROCEDURE add_rows;
+DROP PROCEDURE ann_all;
+DROP TABLE t1;

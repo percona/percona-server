@@ -51,9 +51,10 @@ typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
 
   HNSW_SUCCESS      Operation completed successfully (for nn_search_next():
                     a SearchHit was yielded).
-  HNSW_NOT_FOUND    From load_node_cb: graph references a node that was not
-                    properly persisted (crash / incomplete insert); not
-                    expected on a healthy store; marks the stub NODE_LOST.
+  HNSW_NOT_FOUND    From load_node_cb: graph references a node that has no
+                    persisted row. Persisted neighbor lists only name nodes
+                    with a row, so this means the store was damaged; marks
+                    the stub NODE_LOST.
                     From nn_search_next(): end of the streaming search (no
                     more hits).
   HNSW_CORRUPTED    Graph structure is inconsistent: a reference to a
@@ -136,8 +137,9 @@ enum HnswResult {
         HnswResult to HNSW_SUCCESS. Only return HNSW_SUCCESS after all load_*
         helpers succeeded; HNSW then marks the node NODE_COMPLETE.
         Return HNSW_NOT_FOUND only when the node id is referenced by the graph
-        but was never properly persisted (crash / incomplete insert path).
-        A routine "missing row" in a healthy store should not be possible.
+        but has no persisted row. HNSW persists neighbor lists that only name
+        nodes with a row, so this should not happen unless the store was
+        damaged.
         HNSW marks the stub as NODE_LOST and search/insert skip it.
         Return HNSW_ERROR_CB on other callback failures (e.g. I/O);
         HNSW leaves the stub NODE_DUMMY and propagates the error.
@@ -277,9 +279,9 @@ class HNSW {
                     a neighbor-slot pointer; search skips it.
                     Cause: load_node_cb returned HNSW_NOT_FOUND — the id
                     is still referenced (e.g. in a persisted neighbor list)
-                    but the node itself was never properly persisted, typically
-                    after a crash mid-insert before insert_cb committed while a
-                    concurrent insert already wrote reverse edges;
+                    but the node itself has no persisted row. Persisted lists
+                    only name nodes with a row (copy_neighbors_to_persist()),
+                    so this means the store was damaged;
       NODE_FAILED   Node is unusable and must not be used by search; layer
                     and vector are set, but neighbors list might be incomplete.
                     Causes: (1) failed insert_cb while NODE_LINKING;
@@ -665,13 +667,20 @@ class HNSW {
       // This is a rare case which results in a slightly worse graph due to
       // missed update. We accept this as a tradeoff to doing I/O under the
       // lock.
+      //
+      // The copy also leaves out neighbors that are still NODE_LINKING
+      // (copy_neighbors_to_persist()), so it can go stale without any change
+      // to the list: such a neighbor completes and persists this list with
+      // itself in it, and our older copy is persisted after it. The edge is
+      // lost on disk until this list is persisted again. If it was the only
+      // edge to that neighbor, the neighbor is unreachable after a reload.
+      //
       // TODO: Possible workaround is to use some versioning scheme to refuse
       // stale updates.
       const size_t all_neighbors_size = neighbor->all_neighbors_size(*this);
       {
         std::scoped_lock neighbor_lock(node_lock(neighbor));
-        std::copy(neighbor->all_neighbors_begin(*this),
-                  neighbor->all_neighbors_end(*this), scratch_buffer.data());
+        copy_neighbors_to_persist(neighbor, scratch_buffer.data());
       }
 
       const HnswResult update_rc = m_persistor.update_neighbors_cb(
@@ -1856,6 +1865,34 @@ class HNSW {
 
   NeighborIdRange neighbor_ids(Node **begin, Node **end) const {
     return NeighborIdRange{begin, end};
+  }
+
+  /**
+    Copy a node's neighbor lists to @p out for update_neighbors_cb(), keeping
+    only neighbors the persistor has a row for: NODE_COMPLETE ones, and
+    NODE_DUMMY stubs, which came from a persisted list. A NODE_LINKING
+    neighbor's row is not committed yet, and a NODE_FAILED or NODE_LOST one
+    has none, so persisting their ids would leave a reference that a reload
+    cannot resolve. A LINKING neighbor persists this list itself once it is
+    complete.
+
+    Each layer's list is packed, so the copy stops at its first empty slot,
+    and the copy is packed too, as search stops at the first empty slot.
+    Caller holds the node lock.
+  */
+  void copy_neighbors_to_persist(const Node *node, Node **out) const {
+    Node **const all = node->all_neighbors_begin(*this);
+    for (int l = node->layer(); l >= 0; --l) {
+      Node **src = node->neighbors_begin(*this, l);
+      Node **const end = node->neighbors_end(*this, l);
+      Node **dst = out + (src - all);
+      Node **const dst_end = out + (end - all);
+      for (; src != end && *src != nullptr; ++src) {
+        const NodeState state = (*src)->state();
+        if (state == NODE_COMPLETE || state == NODE_DUMMY) *dst++ = *src;
+      }
+      std::fill(dst, dst_end, nullptr);
+    }
   }
 
   const size_t m_dimensions;

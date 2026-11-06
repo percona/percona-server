@@ -1584,4 +1584,100 @@ TEST_F(HnswTest, LoadNodeNeighborsWrongSize) {
   }
 }
 
+/* A saved neighbour list must only name nodes that have a saved row.
+@return the first named id with no row, or 0 if there is none */
+static uint64_t first_dangling_neighbor(
+    const RecordingPersistor::Context &store) {
+  for (const auto &[id, row] : store.nodes) {
+    for (const uint64_t nb : row.neighbor_ids) {
+      if (nb != 0 && store.nodes.count(nb) == 0) return nb;
+    }
+  }
+  return 0;
+}
+
+static std::vector<float> random_point(std::mt19937 &rng) {
+  std::uniform_real_distribution<float> d(-1.0f, 1.0f);
+  return make_vec({d(rng), d(rng)});
+}
+
+/* An insert whose insert_cb fails is already linked into its neighbours'
+in-memory lists. The inserts after it save those lists, and must not save
+the failed id, which has no row. */
+TEST_F(HnswTest, InsertCbFailureLeavesNoSavedReference) {
+  RecordingPersistor::Context store;
+  store.dims = kDims;
+  LoadTestHnsw index(kDims, euclidean, kM, kEfConstruction);
+  std::mt19937 rng(7);
+  uint64_t id = 1;
+  for (; id <= 100; ++id) {
+    ASSERT_EQ(index.insert(id, id, as_bytes(random_point(rng)), &store),
+              LoadTestHnsw::HNSW_SUCCESS);
+  }
+
+  for (int round = 0; round < 10; ++round) {
+    const auto q = random_point(rng);
+    const uint64_t failed = id++;
+    store.fail_next_insert_cb = true;
+    ASSERT_EQ(index.insert(failed, failed, as_bytes(q), &store),
+              LoadTestHnsw::HNSW_ERROR_CB);
+    for (int i = 0; i < 5; ++i, ++id) {
+      ASSERT_EQ(index.insert(id, id, as_bytes(random_point(rng)), &store),
+                LoadTestHnsw::HNSW_SUCCESS);
+    }
+  }
+  EXPECT_EQ(0U, first_dangling_neighbor(store));
+}
+
+/* The same for an insert that fails while it is being linked. An insert
+links itself on each layer before it searches the next one down, and that
+search loads nodes. A load that fails there - as a spent
+innodb_hnsw_max_memory makes it - leaves the new node in the upper layers'
+lists. Every node of a cold graph is made the failing load in turn, and the
+seed varies so the new node draws different layers. */
+TEST_F(HnswTest, LoadFailureDuringInsertLeavesNoSavedReference) {
+  /* Room in the neighbour lists, so the failed node stays in one that a
+  later insert saves without pruning it. */
+  constexpr size_t kLoadM = 8;
+  RecordingPersistor::Context base;
+  base.dims = kDims;
+  std::mt19937 rng(11);
+  {
+    LoadTestHnsw built(kDims, euclidean, kLoadM, kEfConstruction);
+    for (uint64_t id = 1; id <= 150; ++id) {
+      ASSERT_EQ(built.insert(id, id, as_bytes(random_point(rng)), &base),
+                LoadTestHnsw::HNSW_SUCCESS);
+    }
+  }
+  std::uniform_real_distribution<float> near(-0.05f, 0.05f);
+
+  size_t failed_inserts = 0;
+  for (int k = 0; k < 20; ++k) {
+    const auto q = random_point(rng);
+    for (const auto &[bad_id, row] : base.nodes) {
+      if (bad_id == base.entry_point) continue;
+      RecordingPersistor::Context store = base;
+      LoadTestHnsw cold(kDims, euclidean, kLoadM, kEfConstruction, k);
+      ASSERT_EQ(cold.init_from_entry_point(store.entry_point, &store),
+                LoadTestHnsw::HNSW_SUCCESS);
+
+      store.fail_load_error_ids.insert(bad_id);
+      const auto rc = cold.insert(1000, 1000, as_bytes(q), &store);
+      store.fail_load_error_ids.clear();
+      if (rc == LoadTestHnsw::HNSW_SUCCESS) continue;
+      ASSERT_EQ(rc, LoadTestHnsw::HNSW_ERROR_CB);
+      ++failed_inserts;
+
+      for (uint64_t id = 1001; id <= 1005; ++id) {
+        const auto v = make_vec({q[0] + near(rng), q[1] + near(rng)});
+        ASSERT_EQ(cold.insert(id, id, as_bytes(v), &store),
+                  LoadTestHnsw::HNSW_SUCCESS);
+      }
+      ASSERT_EQ(0U, first_dangling_neighbor(store))
+          << "query " << k << ", failing load " << bad_id;
+    }
+  }
+  EXPECT_GT(failed_inserts, 0U);
+}
+
 }  // namespace hnsw_unittest

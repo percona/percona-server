@@ -1,0 +1,180 @@
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # PS-11907: A failed INSERT can leave the saved HNSW graph naming a
+--echo #           node that has no row; after a restart the index is declared
+--echo #           corrupt.
+--echo #
+--echo # After a crash, every node a saved neighbour list names must still
+--echo # have its row.
+--echo #
+--echo # Cases 1-6: writer A's node is linked into its neighbours' in-memory
+--echo # lists and its row is written, but the row's sub-transaction has not
+--echo # committed yet. Writer B then changes the graph nearby and commits. If
+--echo # a list B saves names A, the crash rolls A's row back and the saved
+--echo # graph names a node with no row.
+--echo #
+--echo # Cases 7-8: A's statement finished, so its node rows are committed,
+--echo # but its transaction is still open. B's saved lists name A's node.
+--echo # The crash rolls back A's base row only: A's node stays as an orphan,
+--echo # which the read path filters.
+--echo #
+
+DELIMITER |;
+CREATE PROCEDURE fill()
+BEGIN
+  DROP TABLE IF EXISTS t1;
+  CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY,
+                   v VECTOR(4) NOT NULL,
+                   VECTOR KEY vk (v) TYPE hnsw (M = 8));
+  INSERT INTO t1 VALUES
+    (1,  STRING_TO_VECTOR('[0.1,0.1,0.1,0.1]')),
+    (2,  STRING_TO_VECTOR('[0.2,0.1,0.1,0.1]')),
+    (3,  STRING_TO_VECTOR('[0.3,0.2,0.1,0.1]')),
+    (4,  STRING_TO_VECTOR('[0.4,0.3,0.2,0.1]')),
+    (5,  STRING_TO_VECTOR('[0.5,0.4,0.3,0.2]')),
+    (6,  STRING_TO_VECTOR('[0.6,0.5,0.4,0.3]')),
+    (7,  STRING_TO_VECTOR('[0.7,0.6,0.5,0.4]')),
+    (8,  STRING_TO_VECTOR('[0.8,0.7,0.6,0.5]')),
+    (9,  STRING_TO_VECTOR('[0.8,0.8,0.7,0.6]')),
+    (10, STRING_TO_VECTOR('[0.7,0.8,0.8,0.7]'));
+END|
+DELIMITER ;|
+
+--echo # The index must answer, take a row, and find every row.
+DELIMITER |;
+CREATE PROCEDURE check_index(new_id INT)
+BEGIN
+  SELECT id FROM t1 FORCE INDEX (vk)
+   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0.9,0.9,0.9,0.9]'), 'euclidean')
+   LIMIT 3;
+  INSERT INTO t1 VALUES (new_id, STRING_TO_VECTOR('[0.95,0.9,0.9,0.9]'));
+  SELECT (SELECT COUNT(*) FROM (
+            SELECT id FROM t1 FORCE INDEX (vk)
+             ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0,0,0,0]'), 'euclidean')
+             LIMIT 1000) AS x) = COUNT(*) AS index_finds_every_row
+    FROM t1;
+END|
+DELIMITER ;|
+
+--echo #
+--echo # 1. A and B both INSERT.
+--echo #
+CALL fill();
+--let $a_park = 1
+--let $a_begin = 0
+--let $a_sql = INSERT INTO t1 VALUES (1000, STRING_TO_VECTOR('[0.91,0.9,0.9,0.9]'))
+--let $b_sql = INSERT INTO t1 VALUES (1001, STRING_TO_VECTOR('[0.9,0.91,0.9,0.9]'))
+--source ../include/crash_neighbor_ref.inc
+SELECT id FROM t1 ORDER BY id;
+CALL check_index(101);
+CHECK TABLE t1;
+
+--echo #
+--echo # 2. A and B both change a vector with UPDATE.
+--echo #
+CALL fill();
+--let $a_sql = UPDATE t1 SET v = STRING_TO_VECTOR('[0.91,0.9,0.9,0.9]') WHERE id = 1
+--let $b_sql = UPDATE t1 SET v = STRING_TO_VECTOR('[0.9,0.91,0.9,0.9]') WHERE id = 2
+--source ../include/crash_neighbor_ref.inc
+SELECT id, VECTOR_TO_STRING(v) FROM t1 WHERE id IN (1, 2) ORDER BY id;
+CALL check_index(102);
+CHECK TABLE t1;
+
+--echo #
+--echo # 3. A INSERTs, B changes a neighbour's vector with UPDATE.
+--echo #
+CALL fill();
+--let $a_sql = INSERT INTO t1 VALUES (1000, STRING_TO_VECTOR('[0.91,0.9,0.9,0.9]'))
+--let $b_sql = UPDATE t1 SET v = STRING_TO_VECTOR('[0.9,0.91,0.9,0.9]') WHERE id = 2
+--source ../include/crash_neighbor_ref.inc
+SELECT id, VECTOR_TO_STRING(v) FROM t1 WHERE id IN (2, 1000) ORDER BY id;
+CALL check_index(103);
+CHECK TABLE t1;
+
+--echo #
+--echo # 4. A changes a vector with UPDATE, B INSERTs.
+--echo #
+CALL fill();
+--let $a_sql = UPDATE t1 SET v = STRING_TO_VECTOR('[0.91,0.9,0.9,0.9]') WHERE id = 1
+--let $b_sql = INSERT INTO t1 VALUES (1001, STRING_TO_VECTOR('[0.9,0.91,0.9,0.9]'))
+--source ../include/crash_neighbor_ref.inc
+SELECT id, VECTOR_TO_STRING(v) FROM t1 WHERE id IN (1, 1001) ORDER BY id;
+CALL check_index(104);
+CHECK TABLE t1;
+
+--echo #
+--echo # 5. A INSERTs inside BEGIN, B INSERTs.
+--echo #
+CALL fill();
+--let $a_begin = 1
+--let $a_sql = INSERT INTO t1 VALUES (1000, STRING_TO_VECTOR('[0.91,0.9,0.9,0.9]'))
+--let $b_sql = INSERT INTO t1 VALUES (1001, STRING_TO_VECTOR('[0.9,0.91,0.9,0.9]'))
+--source ../include/crash_neighbor_ref.inc
+SELECT id FROM t1 WHERE id >= 1000 ORDER BY id;
+CALL check_index(105);
+CHECK TABLE t1;
+
+--echo #
+--echo # 6. A INSERTs, B DELETEs a neighbour (DELETE writes nothing to the
+--echo #    graph).
+--echo #
+CALL fill();
+--let $a_begin = 0
+--let $a_sql = INSERT INTO t1 VALUES (1000, STRING_TO_VECTOR('[0.91,0.9,0.9,0.9]'))
+--let $b_sql = DELETE FROM t1 WHERE id = 10
+--source ../include/crash_neighbor_ref.inc
+SELECT id FROM t1 WHERE id >= 9 ORDER BY id;
+CALL check_index(106);
+CHECK TABLE t1;
+
+--echo #
+--echo # 7. A INSERTs in a transaction that never commits, B INSERTs.
+--echo #
+CALL fill();
+--let $a_park = 0
+--let $a_sql = INSERT INTO t1 VALUES (1000, STRING_TO_VECTOR('[0.91,0.9,0.9,0.9]'))
+--let $b_sql = INSERT INTO t1 VALUES (1001, STRING_TO_VECTOR('[0.9,0.91,0.9,0.9]'))
+--source ../include/crash_neighbor_ref.inc
+SELECT id FROM t1 WHERE id >= 1000 ORDER BY id;
+--echo # A's node is still in the aux, and a saved list names it.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SET @dump = @@session.innodb_interpreter_output;
+SET @orphan = REGEXP_SUBSTR(
+  REGEXP_SUBSTR(@dump, 'id=[0-9]+ level=[0-9]+ base_pk=1000 '), '[0-9]+');
+SELECT @orphan IS NOT NULL AS orphan_in_aux,
+       REGEXP_LIKE(@dump, CONCAT('nb=([0-9]+,)*', @orphan, '(,|$)'), 'm')
+         AS orphan_named_by_a_saved_list;
+CALL check_index(107);
+CHECK TABLE t1;
+--echo # Reusing A's primary key does not bring the orphan back.
+INSERT INTO t1 VALUES (1000, STRING_TO_VECTOR('[0.1,0.1,0.1,0.2]'));
+SELECT id FROM t1 FORCE INDEX (vk)
+ ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0.91,0.9,0.9,0.9]'), 'euclidean')
+ LIMIT 3;
+
+--echo #
+--echo # 8. A changes a vector with UPDATE in a transaction that never
+--echo #    commits, B INSERTs.
+--echo #
+CALL fill();
+--let $a_sql = UPDATE t1 SET v = STRING_TO_VECTOR('[0.91,0.9,0.9,0.9]') WHERE id = 1
+--let $b_sql = INSERT INTO t1 VALUES (1001, STRING_TO_VECTOR('[0.9,0.91,0.9,0.9]'))
+--source ../include/crash_neighbor_ref.inc
+SELECT id, VECTOR_TO_STRING(v) FROM t1 WHERE id IN (1, 1001) ORDER BY id;
+--echo # Row 1 has two nodes in the aux: its old vector, and A's orphan, which
+--echo # a saved list names.
+SET SESSION innodb_interpreter = 'vec_aux_dump test/t1';
+SET @dump = @@session.innodb_interpreter_output;
+SET @orphan = REGEXP_SUBSTR(
+  REGEXP_SUBSTR(@dump, 'id=[0-9]+ level=[0-9]+ base_pk=1 ', 1, 2), '[0-9]+');
+SELECT @orphan IS NOT NULL AS orphan_in_aux,
+       REGEXP_LIKE(@dump, CONCAT('nb=([0-9]+,)*', @orphan, '(,|$)'), 'm')
+         AS orphan_named_by_a_saved_list;
+CALL check_index(108);
+CHECK TABLE t1;
+
+DROP PROCEDURE fill;
+DROP PROCEDURE check_index;
+DROP TABLE t1;

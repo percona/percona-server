@@ -1,0 +1,37 @@
+#
+# PS-11988: Crash recovery fails on a torn first page of a new
+# tablespace even though the page is in the doublewrite buffer
+#
+# Recovery must restore the first page of a tablespace from the
+# doublewrite buffer even if no other page of the tablespace has a
+# valid checksum on disk, so the space ID cannot be determined by
+# scanning the data file.
+#
+# Keep the checkpoint before the table is created, so that all pages
+# of the table can be rebuilt from the redo log.
+SET GLOBAL innodb_checkpoint_disabled = 1;
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 VARCHAR(100)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, REPEAT('a', 50)), (2, REPEAT('b', 50)),
+(3, REPEAT('c', 50));
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name = 'test/t1' INTO @space_id;
+# Make the first page of t1 dirty, flush all dirty pages through the
+# doublewrite buffer and kill the server.
+SET GLOBAL innodb_saved_page_number_debug = 0;
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+ERROR HY000: Lost connection to MySQL server during query
+# Simulate a torn write of the first page of t1: zero its second half.
+# Simulate that no other page of t1 has been flushed yet: zero all
+# pages after the first one.
+# restart
+include/assert_grep.inc [Recovery used the space ID from the redo log for t1.ibd]
+include/assert_grep.inc [The first page of t1.ibd was restored from the doublewrite buffer]
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, LENGTH(f2), LEFT(f2, 3) FROM t1;
+f1	LENGTH(f2)	LEFT(f2, 3)
+1	50	aaa
+2	50	bbb
+3	50	ccc
+DROP TABLE t1;

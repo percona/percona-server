@@ -3273,7 +3273,8 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
           append_identifier(thd, packet, k.str, k.length);
           packet->append('=');
           int err;
-          const char *endptr;
+          // my_strtoll10() reads *endptr as the end of the input
+          const char *endptr = v.str + v.length;
           my_strtoll10(v.str, &endptr, &err);
           if (err <= 0 && endptr == v.str + v.length)
             packet->append(v.str, v.length);

@@ -72,6 +72,19 @@ class Table {
 
   uint64_t get_mem_counter() const;
 
+  /** Get the number of bytes this table currently occupies.
+   *
+   * Unlike get_mem_counter(), which returns the cumulative number of bytes
+   * ever requested from this table's allocator and is never decremented, this
+   * returns the number of bytes the table is holding right now: the resource
+   * monitor is decreased again when memory is handed back, e.g. when a row is
+   * rejected as a duplicate.  It covers rows and indexes alike, since both are
+   * allocated through the same allocator.
+   *
+   * This is the figure enforced against tmp_table_size.
+   * @return Number of bytes currently occupied. */
+  size_t bytes_occupied() const;
+
   const Index &index(size_t i) const;
 
   const Column &column(size_t i) const;
@@ -198,6 +211,10 @@ inline size_t Table::number_of_rows() const { return m_rows.size(); }
 
 inline uint64_t Table::get_mem_counter() const {
   return m_allocator.get_allocated_mem_counter();
+}
+
+inline size_t Table::bytes_occupied() const {
+  return m_resource_monitor.consumption();
 }
 
 inline const Index &Table::index(size_t i) const {

@@ -5972,6 +5972,31 @@ class handler {
   */
 
   virtual int info(uint flag) = 0;
+
+  /**
+    Return the amount of storage, in bytes, that this table currently occupies.
+
+    This is used to report the size of internal temporary tables in the slow
+    query log (the Tmp_table_sizes and Tmp_disk_table_sizes fields).  It is
+    deliberately kept separate from info()/stats so that engines can report an
+    accurate current size here without perturbing the statistics the optimizer
+    costs plans with.
+
+    It is called at most once per internal temporary table, just before the
+    table is dropped, so an implementation may do work that would be too
+    expensive for info().
+
+    The default implementation refreshes the handler statistics and returns the
+    data plus the index size; engines whose stats do not track an internal
+    temporary table accurately should override it.
+
+    @return number of bytes occupied, or 0 if the size cannot be determined
+  */
+  virtual ulonglong tmp_table_bytes_used() {
+    if (info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK) != 0) return 0;
+    return stats.data_file_length + stats.index_file_length;
+  }
+
   virtual uint32 calculate_key_hash_value(Field **field_array
                                           [[maybe_unused]]) {
     assert(0);

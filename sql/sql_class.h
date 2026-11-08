@@ -816,6 +816,7 @@ class Sub_statement_state {
   ulong tmp_tables_used;
   ulong tmp_tables_disk_used;
   ulonglong tmp_tables_size;
+  ulonglong tmp_tables_disk_size;
 
   bool innodb_was_used;
   ulong innodb_io_reads;
@@ -1853,11 +1854,20 @@ class THD : public MDL_context_owner,
   */
   ulonglong bytes_sent_old;
   /*
-    Variables tmp_tables_*** collect statistics about usage of temporary tables
+    Variables tmp_tables_*** collect statistics about the internal temporary
+    tables used by the current statement.
+
+    tmp_tables_size is the total number of bytes occupied by all of those
+    tables, wherever they resided.  tmp_tables_disk_size is the part of that
+    total which resided on disk, and is therefore always less than or equal to
+    tmp_tables_size.  This mirrors tmp_tables_disk_used, which counts a subset
+    of the tables counted by tmp_tables_used: a table that overflowed from
+    memory to disk is counted by both.
   */
   ulong tmp_tables_used;
   ulong tmp_tables_disk_used;
   ulonglong tmp_tables_size;
+  ulonglong tmp_tables_disk_size;
   /*
     Following Variables innodb_*** (is |should be) different from
     default values only if (innodb_was_used==true)

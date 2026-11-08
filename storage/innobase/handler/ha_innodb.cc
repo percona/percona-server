@@ -18420,6 +18420,67 @@ int ha_innobase::info(uint flag) /*!< in: what information is requested */
   return (info_low(flag, false /* not ANALYZE */));
 }
 
+/** Returns the number of bytes this table currently occupies on disk, for
+reporting the size of internal temporary tables in the slow query log.
+
+The cached statistics cannot be used for this.  An internal temporary table
+that spilled to disk is an intrinsic table, and rows are inserted into an
+intrinsic table through row_insert_for_mysql_using_cursor(), which - unlike
+the ins_graph path - never calls row_update_statistics_if_needed().  Nothing
+else recalculates the statistics of such a table either: dict_stats_init()
+runs once, when the table has just been created and is still empty, and
+info_low() only recalculates when innodb_stats_on_metadata is on, which it is
+not by default.  dict_table_t::stat_clustered_index_size therefore keeps the
+value dict_stats_empty_table() gave it - a single page - for the lifetime of
+the table, and info() would report exactly one page regardless of how much
+data the table came to hold.
+
+So measure the index segments directly.  This walks the segment headers only,
+not the pages, and is called at most once per temporary table, just before the
+table is dropped.
+
+@return number of bytes occupied by the table's indexes */
+ulonglong ha_innobase::tmp_table_bytes_used() {
+  if (m_prebuilt == nullptr || m_prebuilt->table == nullptr) {
+    return handler::tmp_table_bytes_used();
+  }
+
+  dict_table_t *ib_table = m_prebuilt->table;
+
+  if (!ib_table->is_intrinsic()) {
+    /* A regular table keeps its statistics up to date; the generic
+    implementation reports them correctly. */
+    return handler::tmp_table_bytes_used();
+  }
+
+  const page_size_t &page_size = dict_table_page_size(ib_table);
+  ulint pages = 0;
+
+  for (dict_index_t *index = ib_table->first_index(); index != nullptr;
+       index = index->next()) {
+    if ((index->type & DICT_FTS) || dict_index_is_spatial(index) ||
+        !index->is_committed() || index->is_corrupted()) {
+      continue;
+    }
+
+    mtr_t mtr;
+
+    mtr_start(&mtr);
+    dict_disable_redo_if_temporary(ib_table, &mtr);
+    mtr_s_lock(dict_index_get_lock(index), &mtr, UT_LOCATION_HERE);
+
+    const ulint size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
+
+    mtr_commit(&mtr);
+
+    if (size != ULINT_UNDEFINED) {
+      pages += size;
+    }
+  }
+
+  return static_cast<ulonglong>(pages) * page_size.physical();
+}
+
 /** Get the autoincrement for the given table id which is
 not in the cache.
 @param[in]      se_private_id           InnoDB table id

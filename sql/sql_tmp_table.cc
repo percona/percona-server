@@ -2454,6 +2454,39 @@ bool instantiate_tmp_table(THD *thd, TABLE *table) {
 }
 
 /**
+  Add the size of one internal temporary table to the totals reported by the
+  query_plan slow log verbosity level as Tmp_table_sizes and
+  Tmp_disk_table_sizes.
+
+  Must be called while the table is still open and still holds its data, as
+  the handler is asked for its current size.  handler::tmp_table_bytes_used()
+  is used rather than handler::stats, because stats is only as fresh as the
+  last info() call and, for the InnoDB tables that internal temporary tables
+  spill to, is never refreshed at all.
+
+  Tmp_disk_table_sizes is a subset of Tmp_table_sizes, just as Tmp_disk_tables
+  is a subset of Tmp_tables: a table is counted in the disk total only if it
+  ended up on disk, and the engine test used here is the same one that decides
+  whether to increment Tmp_disk_tables.
+
+  @param table  The temporary table; must have a storage handler
+*/
+static void account_tmp_table_size(TABLE *table) {
+  THD *const thd = table->in_use;
+
+  if (thd == nullptr || table->file == nullptr) return;
+
+  const ulonglong bytes = table->file->tmp_table_bytes_used();
+
+  thd->tmp_tables_size += bytes;
+
+  if (table->s->db_type() != temptable_hton &&
+      table->s->db_type() != heap_hton) {
+    thd->tmp_tables_disk_size += bytes;
+  }
+}
+
+/**
   Close a temporary table at end of preparation or execution
 
   Any buffers associated with the table will be released.
@@ -2467,9 +2500,6 @@ bool instantiate_tmp_table(THD *thd, TABLE *table) {
 void close_tmp_table(TABLE *table) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: %s", table->alias));
-
-  if (table->file && table->in_use != nullptr)
-    table->in_use->tmp_tables_size += table->file->stats.data_file_length;
 
   TABLE_SHARE *const share = table->s;
 
@@ -2489,8 +2519,17 @@ void close_tmp_table(TABLE *table) {
   if (table->is_created()) {
     if (--share->tmp_open_count > 0) {
       table->file->ha_close();
-    } else  // no more open 'handler' objects
+    } else {
+      /*
+        This is the last handler on the table, so the table is about to be
+        dropped: measure it now, while it still holds its data.  Accounting
+        here rather than once per handler also keeps a table that has clones
+        (a CTE referenced more than once, say) from being counted once per
+        clone, as they all share the same storage.
+      */
+      account_tmp_table_size(table);
       table->file->ha_drop_table(table->s->table_name.str);
+    }
     table->set_deleted();
   }
 
@@ -2826,6 +2865,16 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
       }
 
       psi_batch_started = table->file->end_psi_batch_mode_if_started();
+
+      /*
+        Account for the memory this table occupied before it spilled.  The
+        in-memory handler is closed and destroyed just below without going
+        through close_tmp_table(), which is where temporary tables are
+        normally accounted for, so without this the in-memory part of a
+        spilled table would never be counted at all.  Only the table
+        receiving writes is measured; any clones share its storage.
+      */
+      if (table == wtable) account_tmp_table_size(table);
 
       // Close the in-memory table
       if (table->s->db_type() == temptable_hton) {

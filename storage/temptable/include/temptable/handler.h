@@ -351,6 +351,17 @@ class Handler : public ::handler {
       /** [in] Which stats to refresh. */
       uint flag) override;
 
+  /** Get the number of bytes this table currently occupies, for slow query
+   * log reporting.
+   *
+   * This deliberately does not reuse stats.data_file_length, which info()
+   * fills in from the allocator's cumulative counter: that counter is never
+   * decremented, so it reports how much memory the table ever asked for
+   * rather than how much it holds.  The optimizer costs plans with that
+   * value, so it is left alone and the truthful figure is reported here.
+   * @return number of bytes occupied */
+  ulonglong tmp_table_bytes_used() override;
+
   /** Get the limit on the memory usage. */
   longlong get_memory_buffer_size() const override;
 

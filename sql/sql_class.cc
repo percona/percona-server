@@ -2529,6 +2529,7 @@ void THD::clear_slow_extended() noexcept {
   tmp_tables_used = 0;
   tmp_tables_disk_used = 0;
   tmp_tables_size = 0;
+  tmp_tables_disk_size = 0;
   innodb_was_used = false;
   innodb_trx_id = 0;
   innodb_io_reads = 0;
@@ -2550,6 +2551,7 @@ void THD::reset_sub_statement_state_slow_extended(
   backup->tmp_tables_used = tmp_tables_used;
   backup->tmp_tables_disk_used = tmp_tables_disk_used;
   backup->tmp_tables_size = tmp_tables_size;
+  backup->tmp_tables_disk_size = tmp_tables_disk_size;
   backup->innodb_was_used = innodb_was_used;
   backup->innodb_io_reads = innodb_io_reads;
   backup->innodb_io_read = innodb_io_read;
@@ -2569,6 +2571,7 @@ void THD::restore_sub_statement_state_slow_extended(
   tmp_tables_used += backup.tmp_tables_used;
   tmp_tables_disk_used += backup.tmp_tables_disk_used;
   tmp_tables_size += backup.tmp_tables_size;
+  tmp_tables_disk_size += backup.tmp_tables_disk_size;
   innodb_was_used = (innodb_was_used || backup.innodb_was_used);
   innodb_io_reads += backup.innodb_io_reads;
   innodb_io_read += backup.innodb_io_read;

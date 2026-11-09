@@ -69,7 +69,10 @@ int main ()
 }
 EOF
 --echo # Require g++ to compile this program. If the exec fails "sh: 1: g++: not found". Please install g++ and retry
---exec g++ $MYSQL_TMP_DIR/thread_limit_test.cc -std=c++11 -lpthread -o $MYSQL_TMP_DIR/thread_limit 2>&1 > $MYSQL_TMP_DIR/thread_limit_gcc_error.txt
+# In ASAN runs libasan is preloaded into every command a test runs. The linker
+# leaks memory from a module that LSAN cannot name, so lsan.supp cannot
+# suppress it. Disable leak detection for the compiler and its subprocesses.
+--exec LSAN_OPTIONS=detect_leaks=0 g++ $MYSQL_TMP_DIR/thread_limit_test.cc -std=c++11 -lpthread -o $MYSQL_TMP_DIR/thread_limit 2>&1 > $MYSQL_TMP_DIR/thread_limit_gcc_error.txt
 
 --echo # if the below exec fails, it means the operating system has limit of threads less than 12K
 --echo # This testcase needs OS that can create 12k threads.

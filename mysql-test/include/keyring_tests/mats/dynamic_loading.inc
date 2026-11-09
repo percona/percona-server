@@ -17,7 +17,11 @@
 --let $dlopen_checker_binary = $MYSQL_TMP_DIR/dlopen_checker
 
 --echo *** Building dlopen_checker utility
---exec g++ -std=c++17 -o $dlopen_checker_binary $dlopen_checker_source -ldl
+# In ASAN runs libasan is preloaded into every command a test runs. The linker
+# leaks memory from a module that LSAN cannot name. lsan.supp could match it
+# only as "<unknown module>", in every program, so disable leak detection for
+# the compiler and its subprocesses instead.
+--exec LSAN_OPTIONS=detect_leaks=0 g++ -std=c++17 -o $dlopen_checker_binary $dlopen_checker_source -ldl
 
 --echo *** Checking for unresolved symbols
 --replace_result $DLOPEN_CHECKER_LIBRARY_PATH <LIBRARY_PATH>

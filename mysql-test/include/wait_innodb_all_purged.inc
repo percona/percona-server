@@ -9,7 +9,8 @@
 #    --source include/wait_innodb_all_purged.inc
 #
 
---let $is_debug= `select (version() like '%debug%') as debug`
+# PS-12000: not VERSION(), --version-suffix replaces its "-debug" suffix.
+--let $is_debug= `SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'debug'`
 
 if ($is_debug)
 {

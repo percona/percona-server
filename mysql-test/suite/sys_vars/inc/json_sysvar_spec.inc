@@ -130,7 +130,8 @@ if (!$have_64bit_ulong) {
 }
 
 # Define numbers that depend on debug mode
---let $debug = `SELECT VERSION() LIKE '%debug%'`
+# PS-12000: not VERSION(), --version-suffix replaces its "-debug" suffix.
+--let $debug = `SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'debug'`
 if ($debug) {
   --let $if_debug_0_else_1 = 0
   --let $if_debug_1_else_8 = 1

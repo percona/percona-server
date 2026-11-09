@@ -1,0 +1,15 @@
+################################################################################
+# PS-12000: include/have_nodebug.inc must detect a Debug build even when
+# --version-suffix replaces the "-debug" build suffix of VERSION(). Before the
+# fix this test ran on Debug builds and failed on the last assert.
+################################################################################
+
+--source include/have_nodebug.inc
+
+--let $assert_text = VERSION() ends with the --version-suffix value
+--let $assert_cond = VERSION() LIKE "%-ps12000"
+--source include/assert.inc
+
+--let $assert_text = The debug system variable does not exist
+--let $assert_cond = [SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME = "debug"] = 0
+--source include/assert.inc

@@ -24424,6 +24424,17 @@ static MYSQL_SYSVAR_BOOL(master_thread_disabled_debug,
                          "Disable master thread", nullptr,
                          srv_master_thread_disabled_debug_update, false);
 
+static MYSQL_SYSVAR_BOOL(
+    lock_validation_disabled_debug, srv_lock_validation_disabled_debug,
+    PLUGIN_VAR_OPCMDARG,
+    "Disable the expensive lock_sys validation: the checks done on every "
+    "record lock request (lock_rec_other_trx_holds_expl() and "
+    "rec_queue_latch_and_validate()) and the full lock_validate() done when "
+    "printing InnoDB monitor output. They serialize lock requests on the "
+    "lock_sys global latch and trx_sys mutex, which makes debug builds "
+    "unusable under high concurrency.",
+    nullptr, nullptr, false);
+
 static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
                          PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
                          "Enable the sync debug checks", nullptr, nullptr,
@@ -24739,6 +24750,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(page_cleaner_disabled_debug),
     MYSQL_SYSVAR(dict_stats_disabled_debug),
     MYSQL_SYSVAR(master_thread_disabled_debug),
+    MYSQL_SYSVAR(lock_validation_disabled_debug),
     MYSQL_SYSVAR(sync_debug),
     MYSQL_SYSVAR(buffer_pool_debug),
     MYSQL_SYSVAR(ddl_log_crash_reset_debug),

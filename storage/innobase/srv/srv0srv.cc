@@ -250,6 +250,8 @@ ulong srv_debug_compress;
 bool innodb_calling_exit;
 /** Used by SET GLOBAL innodb_master_thread_disabled_debug = X. */
 bool srv_master_thread_disabled_debug;
+/** Used by SET GLOBAL innodb_lock_validation_disabled_debug = X. */
+bool srv_lock_validation_disabled_debug;
 #ifndef UNIV_HOTBACKUP
 /** Event used to inform that master thread is disabled. */
 static os_event_t srv_master_thread_disabled_event;

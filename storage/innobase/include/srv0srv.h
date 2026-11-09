@@ -821,6 +821,11 @@ extern bool srv_purge_view_update_only_debug;
 
 /** Value of MySQL global used to disable master thread. */
 extern bool srv_master_thread_disabled_debug;
+
+/** Value of MySQL global used to disable the most expensive lock_sys
+validation checks: those done on every record lock request and the full
+lock_validate(). */
+extern bool srv_lock_validation_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 std::chrono::seconds get_srv_fatal_semaphore_wait_threshold();

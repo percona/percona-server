@@ -1047,11 +1047,16 @@ static trx_t *lock_sec_rec_some_has_impl(const rec_t *rec, dict_index_t *index,
 @param[in]   block          buffer block containing the record
 @return true iff there's a transaction, whose id is not equal to trx_id,
         that has an explicit lock on the given rec, in the given
-        precise_mode. */
+        precise_mode. Always false if innodb_lock_validation_disabled_debug
+        is set, because the check needs the exclusive global latch. */
 static bool lock_rec_other_trx_holds_expl(ulint precise_mode, const trx_t *trx,
                                           const rec_t *rec,
                                           const buf_block_t *block) {
   bool holds = false;
+
+  if (srv_lock_validation_disabled_debug) {
+    return holds;
+  }
 
   /* We will inspect locks from various shards when inspecting transactions. */
   locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
@@ -4996,7 +5001,8 @@ static void rec_queue_validate_latched(const buf_block_t *block,
   });
 }
 
-/** Validates the lock queue on a single record.
+/** Validates the lock queue on a single record. Does nothing if
+innodb_lock_validation_disabled_debug is set.
 @param[in]  block     buffer block containing rec
 @param[in]  rec       record to look at
 @param[in]  index     index, or NULL if not known
@@ -5008,19 +5014,27 @@ static void rec_queue_latch_and_validate(const buf_block_t *block,
   ut_ad(!owns_exclusive_global_latch());
   ut_ad(!mutex_own(&trx_sys->mutex));
 
+  if (srv_lock_validation_disabled_debug) {
+    return;
+  }
+
   Shard_latch_guard guard{UT_LOCATION_HERE, block->get_page_id()};
   mutex_enter(&trx_sys->mutex);
   rec_queue_validate_latched(block, rec, index, offsets);
   mutex_exit(&trx_sys->mutex);
 }
 
-/** Validates the lock queue on a single record.
+/** Validates the lock queue on a single record. Does nothing if
+innodb_lock_validation_disabled_debug is set.
 @param[in]  block     buffer block containing rec
 @param[in]  rec       record to look at
 @param[in]  index     index, or NULL if not known */
 static void rec_queue_latch_and_validate(const buf_block_t *block,
                                          const rec_t *rec,
                                          const dict_index_t *index) {
+  if (srv_lock_validation_disabled_debug) {
+    return;
+  }
   rec_queue_latch_and_validate(block, rec, index,
                                Rec_offsets().compute(rec, index));
 }
@@ -5107,6 +5121,10 @@ static void lock_rec_block_validate(const page_id_t &page_id) {
 bool lock_validate() {
   typedef std::set<page_id_t, std::less<page_id_t>, ut::allocator<page_id_t>>
       page_addr_set;
+
+  if (srv_lock_validation_disabled_debug) {
+    return true;
+  }
 
   page_addr_set pages;
   {

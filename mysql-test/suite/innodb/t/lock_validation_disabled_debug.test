@@ -1,0 +1,105 @@
+# PS-10343: innodb_lock_validation_disabled_debug turns off the expensive
+# lock_sys validation done on every record lock request and in
+# lock_validate() (InnoDB monitor output) in debug builds.
+# Check that record locking still works with the validation disabled and
+# enabled, and that the switch can be flipped while a transaction waits.
+
+--source include/have_debug.inc
+--source include/count_sessions.inc
+
+SET @saved_disabled = @@GLOBAL.innodb_lock_validation_disabled_debug;
+
+CREATE TABLE t1 (id INT PRIMARY KEY, k INT, v INT, KEY k (k)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 10, 0), (2, 20, 0), (3, 30, 0);
+
+--connect (con1, localhost, root,,)
+--connect (con2, localhost, root,,)
+
+--let $i = 2
+while ($i)
+{
+  --dec $i
+  --connection default
+  --eval SET GLOBAL innodb_lock_validation_disabled_debug = $i
+  SELECT @@GLOBAL.innodb_lock_validation_disabled_debug;
+
+  --echo # Implicit lock on a secondary index record is converted to an
+  --echo # explicit one when another transaction reads it with a lock.
+  --connection con1
+  BEGIN;
+  INSERT INTO t1 VALUES (4, 40, 0);
+  --connection con2
+  SET SESSION innodb_lock_wait_timeout = 1;
+  BEGIN;
+  --error ER_LOCK_WAIT_TIMEOUT
+  SELECT id FROM t1 FORCE INDEX (k) WHERE k = 40 FOR SHARE;
+  ROLLBACK;
+  --connection con1
+  ROLLBACK;
+
+  --echo # Lock wait on a clustered index record is granted after commit,
+  --echo # with the switch flipped while the transaction waits.
+  --connection con1
+  BEGIN;
+  UPDATE t1 SET v = v + 1 WHERE id = 1;
+  --connection con2
+  SET SESSION innodb_lock_wait_timeout = 50;
+  BEGIN;
+  --send UPDATE t1 SET v = v + 1 WHERE id = 1
+  --connection default
+  let $wait_condition =
+    SELECT COUNT(*) = 1 FROM information_schema.innodb_trx
+    WHERE trx_state = 'LOCK WAIT';
+  --source include/wait_condition.inc
+  --eval SET GLOBAL innodb_lock_validation_disabled_debug = 1 - $i
+  --connection con1
+  COMMIT;
+  --connection con2
+  --reap
+  COMMIT;
+  --connection default
+  --eval SET GLOBAL innodb_lock_validation_disabled_debug = $i
+
+  --echo # Deadlock is still detected. con1 modified more rows, so con2 is
+  --echo # chosen as the victim.
+  --connection con1
+  BEGIN;
+  UPDATE t1 SET v = v + 1 WHERE id IN (1, 2);
+  --connection con2
+  BEGIN;
+  UPDATE t1 SET v = v + 1 WHERE id = 3;
+  --connection con1
+  --send UPDATE t1 SET v = v + 1 WHERE id = 3
+  --connection default
+  let $wait_condition =
+    SELECT COUNT(*) = 1 FROM information_schema.innodb_trx
+    WHERE trx_state = 'LOCK WAIT';
+  --source include/wait_condition.inc
+  --connection con2
+  --error ER_LOCK_DEADLOCK
+  UPDATE t1 SET v = v + 1 WHERE id = 2;
+  ROLLBACK;
+  --connection con1
+  --reap
+  COMMIT;
+  --connection default
+  SELECT * FROM t1 ORDER BY id;
+
+  --echo # InnoDB monitor output runs lock_validate() unless disabled.
+  --connection con1
+  BEGIN;
+  UPDATE t1 SET v = v + 1 WHERE id = 1;
+  --connection default
+  --disable_result_log
+  SHOW ENGINE INNODB STATUS;
+  --enable_result_log
+  --connection con1
+  ROLLBACK;
+}
+
+--disconnect con1
+--disconnect con2
+--connection default
+DROP TABLE t1;
+SET GLOBAL innodb_lock_validation_disabled_debug = @saved_disabled;
+--source include/wait_until_count_sessions.inc

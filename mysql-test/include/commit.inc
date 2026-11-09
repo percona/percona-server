@@ -728,7 +728,8 @@ set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
 --disable_warnings
 
-let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
+# PS-12000: not VERSION(), --version-suffix replaces its "-debug" suffix.
+let $have_debug = `SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'debug'`;
 if (!$have_debug)
 {
   --replace_regex /8/X/

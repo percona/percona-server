@@ -1,0 +1,20 @@
+################################################################################
+# PS-12000: include/have_debug.inc must detect a Debug build even when
+# --version-suffix replaces the "-debug" build suffix of VERSION(), as the
+# component_keyring_vault combinations do. Before the fix this test was
+# skipped on Debug builds.
+################################################################################
+
+--source include/have_debug.inc
+
+--let $assert_text = VERSION() ends with the --version-suffix value
+--let $assert_cond = VERSION() LIKE "%-ps12000"
+--source include/assert.inc
+
+--let $assert_text = VERSION() does not contain the -debug build suffix
+--let $assert_cond = VERSION() NOT LIKE "%debug%"
+--source include/assert.inc
+
+--let $assert_text = The debug system variable exists
+--let $assert_cond = @@global.debug IS NOT NULL
+--source include/assert.inc

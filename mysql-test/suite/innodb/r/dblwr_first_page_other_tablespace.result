@@ -1,0 +1,37 @@
+#
+# Recovery of a torn first page restores it from the doublewrite copy
+# of the tablespace the caller asked about.  A file whose first page
+# names another tablespace is not a torn page of that tablespace, and
+# the doublewrite copy must not be written over it, whatever the
+# caller expected to find there.
+#
+# The DDL log replay of an interrupted RENAME TABLE validates the
+# target file against the renamed tablespace: put another table's
+# file there.
+#
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 CHAR(3)) ENGINE=InnoDB;
+CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 CHAR(3)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+INSERT INTO t2 VALUES (2, 'two');
+# Doublewrite copies of the first pages of both tables.
+FLUSH TABLES t1, t2 FOR EXPORT;
+UNLOCK TABLES;
+# Crash after the DDL log entry for the rename was written; the file
+# is still test/t1.ibd, and the entry says: rename t3.ibd to t1.ibd.
+SET SESSION debug = '+d,ddl_log_crash_after_rename_space_log_insert';
+RENAME TABLE t1 TO t3;
+# Put t1's file where the replay looks for it, and t2's file at the
+# target of the replay.
+# The replay must have refused the rename ...
+Pattern "Failed to read the first page of the file '.*test/t1.ibd'" found
+# ... and the first page of t2's file must still be t2's.
+space id in the header of t2's file: t2
+# Put the files back and clean up.
+# restart
+SELECT * FROM t1;
+f1	f2
+1	one
+SELECT * FROM t2;
+f1	f2
+2	two
+DROP TABLE t1, t2;

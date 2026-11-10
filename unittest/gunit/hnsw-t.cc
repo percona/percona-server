@@ -1449,6 +1449,69 @@ TEST_F(HnswTest, SearchLazyLoadOomGraphPropagatesAndRetries) {
 #endif
 }
 
+/* PS-11780: A group of exact duplicates which is bigger than the layer 0
+neighbor list must not be split off from the rest of the graph. Neighbor
+selection used to fill the neighbor lists with duplicates only, dropping all
+edges between two such groups, so search could only reach the group it
+started in.
+
+Members of a group must stay reachable as well. Ties between duplicates
+used to be broken in a fixed order, so pruning kept the same duplicates in
+neighbor lists and many later ones lost all incoming edges. With random
+ties, at M == 4 an occasional duplicate still ends up unreachable, so we
+allow one miss per group.
+
+The allowed number of misses was checked with libstdc++ only. TestHnsw pins
+std::mt19937, but the std::shuffle algorithm is implementation-defined, so
+another standard library (e.g. libc++) may order duplicates differently and
+build a different graph for the same seeds. If this test fails on such a
+platform, check how many duplicates are unreachable there and adjust the
+allowed number of misses (or the seeds) accordingly. */
+static void check_duplicate_groups_reachable(size_t M, bool interleave,
+                                             uint32_t seed) {
+  constexpr size_t kDims = 2;
+  constexpr size_t kGroupSize = 40;  // Well above Mmax0 == 2 * M.
+  TestHnsw index(kDims, euclidean, M, /*ef_construction=*/16, seed);
+
+  const auto a = make_vec({1.0f, 1.0f});
+  const auto b = make_vec({9.0f, 9.0f});
+  std::vector<bool> in_a;
+  for (uint64_t i = 0; i < 2 * kGroupSize; ++i) {
+    in_a.push_back(interleave ? (i % 2 == 0) : (i < kGroupSize));
+    ASSERT_EQ(index.insert(i + 1, /*base_pk=*/i, as_bytes(in_a.back() ? a : b)),
+              HNSW_SUCCESS);
+  }
+#ifndef NDEBUG
+  EXPECT_TRUE(index.validate());
+#endif
+
+  for (const auto &query : {make_vec({2.0f, 2.0f}), make_vec({8.0f, 8.0f})}) {
+    const auto [rc, result] = index.k_nn_search(as_bytes(query), 2 * kGroupSize,
+                                                /*ef_search=*/4 * kGroupSize);
+    ASSERT_EQ(rc, HNSW_SUCCESS);
+    const size_t found_a =
+        std::count_if(result.begin(), result.end(),
+                      [&](const auto &hit) { return in_a[hit.base_pk]; });
+    const size_t found_b = result.size() - found_a;
+    // Both groups must be found, whichever one search starts in.
+    EXPECT_GE(found_a, kGroupSize - 1)
+        << "M=" << M << " interleave=" << interleave << " seed=" << seed
+        << " query=(" << query[0] << "," << query[1] << ")";
+    EXPECT_GE(found_b, kGroupSize - 1)
+        << "M=" << M << " interleave=" << interleave << " seed=" << seed
+        << " query=(" << query[0] << "," << query[1] << ")";
+  }
+}
+
+TEST_F(HnswTest, DuplicateGroupsStayReachable) {
+  for (uint32_t seed = 1; seed <= 10; ++seed) {
+    for (const size_t M : {size_t{4}, size_t{8}}) {
+      check_duplicate_groups_reachable(M, /*interleave=*/false, seed);
+      check_duplicate_groups_reachable(M, /*interleave=*/true, seed);
+    }
+  }
+}
+
 #ifndef NDEBUG
 TEST_F(HnswTest, GraphInvariants) {
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);

@@ -1,0 +1,55 @@
+--echo #
+--echo # PS-11780: ANN search returns fewer rows than LIMIT, as few as one
+--echo # cluster's worth, when the table holds clusters of identical vectors.
+--echo #
+--echo # Groups of identical vectors bigger than the HNSW neighbor list must stay
+--echo # reachable from each other. Neighbor selection used to fill the
+--echo # neighbor lists with duplicates only, dropping all edges between such
+--echo # groups, so ANN search returned rows only from the group it started in.
+--echo # Each query below must use the vector index and return 50 rows from
+--echo # both groups.
+--echo #
+
+--echo # Index maintained by INSERT.
+CREATE TABLE t1 (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 (v)
+  WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 40)
+  SELECT STRING_TO_VECTOR('[0.1,0.1]') FROM n
+  UNION ALL SELECT STRING_TO_VECTOR('[0.9,0.9]') FROM n;
+let $q1 = SELECT COUNT(*), COUNT(DISTINCT VECTOR_TO_STRING(v)) AS `groups` FROM
+  (SELECT v FROM t1
+   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0.2,0.2]'), 'euclidean') LIMIT 50) x;
+let $q2 = SELECT COUNT(*), COUNT(DISTINCT VECTOR_TO_STRING(v)) AS `groups` FROM
+  (SELECT v FROM t1
+   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0.8,0.8]'), 'euclidean') LIMIT 50) x;
+--replace_column 10 # 11 #
+eval EXPLAIN $q1;
+eval $q1;
+--replace_column 10 # 11 #
+eval EXPLAIN $q2;
+eval $q2;
+
+--echo # Index built by ALTER TABLE.
+ALTER TABLE t1 DROP INDEX vk;
+ALTER TABLE t1 ADD VECTOR INDEX vk (v) TYPE hnsw (M = 8);
+--replace_column 10 # 11 #
+eval EXPLAIN $q1;
+eval $q1;
+DROP TABLE t1;
+
+--echo # Cosine metric, rows inserted in interleaved order.
+CREATE TABLE t1 (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                 v VECTOR(2) NOT NULL,
+                 VECTOR KEY vk (v) TYPE hnsw (M = 8, metric = cosine));
+INSERT INTO t1 (v)
+  WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 80)
+  SELECT IF(i % 2, STRING_TO_VECTOR('[1,0]'), STRING_TO_VECTOR('[0,1]')) FROM n;
+let $q = SELECT COUNT(*), COUNT(DISTINCT VECTOR_TO_STRING(v)) AS `groups` FROM
+  (SELECT v FROM t1
+   ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0.2]'), 'cosine') LIMIT 50) x;
+--replace_column 10 # 11 #
+eval EXPLAIN $q;
+eval $q;
+DROP TABLE t1;

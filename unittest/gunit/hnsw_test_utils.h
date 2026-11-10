@@ -90,6 +90,13 @@ using TestHnsw = HNSW<ArenaAllocator, NullPersistor, std::mt19937>;
   RNG that makes random_layer() always take the layer cap (grows / keeps
   high layers). Returning the engine's minimum drives u near 0 so -log(u)
   is large.
+
+  Don't use it in tests with duplicate vectors. select_neighbors() also
+  uses the engine to shuffle exact duplicates, and with a constant output
+  the shuffle always yields the same permutation. Ties between duplicates
+  are then broken in a fixed order, which makes many duplicates unreachable
+  (see PS-11780 and the DuplicateGroupsStayReachable test). With some
+  standard library implementations the shuffle might even hang.
 */
 struct MaxLayerEngine {
   using result_type = uint32_t;

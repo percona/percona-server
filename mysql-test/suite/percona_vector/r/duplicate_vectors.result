@@ -1,0 +1,83 @@
+#
+# PS-11780: ANN search returns fewer rows than LIMIT, as few as one
+# cluster's worth, when the table holds clusters of identical vectors.
+#
+# Groups of identical vectors bigger than the HNSW neighbor list must stay
+# reachable from each other. Neighbor selection used to fill the
+# neighbor lists with duplicates only, dropping all edges between such
+# groups, so ANN search returned rows only from the group it started in.
+# Each query below must use the vector index and return 50 rows from
+# both groups.
+#
+# Index maintained by INSERT.
+CREATE TABLE t1 (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8));
+INSERT INTO t1 (v)
+WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 40)
+SELECT STRING_TO_VECTOR('[0.1,0.1]') FROM n
+UNION ALL SELECT STRING_TO_VECTOR('[0.9,0.9]') FROM n;
+EXPLAIN SELECT COUNT(*), COUNT(DISTINCT VECTOR_TO_STRING(v)) AS `groups` FROM
+(SELECT v FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0.2,0.2]'), 'euclidean') LIMIT 50) x;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+2	DERIVED	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)`,count(distinct from_vector(`x`.`v`)) AS `groups` from (/* select#2 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[0.2,0.2]'),'euclidean') limit 50) `x`
+SELECT COUNT(*), COUNT(DISTINCT VECTOR_TO_STRING(v)) AS `groups` FROM
+(SELECT v FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0.2,0.2]'), 'euclidean') LIMIT 50) x;
+COUNT(*)	groups
+50	2
+EXPLAIN SELECT COUNT(*), COUNT(DISTINCT VECTOR_TO_STRING(v)) AS `groups` FROM
+(SELECT v FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0.8,0.8]'), 'euclidean') LIMIT 50) x;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+2	DERIVED	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)`,count(distinct from_vector(`x`.`v`)) AS `groups` from (/* select#2 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[0.8,0.8]'),'euclidean') limit 50) `x`
+SELECT COUNT(*), COUNT(DISTINCT VECTOR_TO_STRING(v)) AS `groups` FROM
+(SELECT v FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0.8,0.8]'), 'euclidean') LIMIT 50) x;
+COUNT(*)	groups
+50	2
+# Index built by ALTER TABLE.
+ALTER TABLE t1 DROP INDEX vk;
+ALTER TABLE t1 ADD VECTOR INDEX vk (v) TYPE hnsw (M = 8);
+EXPLAIN SELECT COUNT(*), COUNT(DISTINCT VECTOR_TO_STRING(v)) AS `groups` FROM
+(SELECT v FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0.2,0.2]'), 'euclidean') LIMIT 50) x;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+2	DERIVED	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)`,count(distinct from_vector(`x`.`v`)) AS `groups` from (/* select#2 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[0.2,0.2]'),'euclidean') limit 50) `x`
+SELECT COUNT(*), COUNT(DISTINCT VECTOR_TO_STRING(v)) AS `groups` FROM
+(SELECT v FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[0.2,0.2]'), 'euclidean') LIMIT 50) x;
+COUNT(*)	groups
+50	2
+DROP TABLE t1;
+# Cosine metric, rows inserted in interleaved order.
+CREATE TABLE t1 (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+v VECTOR(2) NOT NULL,
+VECTOR KEY vk (v) TYPE hnsw (M = 8, metric = cosine));
+INSERT INTO t1 (v)
+WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 80)
+SELECT IF(i % 2, STRING_TO_VECTOR('[1,0]'), STRING_TO_VECTOR('[0,1]')) FROM n;
+EXPLAIN SELECT COUNT(*), COUNT(DISTINCT VECTOR_TO_STRING(v)) AS `groups` FROM
+(SELECT v FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0.2]'), 'cosine') LIMIT 50) x;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+2	DERIVED	t1	NULL	vector_ann	vk	vk	0	const	#	#	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)`,count(distinct from_vector(`x`.`v`)) AS `groups` from (/* select#2 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` order by distance(`test`.`t1`.`v`,to_vector('[1,0.2]'),'cosine') limit 50) `x`
+SELECT COUNT(*), COUNT(DISTINCT VECTOR_TO_STRING(v)) AS `groups` FROM
+(SELECT v FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0.2]'), 'cosine') LIMIT 50) x;
+COUNT(*)	groups
+50	2
+DROP TABLE t1;

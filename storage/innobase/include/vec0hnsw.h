@@ -367,12 +367,13 @@ struct Vec_null_persistor {
   }
 };
 
-/** UniformRandomBitGenerator for the graph's layer draw, over InnoDB's RNG.
+/** UniformRandomBitGenerator for the graph's layer draw and for ordering
+exact duplicates during neighbor selection, over InnoDB's RNG.
 
 HNSW does not synchronise RandomEngine access, and its contract requires a
 thread-safe one once inserts may run concurrently (hnsw.h) - which
 they now may. Its default, std::default_random_engine, is not, so the graph
-would race on the RNG state inside random_layer().
+would race on the RNG state inside random_layer() and select_neighbors().
 
 ut::random_64() is thread-safe by construction rather than by locking: its
 state is `extern thread_local uint64_t random_seed` (ut0rnd.h), seeded
@@ -384,8 +385,8 @@ rest of InnoDB uses.
 The seed argument is accepted and ignored. HNSW passes one (default 42)
 because a std:: engine needs it; ut0rnd seeds itself per thread and has no
 per-object state to seed. One consequence, recorded in section 40: layer
-assignment is no longer reproducible across runs, so no test may record
-per-node `level` or `nb`. */
+assignment and the choice of duplicate neighbors are no longer reproducible
+across runs, so no test may record per-node `level` or `nb`. */
 class Vec_random_engine {
  public:
   using result_type = uint64_t;

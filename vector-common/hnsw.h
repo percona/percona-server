@@ -199,6 +199,7 @@ enum HnswResult {
 
   @tparam RandomEngine
     Uniform random bit generator used for random layer assignment on insert
+    and for ordering exact duplicates in select_neighbors()
     (constructible from the constructor @p seed). HNSW does not synchronize
     access to the engine: if concurrent insert() calls are expected, the
     provided engine must be thread-safe. The default
@@ -1945,7 +1946,7 @@ class HNSW {
   /// are synchronized.
   std::mutex m_entry_point_lock;
 
-  /// Layer-assignment RNG; see @tparam RandomEngine.
+  /// RNG for layer assignment and select_neighbors(); see @tparam RandomEngine.
   RandomEngine m_rng;
 
   /// Stateless callback sink; see @tparam Persistor.
@@ -2344,10 +2345,45 @@ class HNSW {
   }
 
   /**
+    How many exact duplicates of a node (neighbors at distance 0 from it)
+    the neighbor selection heuristic may pick before other candidates.
+    The rest of a group of duplicates can still fill slots left over by
+    keepPrunedConnections. See select_neighbors().
+
+    The value was chosen by experiments with M = 2..8, 16 and 25 and
+    ef_construction = 64 and 200 on data with groups of exact duplicates of
+    different sizes. Higher values keep more duplicates reachable, but take
+    slots from other candidates, so recall@10 for random queries drops.
+    This matters only for M = 3..5 (M = 2 did badly with any value). E.g.
+    for M = 4 and random vectors mixed with groups of 60 duplicates, 3
+    leaves 1.5% of nodes unreachable (9% with 1) at recall 0.99 (0.92 with
+    8). The worst case is M = 3 with 4 copies of each vector: recall is
+    0.72 with 3 and 0.93 with 1.
+  */
+  static constexpr size_t kMaxDupNeighbors = 3;
+  static_assert(kMaxDupNeighbors >= 1);
+
+  /**
     Select up to max_neighbors neighbors of q from candidate set.
 
     Corresponds to SELECT-NEIGHBORS (heuristic, algorithm 4) in the HNSW
     paper, including keepPrunedConnections but excluding extendCandidates.
+
+    Deviates from the paper for candidates which are exact duplicates of q
+    (distance 0). Such a selected neighbor r has dist(e, r) == dist(e, q) for
+    every candidate e, so the paper's check would discard all other
+    candidates because of it. With many duplicates this crowds everything
+    else out of the neighbor list and can split a group of duplicates from
+    the rest of the graph. Instead, duplicates of q are not used to discard
+    other candidates, and at most kMaxDupNeighbors of them are picked by the
+    heuristic; the remaining duplicates are only used to fill free slots by
+    keepPrunedConnections.
+
+    Duplicates are taken in random order. With a fixed order (e.g. one in
+    which the heap yields equal elements), each neighbor list tends to keep
+    the same duplicates every time it is pruned, so duplicates inserted
+    later lose their incoming edges and become unreachable, while a few
+    others turn into hubs.
 
     @param q    Query / base element vector (unused; distances come from
                 candidates; kept for consistency with the paper).
@@ -2365,13 +2401,24 @@ class HNSW {
   */
   template <typename NodeDistRange>
   size_t select_neighbors(const char * /* q */, const NodeDistRange &candidates,
-                          size_t max_neighbors, Node **out) const {
+                          size_t max_neighbors, Node **out) {
     size_t r_size = 0;
     // W in the paper.
     std::priority_queue<NodeDist, std::vector<NodeDist>, NodeDistMinCmp>
         work_queue;
-    // Discarded candidates in nearest-first order (same order as pops from W).
+    // Discarded candidates in nearest-first order (leftover duplicates of q
+    // first, then in the order of pops from W).
     std::vector<Node *> discarded;  // Wd from the paper.
+    /*
+      Duplicates of q. W would yield them in the nearest-first order before
+      all other candidates anyway, so keep them out of W and handle them up
+      front, in random order.
+
+      Distances for all supported metrics are never negative (e.g. cosine
+      distance clamps its result to [0, 2]), so checking for exact 0 is
+      enough.
+    */
+    std::vector<Node *> dups;
 
     for (const NodeDist &entry : candidates) {
       // Candidates must be complete or linking. Since linking candidates
@@ -2386,19 +2433,41 @@ class HNSW {
       assert(entry_state == NODE_COMPLETE || entry_state == NODE_LINKING ||
              entry_state == NODE_FAILED);
 #endif
-      work_queue.push(entry);
+      if (entry.distance == 0) {
+        dups.push_back(entry.node);
+      } else {
+        work_queue.push(entry);
+      }
     }
+
+    std::shuffle(dups.begin(), dups.end(), m_rng);
+
+    /*
+      Selected duplicates occupy out[0 .. dup_selected). Leave at least one
+      slot for other candidates even when max_neighbors <= kMaxDupNeighbors
+      (e.g. M == 2), so duplicates alone can't fill the whole list. If there
+      are no other candidates, keepPrunedConnections fills it with the rest
+      of the duplicates.
+    */
+    assert(max_neighbors >= 2);
+    const size_t dup_selected =
+        std::min({dups.size(), kMaxDupNeighbors, max_neighbors - 1});
+    std::copy_n(dups.begin(), dup_selected, out);
+    r_size = dup_selected;
+    discarded.insert(discarded.end(), dups.begin() + dup_selected, dups.end());
 
     while (!work_queue.empty() && r_size < max_neighbors) {
       const NodeDist e = work_queue.top();
       work_queue.pop();
 
       bool discard = false;
-      for (size_t i = 0; i < r_size; ++i) {
+      for (size_t i = dup_selected; i < r_size; ++i) {
         const double r_dist = dist(e.node->vec(), out[i]);
         /*
           A candidate e is discarded when it is closer or at least as close
           to some already-selected neighbor as it is to the query vector q.
+          Selected duplicates of q (out[0 .. dup_selected)) are skipped, as
+          they don't tell anything about the direction in which e lies.
         */
         if (e.distance >= r_dist) {
           discard = true;

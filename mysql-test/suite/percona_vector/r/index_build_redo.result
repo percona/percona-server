@@ -1,0 +1,118 @@
+#
+# A vector index build writes the aux table with Btree_load, without
+# redo. Like every other bulk-loaded index, it must be followed by an
+# MLOG_INDEX_LOAD record, here for the aux tablespace, so that a backup
+# tool knows the aux was modified without redo and copies it again.
+#
+# Recovery with --debug=d,ib_log prints every redo record it scans; the
+# test looks there for an MLOG_INDEX_LOAD of each aux space.
+#
+SET SESSION cte_max_recursion_depth = 2000;
+# t1: the first ADD VECTOR KEY, which rebuilds the table.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+# t2: a replaced vector index, built without a table rebuild.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+# t3: OPTIMIZE TABLE of a table with a vector index.
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+# t4: ALTER TABLE ... ENGINE=InnoDB of a table with a vector index.
+CREATE TABLE t4 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+# t5: an empty table, whose build writes no aux rows.
+CREATE TABLE t5 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+# 2000 rows each, so every aux spans many pages.
+INSERT INTO t1
+WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq
+WHERE n < 2000)
+SELECT n, STRING_TO_VECTOR(CONCAT('[', n, ',', n % 7, ',', n % 13, ',1]'))
+FROM seq;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+INSERT INTO t4 SELECT * FROM t1;
+ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+ALTER TABLE t3 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+ALTER TABLE t4 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+# Keep every record from here on in the redo log.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
+ALTER TABLE t2 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4),
+ALGORITHM=INPLACE;
+OPTIMIZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t3	optimize	status	OK
+ALTER TABLE t4 ENGINE=InnoDB;
+ALTER TABLE t5 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
+include/assert.inc [Replacing the vector index of t2 did not rebuild t2]
+# Kill and restart
+include/assert_grep.inc [MLOG_INDEX_LOAD for the aux of the first ADD VECTOR KEY]
+include/assert_grep.inc [MLOG_INDEX_LOAD for the aux of the replaced vector index]
+include/assert_grep.inc [MLOG_INDEX_LOAD for the aux of OPTIMIZE TABLE]
+include/assert_grep.inc [MLOG_INDEX_LOAD for the aux of ALTER TABLE ENGINE=InnoDB]
+# The recovered tables and their vector indexes are complete.
+CHECK TABLE t1, t2, t3, t4, t5;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t2	check	status	OK
+test.t3	check	status	OK
+test.t4	check	status	OK
+test.t5	check	status	OK
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2000
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+2000
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+2000
+SELECT COUNT(*) FROM t4;
+COUNT(*)
+2000
+SELECT COUNT(*) FROM t5;
+COUNT(*)
+0
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=2000 distinct_ids=2000 distinct_base_pks=2000 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t2';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=2000 distinct_ids=2000 distinct_base_pks=2000 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t3';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=2000 distinct_ids=2000 distinct_base_pks=2000 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t4';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=2000 distinct_ids=2000 distinct_base_pks=2000 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t5';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+nodes=0 distinct_ids=0 distinct_base_pks=0 dup_ids=0 dup_base_pks=0 labels_contiguous_from_1=1
+# Each row is its own unique nearest neighbour.
+SELECT id FROM t1
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1000,6,12,1]'), 'euclidean') LIMIT 1;
+id
+1000
+SELECT id FROM t2
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1500,2,5,1]'), 'euclidean') LIMIT 1;
+id
+1500
+SELECT id FROM t3
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[7,0,7,1]'), 'euclidean') LIMIT 1;
+id
+7
+SELECT id FROM t4
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1999,4,10,1]'), 'euclidean') LIMIT 1;
+id
+1999
+INSERT INTO t5 VALUES (1, STRING_TO_VECTOR('[1,0,1,1]'));
+SELECT id FROM t5
+ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,1,1]'), 'euclidean') LIMIT 1;
+id
+1
+# Restart without the debug settings.
+# restart
+DROP TABLE t1, t2, t3, t4, t5;

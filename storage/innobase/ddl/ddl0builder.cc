@@ -2111,13 +2111,34 @@ dberr_t Builder::vec_build() noexcept {
   ut_ad(is_vector_index());
   ut_ad(m_vec != nullptr);
 
+  ut_ad(m_ctx.m_need_observer);
+
+  auto thd = m_ctx.m_trx->mysql_thd;
+  MDL_ticket *mdl{};
+  auto aux = vec_aux_open_for_dml(m_ctx.m_new_table, m_index->id, thd, &mdl);
+
+  if (aux == nullptr) {
+    /* ~Builder() frees m_vec. */
+    set_error(DB_TABLE_NOT_FOUND);
+    set_next_state();
+    return get_error();
+  }
+
+  auto observer = m_ctx.flush_observer();
+
   /* The aux rows ride the ALTER's own transaction, so a failure here
-  rolls them back with the rest of the statement. */
-  /* The statement's observer, borrowed: ddl::Context flushes it once every
-  builder is done, exactly as ddl::FTS does for its aux tables. */
-  auto err =
-      vec_build_write_aux(m_vec, m_ctx.m_trx, m_ctx.m_new_table,
-                          m_ctx.m_trx->mysql_thd, m_ctx.flush_observer());
+  rolls them back with the rest of the statement. Their pages are
+  written without redo, under the statement's observer. */
+  auto err = vec_build_write_aux(m_vec, m_ctx.m_trx, aux, observer);
+
+  if (err == DB_SUCCESS) {
+    /* As finalize() does for a B-tree. A vector index has no B-tree of
+    its own: its build loads the clustered index of the aux table. */
+    observer->flush();
+    write_redo(aux->first_index());
+  }
+
+  vec_aux_close_for_dml(aux, thd, &mdl);
 
   vec_build_free(m_vec);
   m_vec = nullptr;

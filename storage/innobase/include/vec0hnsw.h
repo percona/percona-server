@@ -47,6 +47,7 @@ vector index keeps in memory.
 
 #include "vector-common/hnsw.h"
 
+class MDL_ticket;
 class THD;
 class Flush_observer;
 
@@ -645,16 +646,38 @@ neighbours it ended up with. No undo and no redo; the aux is new to this
 ALTER and is dropped if the ALTER fails.
 @param[in,out]  b      build state
 @param[in]      trx    the ALTER's transaction
-@param[in]      table  base table being altered
-@param[in]      thd    connection, for the aux MDL
+@param[in,out]  aux    the aux table of the index being built, opened by the
+                       caller with vec_aux_open_for_dml()
 @param[in]      observer  flushes the aux pages before the ALTER commits
 @return DB_SUCCESS or an error */
 [[nodiscard]] dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx,
-                                          dict_table_t *table, THD *thd,
+                                          dict_table_t *aux,
                                           Flush_observer *observer);
 
 /** Release the build state and the graph it holds. Safe on nullptr. */
 void vec_build_free(Vec_build *b);
+
+/** Open the aux table of a vector index for one DML operation.
+
+No MDL on the aux itself: the caller holds MDL on the BASE table, and every
+DDL that can drop an aux takes exclusive base MDL first. Fast path is the
+dict cache; fall back to the DD only when it has been evicted, and then take
+MDL because the fallback can block.
+@param[in]      base      base table that owns the vector index
+@param[in]      index_id  id of the vector index
+@param[in]      thd       connection, for the fallback's MDL; nullptr allows
+                          the dict cache only
+@param[out]     mdl       MDL taken by the fallback, or nullptr
+@return the aux table, or nullptr if it could not be opened */
+[[nodiscard]] dict_table_t *vec_aux_open_for_dml(dict_table_t *base,
+                                                 space_index_t index_id,
+                                                 THD *thd, MDL_ticket **mdl);
+
+/** Close an aux table opened by vec_aux_open_for_dml().
+@param[in]      aux  the aux table
+@param[in]      thd  connection passed to vec_aux_open_for_dml()
+@param[in,out]  mdl  MDL it returned, released here */
+void vec_aux_close_for_dml(dict_table_t *aux, THD *thd, MDL_ticket **mdl);
 
 /** Add the new node for a vector-column UPDATE.
 

@@ -425,15 +425,8 @@ vec_t *vec_runtime_open(dict_index_t *index, const TABLE *form, THD *thd) {
   return vec;
 }
 
-/** Open the aux table for one DML operation.
-
-No MDL on the aux itself: the caller holds MDL on the BASE table, and every
-DDL that can drop an aux takes exclusive base MDL first. Fast path is the
-dict cache; fall back to the DD only when it has been evicted, and then take
-MDL because the fallback can block. */
-static dict_table_t *vec_aux_open_for_dml(dict_table_t *base,
-                                          space_index_t index_id, THD *thd,
-                                          MDL_ticket **mdl) {
+dict_table_t *vec_aux_open_for_dml(dict_table_t *base, space_index_t index_id,
+                                   THD *thd, MDL_ticket **mdl) {
   char aux_name[MAX_FULL_NAME_LEN];
   vec_aux_get_table_name(base, index_id, Vec_index_type::HNSW, aux_name,
                          sizeof(aux_name));
@@ -448,8 +441,7 @@ static dict_table_t *vec_aux_open_for_dml(dict_table_t *base,
   return aux;
 }
 
-static void vec_aux_close_for_dml(dict_table_t *aux, THD *thd,
-                                  MDL_ticket **mdl) {
+void vec_aux_close_for_dml(dict_table_t *aux, THD *thd, MDL_ticket **mdl) {
   dd_table_close(aux, *mdl != nullptr ? thd : nullptr, mdl, false);
 }
 
@@ -1055,16 +1047,14 @@ dberr_t vec_build_add_row(Vec_build *b, dict_table_t *table,
   return DB_SUCCESS;
 }
 
-dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
-                            THD *thd, Flush_observer *observer) {
+dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *aux,
+                            Flush_observer *observer) {
   ut_ad(b != nullptr && b->graph != nullptr);
-  ut_ad(trx != nullptr);
+  ut_ad(trx != nullptr && aux != nullptr);
+  /* Opened by the caller, which closes it after this returns. */
+  ut_ad(aux->get_ref_count() > 0);
 
   if (b->graph->size() == 0) return DB_SUCCESS;
-
-  MDL_ticket *mdl = nullptr;
-  dict_table_t *aux = vec_aux_open_for_dml(table, b->index->id, thd, &mdl);
-  if (aux == nullptr) return DB_TABLE_NOT_FOUND;
 
   /* Record 0 first, then one row per node in ascending id order. The aux
   table is keyed by id, so the whole sequence is an append and the tree is
@@ -1088,10 +1078,7 @@ dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
 
   Vec_aux_bulk *bulk = vec_aux_bulk_start(trx, aux, observer);
 
-  if (bulk == nullptr) {
-    vec_aux_close_for_dml(aux, thd, &mdl);
-    return DB_VEC_OUT_OF_MEMORY;
-  }
+  if (bulk == nullptr) return DB_VEC_OUT_OF_MEMORY;
 
   dberr_t err = vec_aux_bulk_insert(bulk, meta);
   std::vector<byte> neighbors;
@@ -1150,10 +1137,7 @@ dberr_t vec_build_write_aux(Vec_build *b, trx_t *trx, dict_table_t *table,
     err = DB_ERROR;
   }
 
-  err = vec_aux_bulk_finish(bulk, err);
-
-  vec_aux_close_for_dml(aux, thd, &mdl);
-  return err;
+  return vec_aux_bulk_finish(bulk, err);
 }
 
 void vec_build_free(Vec_build *b) {

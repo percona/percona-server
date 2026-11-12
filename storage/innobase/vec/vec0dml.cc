@@ -91,9 +91,8 @@ undo, and Btree_load writes its pages with MTR_LOG_NO_REDO.
 
 The price of no redo is that nothing else will get those pages to disk:
 they reach it only because the Flush_observer below flushes them before
-the statement commits. The DDL's own observer covers the table being
-altered, not this one - Flush_observer is per tablespace - so the aux gets
-its own.
+the statement commits. It is the statement's own observer, which finds the
+pages it flushes by observer, not by tablespace, so it covers the aux too.
 
 Rows must arrive in ascending id order. Btree_load appends; it does not
 sort. HNSW::for_each_node_sorted is what supplies that. */

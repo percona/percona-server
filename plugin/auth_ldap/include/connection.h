@@ -69,6 +69,9 @@ class Connection {
 
   static void initialize_global_ldap_parameters(bool enable_debug,
                                                 std::string const &ca_path);
+  // Undoes the parts of initialize_global_ldap_parameters() that refer to
+  // code in this plugin. Must be called before the plugin is unloaded.
+  static void deinitialize_global_ldap_parameters();
 
  private:
   std::string get_ldap_uri();

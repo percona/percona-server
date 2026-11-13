@@ -64,6 +64,8 @@ Pool::~Pool() {
   std::lock_guard<std::mutex> lock(pool_mutex_);
 
   v_connections_.clear();
+
+  Connection::deinitialize_global_ldap_parameters();
 }
 
 /**

@@ -14121,6 +14121,41 @@ int ha_rocksdb::update_stats(ha_statistics *ha_stats, Rdb_tbl_def *tbl_def,
 }
 
 /**
+  The number of rows per value of the first key_part + 1 parts of a key for
+  which there are no index statistics.
+
+  It is the estimate the optimizer makes itself when the storage engine gives
+  it none (guess_rec_per_key() in sql/opt_statistics.cc): the whole key
+  matches 1 row if it is unique and 10 rows otherwise (fewer in a small
+  table), the first key part matches 1% of the rows, and the key parts in
+  between are interpolated. MyRocks has to make it here because it must not
+  leave an estimate unknown, see ha_rocksdb::info().
+
+  @param key       The key.
+  @param key_part  Number of the last key part of the prefix, from 0.
+  @param rows      Number of rows in the table.
+
+  @return the estimate, at least 1.
+*/
+static rec_per_key_t rdb_guess_rec_per_key(const KEY &key, uint key_part,
+                                           ha_rows rows) {
+  const bool unique = (key.actual_flags & HA_NOSAME) != 0;
+  const rec_per_key_t whole_key =
+      unique ? 1.0f
+             : std::min(10.0f,
+                        std::max(static_cast<rec_per_key_t>(rows) / 10, 1.0f));
+  const rec_per_key_t first_part = rows * 0.01f;
+
+  if (first_part < whole_key) return whole_key;
+  if (key.actual_key_parts == 1) return unique ? 1.0f : first_part;
+  if (key_part + 1 >= key.actual_key_parts) return whole_key;
+  return std::max(whole_key,
+                  first_part - (static_cast<rec_per_key_t>(key_part) /
+                                (key.actual_key_parts - 1)) *
+                                   (first_part - whole_key));
+}
+
+/**
   @return
     HA_EXIT_SUCCESS  OK
     HA_EXIT_FAILURE  Error
@@ -14188,6 +14223,31 @@ int ha_rocksdb::info(uint flag) {
         }
 
         // 1 <= x <= records, or x = REC_PER_KEY_UNKNOWN
+        /*
+          The rec_per_key arrays belong to the TABLE_SHARE and are read without
+          synchronization by every session that optimizes a query on this
+          table. Server code calls has_records_per_key() and then
+          records_per_key() or guess_rec_per_key(), so a reader breaks if an
+          element changes between having an estimate and having none, in
+          either direction.
+
+          Therefore never store REC_PER_KEY_UNKNOWN, as InnoDB never does:
+          when there is no estimate (a table or partition without rows, or
+          with rows but without index statistics if
+          rocksdb_debug_optimizer_no_zero_cardinality is OFF), store the one
+          the optimizer would make itself. It is computed again on every
+          call, so it follows the number of rows until there are index
+          statistics. open() calls this function, and every session opens
+          the table before it optimizes a query, so readers only ever see
+          one estimate replace another.
+
+          As a consequence SHOW INDEX reports a Cardinality (rows /
+          estimate) for such a table and not NULL: 0 for a table without
+          rows, as with InnoDB.
+        */
+        if (x == REC_PER_KEY_UNKNOWN) {
+          x = rdb_guess_rec_per_key(*k, j, records);
+        }
         k->set_records_per_key(j, x);
       }
     }

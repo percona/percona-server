@@ -8,7 +8,7 @@ FLUSH TABLES;
 # Opens the table outside of any transaction
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
-t1	0	PRIMARY	1	id	A	NULL	NULL	NULL		SE_SPECIFIC			YES	NULL
+t1	0	PRIMARY	1	id	A	0	NULL	NULL		SE_SPECIFIC			YES	NULL
 INSERT INTO t1 (b) VALUES (100);
 SELECT COUNT(*) FROM t1;
 COUNT(*)

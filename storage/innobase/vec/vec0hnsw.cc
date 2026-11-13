@@ -57,8 +57,11 @@ The HNSW runtime and the persistence callbacks behind it.
 vec_t::~vec_t() {
   /* Destroying the graph destroys the arena it holds by value, which
   frees every node in one go - the arena has no per-block free and does
-  not need one. */
-  ut::delete_(hnsw);
+  not need one.
+
+  hnsw is null until the graph is first loaded. Unlike ut::delete_,
+  ut::aligned_delete does not accept a null pointer. */
+  if (hnsw != nullptr) ut::aligned_delete(hnsw);
   hnsw = nullptr;
 }
 
@@ -478,9 +481,12 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
   ib::fatal arm. */
   DBUG_EXECUTE_IF("vec_graph_alloc_fail", return DB_VEC_OUT_OF_MEMORY;);
 
-  vec->hnsw =
-      ut::new_withkey<Vec_hnsw>(UT_NEW_THIS_FILE_PSI_KEY, vec->dims, vec->dist,
-                                vec->m, vec->ef_construction);
+  /* Aligned: HNSW's lock stripes, and thus the whole object, are
+  alignas(64), while new_withkey only guarantees malloc alignment.
+  Freed with ut::aligned_delete to match. */
+  vec->hnsw = ut::aligned_new_withkey<Vec_hnsw>(
+      UT_NEW_THIS_FILE_PSI_KEY, alignof(Vec_hnsw), vec->dims, vec->dist, vec->m,
+      vec->ef_construction);
 
   mem_heap_t *heap = mem_heap_create(256, UT_LOCATION_HERE);
   vec_aux_read_t meta;
@@ -497,7 +503,7 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
     return DB_SUCCESS;
   }
   if (err != DB_SUCCESS) {
-    ut::delete_(vec->hnsw);
+    ut::aligned_delete(vec->hnsw);
     vec->hnsw = nullptr;
     return err;
   }
@@ -512,7 +518,7 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
   crashed. Only this vector index's runtime is bad; the base table and
   its other indexes are fine, so this must stay index-scoped. */
   if (entry_point == 0) {
-    ut::delete_(vec->hnsw);
+    ut::aligned_delete(vec->hnsw);
     vec->hnsw = nullptr;
     return DB_INDEX_CORRUPT;
   }
@@ -529,7 +535,7 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
   disagreeing; the instance is unusable either way and must go. */
   const HnswResult irc = vec->hnsw->init_from_entry_point(entry_point, &ctx);
   if (irc != HNSW_SUCCESS) {
-    ut::delete_(vec->hnsw);
+    ut::aligned_delete(vec->hnsw);
     vec->hnsw = nullptr;
     /* A failure that reached our load_node_cb left its reason in ctx->err,
     and for a missing row the callback has already reported it - so that
@@ -899,12 +905,14 @@ struct Vec_build {
             vector_constants::Metric metric_, vec_dist_func_t *dist_,
             dict_index_t *index_)
       : dims(dims_), metric(metric_), index(index_) {
-    graph = ut::new_withkey<Vec_build_hnsw>(UT_NEW_THIS_FILE_PSI_KEY, dims_,
-                                            dist_, m_, ef_construction_);
+    /* Over-aligned, like vec_t::hnsw: see vec_runtime_load(). */
+    graph = ut::aligned_new_withkey<Vec_build_hnsw>(
+        UT_NEW_THIS_FILE_PSI_KEY, alignof(Vec_build_hnsw), dims_, dist_, m_,
+        ef_construction_);
   }
 
   ~Vec_build() {
-    if (graph != nullptr) ut::delete_(graph);
+    if (graph != nullptr) ut::aligned_delete(graph);
   }
 
   Vec_build(const Vec_build &) = delete;

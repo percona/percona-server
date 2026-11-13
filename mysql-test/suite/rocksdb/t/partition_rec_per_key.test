@@ -1,0 +1,216 @@
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # The partitions of a partitioned table share the rec_per_key estimates
+--echo # of the table. ha_rocksdb::info() set them for every partition a
+--echo # statement used, so the estimates of the table were those of the
+--echo # partition that was read last, also if it had few rows or none.
+--echo # Now the partition with the most rows sets them, and only for a
+--echo # statement that uses all partitions.
+--echo #
+
+SET SESSION information_schema_stats_expiry = 0;
+SET @save_sampling_pct = @@global.rocksdb_table_stats_sampling_pct;
+SET @save_cachetime = @@global.rocksdb_force_compute_memtable_stats_cachetime;
+# Count all keys and do not cache the row estimate of the memtable.
+SET GLOBAL rocksdb_table_stats_sampling_pct = 100;
+SET GLOBAL rocksdb_force_compute_memtable_stats_cachetime = 0;
+
+CREATE TABLE t_driver (x INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t_driver VALUES (1), (2), (3), (4), (5);
+
+--echo #
+--echo # 1. The last partition has 2 rows with different values of a, the
+--echo #    first one 1000 rows with the same value. Expected: about 1000 rows
+--echo #    for each value of a, as with InnoDB, and not 1.
+--echo #
+CREATE TABLE t1 (pk INT, part_col INT, a INT, v INT,
+                 PRIMARY KEY (pk, part_col), KEY ka (a)) ENGINE=ROCKSDB
+  PARTITION BY RANGE (part_col) (
+    PARTITION p0 VALUES LESS THAN (100),
+    PARTITION p1 VALUES LESS THAN MAXVALUE);
+CREATE TABLE t1_innodb (pk INT, part_col INT, a INT, v INT,
+                        PRIMARY KEY (pk, part_col), KEY ka (a)) ENGINE=InnoDB
+  PARTITION BY RANGE (part_col) (
+    PARTITION p0 VALUES LESS THAN (100),
+    PARTITION p1 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 WITH RECURSIVE s (i) AS
+  (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 1000)
+  SELECT i, 10, 1, i FROM s;
+INSERT INTO t1 VALUES (1001, 200, 1, 1), (1002, 200, 2, 2);
+INSERT INTO t1_innodb WITH RECURSIVE s (i) AS
+  (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 1000)
+  SELECT i, 10, 1, i FROM s;
+INSERT INTO t1_innodb VALUES (1001, 200, 1, 1), (1002, 200, 2, 2);
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+ANALYZE TABLE t_driver, t1, t1_innodb;
+SELECT TABLE_NAME, INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 't1_innodb')
+    AND INDEX_NAME = 'ka'
+  ORDER BY TABLE_NAME;
+--echo # A join on a therefore reads t1 with a scan, not with the index.
+--replace_column 10 # 11 #
+EXPLAIN SELECT * FROM t_driver STRAIGHT_JOIN t1 ON t1.a = t_driver.x;
+--replace_column 10 # 11 #
+EXPLAIN SELECT * FROM t_driver STRAIGHT_JOIN t1_innodb ON t1_innodb.a = t_driver.x;
+--echo # A statement that reads only the small partition does not set the
+--echo # estimates of the table either, here for a second reference to the
+--echo # table in the same statement: big is still read with a scan.
+--replace_column 10 # 11 #
+EXPLAIN SELECT * FROM t_driver
+  STRAIGHT_JOIN t1 AS big ON big.a = t_driver.x
+  STRAIGHT_JOIN t1 AS small ON small.part_col = 200 AND small.pk = big.pk;
+--replace_column 10 # 11 #
+EXPLAIN SELECT * FROM t_driver
+  STRAIGHT_JOIN t1_innodb AS big ON big.a = t_driver.x
+  STRAIGHT_JOIN t1_innodb AS small ON small.part_col = 200 AND small.pk = big.pk;
+--echo # The same without ANALYZE TABLE, in a new table definition.
+FLUSH TABLES;
+SELECT TABLE_NAME, INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' AND INDEX_NAME = 'ka';
+DROP TABLE t1, t1_innodb;
+
+--echo #
+--echo # 2. A partition without rows. The first partition has 100 rows with
+--echo #    10 values of a. Expected: Cardinality 10 and 100, not NULL.
+--echo #
+CREATE TABLE t2 (a INT, b INT, PRIMARY KEY (a, b)) ENGINE=ROCKSDB
+  PARTITION BY RANGE (b) (
+    PARTITION p0 VALUES LESS THAN (1000),
+    PARTITION p1 VALUES LESS THAN MAXVALUE);
+INSERT INTO t2 WITH RECURSIVE s (i) AS
+  (SELECT 0 UNION ALL SELECT i + 1 FROM s WHERE i < 99)
+  SELECT i DIV 10, i FROM s;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+ANALYZE TABLE t2;
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
+SELECT INDEX_NAME, SEQ_IN_INDEX, CARDINALITY
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't2'
+  ORDER BY INDEX_NAME, SEQ_IN_INDEX;
+--echo # A statement that reads only the partition without rows leaves the
+--echo # estimates as they are: 10 rows for each value of a, and not 1, with
+--echo # which the join would look up each value of a in the index.
+--replace_column 11 #
+EXPLAIN SELECT * FROM t_driver STRAIGHT_JOIN t2 ON t2.a = t_driver.x
+  WHERE t2.b >= 1000;
+--replace_column 11 #
+EXPLAIN SELECT * FROM t_driver STRAIGHT_JOIN t2 ON t2.a = t_driver.x;
+
+--echo #
+--echo # 3. The partition without rows gets one row, which stays in the
+--echo #    memtable, so the partition has no index statistics. Expected: the
+--echo #    estimates of the first partition stay.
+--echo #
+INSERT INTO t2 VALUES (100, 2000);
+SELECT PARTITION_NAME, TABLE_ROWS > 0 AS has_rows
+  FROM INFORMATION_SCHEMA.PARTITIONS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't2' ORDER BY PARTITION_NAME;
+SELECT INDEX_NAME, SEQ_IN_INDEX, CARDINALITY BETWEEN 10 AND 20 AS about_10
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't2' AND SEQ_IN_INDEX = 1;
+--replace_column 11 #
+EXPLAIN SELECT * FROM t_driver STRAIGHT_JOIN t2 ON t2.a = t_driver.x;
+DROP TABLE t2;
+
+--echo #
+--echo # 4. The estimates follow the index statistics without ANALYZE TABLE
+--echo #    and without a new table definition, as they do for a table
+--echo #    without partitions: the table is opened without rows, then gets
+--echo #    100 rows with 10 values of a, which are flushed.
+--echo #
+CREATE TABLE t3 (a INT, b INT, PRIMARY KEY (a, b)) ENGINE=ROCKSDB
+  PARTITION BY RANGE (b) (
+    PARTITION p0 VALUES LESS THAN (1000),
+    PARTITION p1 VALUES LESS THAN MAXVALUE);
+SELECT COUNT(*) FROM t3;
+INSERT INTO t3 WITH RECURSIVE s (i) AS
+  (SELECT 0 UNION ALL SELECT i + 1 FROM s WHERE i < 99)
+  SELECT i DIV 10, i FROM s;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+SELECT INDEX_NAME, SEQ_IN_INDEX, CARDINALITY
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't3'
+  ORDER BY INDEX_NAME, SEQ_IN_INDEX;
+DROP TABLE t3;
+
+--echo #
+--echo # 5. A table with rows but without index statistics (the rows are in
+--echo #    the memtable), with rocksdb_debug_optimizer_no_zero_cardinality =
+--echo #    OFF. MyRocks then guesses the estimates as the optimizer does for
+--echo #    a key without statistics: the first key part matches 1% of the
+--echo #    rows. Expected: 1% of the rows of the table, as for the same table
+--echo #    without partitions, and not 1% of the rows of a partition (or its
+--echo #    lower limit of 10 rows): Cardinality 100.
+--echo #
+SET @save_no_zero_cardinality = @@global.rocksdb_debug_optimizer_no_zero_cardinality;
+SET GLOBAL rocksdb_debug_optimizer_no_zero_cardinality = OFF;
+CREATE TABLE t4 (pk INT PRIMARY KEY, k INT, g INT, v INT,
+                 KEY kk (k), KEY kg (g, k)) ENGINE=ROCKSDB;
+CREATE TABLE t4p (pk INT PRIMARY KEY, k INT, g INT, v INT,
+                  KEY kk (k), KEY kg (g, k)) ENGINE=ROCKSDB
+  PARTITION BY HASH (pk) PARTITIONS 16;
+SET SESSION cte_max_recursion_depth = 16000;
+INSERT INTO t4 WITH RECURSIVE s (i) AS
+  (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 16000)
+  SELECT i, i, i % 100, i FROM s;
+INSERT INTO t4p WITH RECURSIVE s (i) AS
+  (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 16000)
+  SELECT i, i, i % 100, i FROM s;
+--let $show_estimates = SELECT TABLE_NAME, INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t4', 't4p') AND INDEX_NAME <> 'PRIMARY' AND SEQ_IN_INDEX = 1 ORDER BY TABLE_NAME, INDEX_NAME
+--eval $show_estimates
+--echo # The same in a new table definition, which a statement that reads
+--echo # half of the partitions opens and no statement that reads all
+--echo # partitions has used yet: the estimate for g is 1% of the rows of the
+--echo # table. The number of rows in a memtable is itself an estimate, and
+--echo # far from exact (a partition with 1000 rows reports 500 to 5000), so
+--echo # compare it with the number of rows that the table reports.
+FLUSH TABLES;
+SET SESSION eq_range_index_dive_limit = 1;
+EXPLAIN FORMAT=JSON INTO @plan
+  SELECT * FROM t4p PARTITION (p0, p1, p2, p3, p4, p5, p6, p7)
+    FORCE INDEX (kg) WHERE g = 1;
+SET SESSION eq_range_index_dive_limit = DEFAULT;
+SELECT JSON_EXTRACT(@plan, '$.query_block.table.partitions') AS partitions,
+       JSON_EXTRACT(@plan, '$.query_block.table.key') AS used_key;
+SELECT ROUND(100 * JSON_EXTRACT(@plan,
+                                '$.query_block.table.rows_examined_per_scan') /
+             TABLE_ROWS) AS percent_of_table_rows
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't4p';
+--eval $show_estimates
+DROP TABLE t4, t4p;
+SET SESSION cte_max_recursion_depth = DEFAULT;
+SET GLOBAL rocksdb_debug_optimizer_no_zero_cardinality = @save_no_zero_cardinality;
+
+--echo #
+--echo # 6. An estimate is limited by the number of rows in the table, not in
+--echo #    the partition that sets it. The rows are in the memtable, so
+--echo #    there are no index statistics, and the default estimate is made
+--echo #    larger than the table with rocksdb_debug_cardinality_multiplier:
+--echo #    all rows of the table for each value of k. Expected: Cardinality
+--echo #    1, as for the same table without partitions, and not the number
+--echo #    of rows in the table divided by those in one partition.
+--echo #
+SET @save_multiplier = @@global.rocksdb_debug_cardinality_multiplier;
+SET GLOBAL rocksdb_debug_cardinality_multiplier = 1000000;
+CREATE TABLE t5 (pk INT PRIMARY KEY, k INT, v INT, KEY kk (k)) ENGINE=ROCKSDB;
+CREATE TABLE t5p (pk INT PRIMARY KEY, k INT, v INT, KEY kk (k)) ENGINE=ROCKSDB
+  PARTITION BY HASH (pk) PARTITIONS 16;
+INSERT INTO t5 WITH RECURSIVE s (i) AS
+  (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 800)
+  SELECT i, i, i FROM s;
+INSERT INTO t5p WITH RECURSIVE s (i) AS
+  (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 800)
+  SELECT i, i, i FROM s;
+SELECT TABLE_NAME, INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t5', 't5p')
+    AND INDEX_NAME = 'kk'
+  ORDER BY TABLE_NAME;
+DROP TABLE t5, t5p;
+SET GLOBAL rocksdb_debug_cardinality_multiplier = @save_multiplier;
+
+DROP TABLE t_driver;
+SET GLOBAL rocksdb_table_stats_sampling_pct = @save_sampling_pct;
+SET GLOBAL rocksdb_force_compute_memtable_stats_cachetime = @save_cachetime;

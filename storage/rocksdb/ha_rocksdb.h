@@ -318,6 +318,8 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
   */
   bool m_update_stats_failed = false;
 
+  int info_low(uint flag, bool for_table, std::optional<ha_rows> table_rows);
+
   [[nodiscard]] int create_key_defs(
       const TABLE &table_arg, Rdb_tbl_def &tbl_def_arg,
       const std::string &actual_user_table_name, bool is_dd_tbl,
@@ -829,6 +831,25 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
       MY_ATTRIBUTE((__warn_unused_result__));
   void position(const uchar *const record) override;
   int info(uint) override;
+
+  /**
+    info() for the partition that sets the rec_per_key estimates of a
+    partitioned table, which the partitions share. An estimate is limited by
+    the number of rows, and guessed from it if there are no index
+    statistics, and that has to be the number of rows in the table and not
+    in this partition. In its other calls of info() a partition leaves the
+    estimates alone, see info_low().
+
+    @param flag        HA_STATUS_CONST, with HA_STATUS_NO_LOCK or without.
+    @param table_rows  Number of rows in all partitions of the table, or
+                       nothing if it is not known. The key parts that have
+                       an estimate then keep it.
+
+    @return
+      HA_EXIT_SUCCESS  OK
+      HA_EXIT_FAILURE  Error
+  */
+  int info_for_partitioned_table(uint flag, std::optional<ha_rows> table_rows);
 
   /**
     @return the number of rows that the last info() with HA_STATUS_VARIABLE

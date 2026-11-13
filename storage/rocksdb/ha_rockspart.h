@@ -51,6 +51,7 @@ class ha_rockspart : public native_part::Partition_base,
   handler *clone(const char *name, MEM_ROOT *mem_root) override;
   ulong index_flags(uint inx, uint part, bool all_parts) const override;
   bool rpl_lookup_rows() override;
+  int info_const_in_part(handler *file, uint flag) override;
 
   void set_pk_can_be_decoded_for_each_partition();
   mutable bool m_pk_can_be_decoded = true;

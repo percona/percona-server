@@ -14,7 +14,11 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
    USA */
 #include "ha_rockspart.h"
+
+#include <optional>
+
 #include "ha_rocksdb.h"
+#include "template_utils.h"
 
 using myrocks::ha_rocksdb;
 namespace myrocks {
@@ -111,6 +115,37 @@ ulong ha_rockspart::index_flags(uint idx, uint part, bool all_parts) const {
 }
 
 bool ha_rockspart::rpl_lookup_rows() { return true; }
+
+/**
+  Let a partition set the rec_per_key estimates of the table.
+
+  MyRocks guesses the estimates for which it has no index statistics from
+  the number of rows. As they are the estimates of the table, give the
+  partition the number of rows of all partitions. Partition_base::info()
+  has just refreshed the statistics of each of them. If one of them failed,
+  the number of rows is not known.
+
+  @param file  Handler of the partition.
+  @param flag  HA_STATUS_CONST, with HA_STATUS_NO_LOCK or without.
+
+  @return Operation status.
+    @retval    0  Success
+    @retval != 0  Error code
+*/
+int ha_rockspart::info_const_in_part(handler *file, uint flag) {
+  std::optional<ha_rows> table_rows = 0;
+  for (uint i = 0; i < m_tot_parts; i++) {
+    const std::optional<ha_rows> part_rows =
+        down_cast<ha_rocksdb *>(m_file[i])->records_found();
+    if (!part_rows.has_value()) {
+      table_rows.reset();
+      break;
+    }
+    *table_rows += *part_rows;
+  }
+  return down_cast<ha_rocksdb *>(file)->info_for_partitioned_table(flag,
+                                                                   table_rows);
+}
 
 bool ha_rockspart::allow_unsafe_alter() const {
   return myrocks::ha_rocksdb::allow_unsafe_alter();

@@ -1198,6 +1198,16 @@ static int rocksdb_check_write_disable_wal(
     THD *const thd, struct SYS_VAR *var MY_ATTRIBUTE((__unused__)), void *save,
     struct st_mysql_value *value);
 
+/*
+  rocksdb_protection_bytes_per_key is passed to RocksDB as
+  WriteOptions::protection_bytes_per_key, which supports only 0 (no
+  protection) and 8. Other values make rocksdb::WriteBatch assert on debug
+  builds and every write fail with "Invalid argument" on release builds.
+*/
+static bool rdb_is_valid_protection_bytes_per_key(long long value) {
+  return value == 0 || value == 8;
+}
+
 static int rocksdb_validate_protection_bytes_per_key(
     THD *thd MY_ATTRIBUTE((__unused__)),
     struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)), void *var_ptr,
@@ -1211,8 +1221,7 @@ static int rocksdb_validate_protection_bytes_per_key(
     return HA_EXIT_FAILURE;
   }
 
-  if (new_value != 0 && new_value != 1 && new_value != 2 && new_value != 4 &&
-      new_value != 8) {
+  if (!rdb_is_valid_protection_bytes_per_key(new_value)) {
     return HA_EXIT_FAILURE;
   }
 
@@ -8317,6 +8326,17 @@ static int rocksdb_init_internal(void *const p) {
                     "Invalid argument: Sync writes "
                     "(rocksdb_flush_log_at_trx_commit == 1) has to enable WAL");
     DBUG_RETURN(1);
+  }
+
+  // A value given at startup does not go through the check function of the
+  // variable, see rocksdb_validate_protection_bytes_per_key().
+  if (!rdb_is_valid_protection_bytes_per_key(
+          THDVAR(nullptr, protection_bytes_per_key))) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Invalid argument: rocksdb_protection_bytes_per_key = %lu, "
+                    "RocksDB supports only 0 and 8",
+                    THDVAR(nullptr, protection_bytes_per_key));
+    DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
 #ifdef FB_HAVE_WSENV

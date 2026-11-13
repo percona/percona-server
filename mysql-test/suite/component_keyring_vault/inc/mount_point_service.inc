@@ -22,6 +22,12 @@ if ($vault_conf_ca)
   --let EXPORTED_VAULT_CONF_CA = $vault_conf_ca
 }
 
+--let EXPORTED_VAULT_CONF_NAMESPACE =
+if ($vault_conf_namespace)
+{
+  --let EXPORTED_VAULT_CONF_NAMESPACE = $vault_conf_namespace
+}
+
 --let EXPORTED_VAULT_SERVER_MOUNT_POINT_VERSION = $vault_server_mount_point_version
 
 --let EXPORTED_MOUNT_POINT_SERVICE_OP = $mount_point_service_op
@@ -47,6 +53,12 @@ if ($vault_conf_ca)
     $imported_vault_conf_ca = $ENV{'MTR_VAULT_CA'};
   }
 
+  my $imported_vault_conf_namespace = $ENV{'EXPORTED_VAULT_CONF_NAMESPACE'};
+  if (!$imported_vault_conf_namespace)
+  {
+    $imported_vault_conf_namespace = $ENV{'MTR_VAULT_NAMESPACE'};
+  }
+
   my $imported_vault_conf_mount_point_uuid = $ENV{'EXPORTED_VAULT_CONF_MOUNT_POINT_UUID'} or die("EXPORTED_VAULT_CONF_MOUNT_POINT_UUID not set\n");
   my $imported_vault_conf_mount_point_suffix = $ENV{'EXPORTED_VAULT_CONF_MOUNT_POINT_SUFFIX'};
   my $imported_vault_conf_mount_point_directory = $ENV{EXPORTED_VAULT_CONF_MOUNT_POINT_DIRECTORY};
@@ -68,6 +80,12 @@ if ($vault_conf_ca)
     $vault_ca_cert_opt = "--cacert $imported_vault_conf_ca";
   }
 
+  my $vault_namespace_opt = "";
+  if ($imported_vault_conf_namespace)
+  {
+    $vault_namespace_opt = qq#-H "X-Vault-Namespace: $imported_vault_conf_namespace"#;
+  }
+
   if ($imported_mount_point_service_op eq 'CREATE')
   {
     my $postdata= "";
@@ -77,7 +95,7 @@ if ($vault_conf_ca)
     } else {
       $postdata= qq#{"type":"kv"}#;
     }
-    system(qq#LD_PRELOAD= curl --http1.1 --insecure -L -H "X-Vault-Token: $imported_vault_admin_token" $vault_ca_cert_opt --data '$postdata' --request POST $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
+    system(qq#LD_PRELOAD= curl --http1.1 --insecure -L -H "X-Vault-Token: $imported_vault_admin_token" $vault_namespace_opt $vault_ca_cert_opt --data '$postdata' --request POST $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
       or die "Cannot create mount point";
     # This sleep is needed to let Vault background process finish upgrading
     # kv to kv-v2 and therefore reduce the chances of
@@ -86,7 +104,7 @@ if ($vault_conf_ca)
   }
   elsif ($imported_mount_point_service_op eq 'DELETE')
   {
-    system(qq#LD_PRELOAD= curl --http1.1 --insecure -L -H "X-Vault-Token: $imported_vault_admin_token" $vault_ca_cert_opt -X DELETE $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
+    system(qq#LD_PRELOAD= curl --http1.1 --insecure -L -H "X-Vault-Token: $imported_vault_admin_token" $vault_namespace_opt $vault_ca_cert_opt -X DELETE $imported_vault_conf_address/v1/sys/mounts/$vault_mount#) == 0
       or die "Cannot delete mount point";
   }
   else

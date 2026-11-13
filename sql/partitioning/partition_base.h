@@ -47,6 +47,9 @@ class Partition_base_share : public Partition_share {
 class Partition_base : public handler,
                        public Partition_helper,
                        public Partition_handler {
+  // Unit test of the private functions that read an index in a partition.
+  friend class PartitionBaseEndRangeTest;
+
  private:
   virtual handler *get_file_handler(TABLE_SHARE *share,
                                     MEM_ROOT *alloc) const = 0;
@@ -948,6 +951,7 @@ class Partition_base : public handler,
   int rnd_pos_in_part(uint part_id, uchar *buf, uchar *pos);
   int index_init_in_part(uint part, uint keynr, bool sorted);
   int index_end_in_part(uint part);
+  void clear_end_range_in_part(uint part);
   int index_last_in_part(uint part, uchar *buf) override;
   int index_first_in_part(uint part, uchar *buf) override;
   int index_prev_in_part(uint part, uchar *buf) override;

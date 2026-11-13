@@ -124,6 +124,16 @@ bool AuthLDAPImpl::bind_internal(sasl_ctx &ctx, std::string const &user_dn,
     }
   } while (res == Connection::status::IN_PROGRESS);
 
+  // A successful SASL bind only proves that the client holds valid credentials
+  // for *some* LDAP identity: the server ignores the bind DN and takes the
+  // identity from the SASL exchange, which the client controls. Make sure the
+  // server bound the connection as the entry the requested MySQL account is
+  // mapped to before trusting the result (and before using user_dn for the
+  // group and proxy user lookups).
+  if (res == Connection::status::SUCCESS && !conn->is_bound_as(user_dn)) {
+    res = Connection::status::FAILURE;
+  }
+
   if (res == Connection::status::SUCCESS) {
     log_stream << "SASL User authentication success: [" << user_dn << "]";
     log_srv_dbg(log_stream.str());

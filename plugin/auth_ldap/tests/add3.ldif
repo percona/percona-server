@@ -6,3 +6,30 @@ givenName: John
 cn: John Doe
 displayName: John Doe
 userPassword: secret
+
+dn: uid=john4,ou=People,dc=example,dc=com
+objectClass: inetOrgPerson
+uid: john4
+sn: Doe
+givenName: John
+cn: John Doe 4
+displayName: John Doe 4
+userPassword: secret4
+
+dn: psLoginId=kate,ou=People,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: psLoginAccount
+psLoginId: kate
+sn: Doe
+givenName: Kate
+cn: Kate Doe
+userPassword: secret-kate
+
+dn: psLoginId=Kate,ou=People,dc=example,dc=com
+objectClass: inetOrgPerson
+objectClass: psLoginAccount
+psLoginId: Kate
+sn: Doe
+givenName: Kate
+cn: Kate Doe (upper case)
+userPassword: secret-Kate

@@ -1,8 +1,16 @@
 
-# This testcase requires an LDAP server setup with SASL, and the following user:
-# uid=john3,ou=People,dc=example,dc=com
-# Password: "secret" (stored in cleartext, otherwise sasl doesn't work)
-# SASL configured, SASL indetity "john3" should match the user!
+# This testcase requires an OpenLDAP server for dc=example,dc=com with SASL
+# (SCRAM-SHA-1), configured with plugin/auth_ldap/tests/scram.ldif
+# (ldapmodify -Y EXTERNAL: test schema and SASL identity mapping) and the
+# following users from plugin/auth_ldap/tests/add3.ldif:
+# uid=john3,ou=People,dc=example,dc=com, password "secret"
+# uid=john4,ou=People,dc=example,dc=com, password "secret4"
+# psLoginId=kate,ou=People,dc=example,dc=com, password "secret-kate"
+# psLoginId=Kate,ou=People,dc=example,dc=com, password "secret-Kate"
+# Passwords are stored in cleartext, otherwise SCRAM doesn't work.
+# SASL identity "johnN" maps to uid=johnN,ou=People,..., and "ce-X" to
+# psLoginId=X,ou=People,... psLoginId uses caseExactMatch, so psLoginId=kate
+# and psLoginId=Kate are two different entries.
 
 --source include/count_sessions.inc
 
@@ -19,7 +27,7 @@ SET GLOBAL authentication_ldap_sasl_bind_base_dn = 'ou=People,dc=example,dc=com'
 
 --replace_result $MTR_LDAP_HOST <MTR_LDAP_HOST> $MTR_LDAP_PORT <MTR_LDAP_PORT> $MTR_LDAP_FALLBACK_HOST <MTR_LDAP_FALLBACK_HOST> $MTR_LDAP_FALLBACK_PORT <MTR_LDAP_FALLBACK_PORT>
 SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_sasl';
-CREATE USER john3 IDENTIFIED WITH authentication_ldap_sasl BY 'cn=john3,ou=People,dc=example,dc=com';
+CREATE USER john3 IDENTIFIED WITH authentication_ldap_sasl BY 'uid=john3,ou=People,dc=example,dc=com';
 CREATE USER nonexistent IDENTIFIED WITH authentication_ldap_sasl BY 'uid=nonexistent';
 
 --connect (con1,localhost,john3,secret,,,,)
@@ -37,6 +45,56 @@ SHOW GLOBAL VARIABLES LIKE 'authentication_ldap_sasl';
 --connect (con1,localhost,nonexistent,secret,,,,)
 --enable_query_log
 
+--echo #
+--echo # The LDAP server ignores the bind DN of a SASL bind and takes the
+--echo # identity from the SASL exchange, which is controlled by the client.
+--echo # A successful SASL bind as one LDAP user must not authenticate a MySQL
+--echo # account mapped to a different LDAP entry.
+--echo #
+
+--echo # The DN of the account is resolved by the LDAP server, so letter case
+--echo # that the schema ignores does not matter: attribute names, and values
+--echo # of caseIgnoreMatch attributes (uid, ou, dc). Neither does whitespace
+--echo # around separators.
+ALTER USER john3 IDENTIFIED WITH authentication_ldap_sasl BY 'UID=JOHN3, OU=PEOPLE, DC=EXAMPLE, DC=COM';
+--connect (con1,localhost,john3,secret,,,,)
+SELECT CURRENT_USER();
+--disconnect con1
+--connection default
+
+--echo # SASL identity john3 (valid credentials) for an account mapped to
+--echo # uid=john4: access denied.
+ALTER USER john3 IDENTIFIED WITH authentication_ldap_sasl BY 'uid=john4,ou=People,dc=example,dc=com';
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect (con1,localhost,john3,secret,,,,)
+--enable_query_log
+
+--echo # Same for an account mapped to a DN that does not exist in LDAP.
+ALTER USER john3 IDENTIFIED WITH authentication_ldap_sasl BY 'cn=john3,ou=People,dc=example,dc=com';
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect (con1,localhost,john3,secret,,,,)
+--enable_query_log
+
+--echo # Letter case matters for values of caseExactMatch attributes:
+--echo # psLoginId=kate and psLoginId=Kate are two different entries.
+--echo # SASL identity ce-kate, mapped to its own entry: success.
+CREATE USER 'ce-kate' IDENTIFIED WITH authentication_ldap_sasl BY 'psLoginId=kate,ou=People,dc=example,dc=com';
+--connect (con1,localhost,ce-kate,secret-kate,,,,)
+SELECT CURRENT_USER();
+--disconnect con1
+--connection default
+
+--echo # Same credentials for an account mapped to psLoginId=Kate, which exists
+--echo # and differs only by letter case: access denied.
+ALTER USER 'ce-kate' IDENTIFIED WITH authentication_ldap_sasl BY 'psLoginId=Kate,ou=People,dc=example,dc=com';
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+--connect (con1,localhost,ce-kate,secret-kate,,,,)
+--enable_query_log
+
+DROP USER 'ce-kate';
 DROP USER john3;
 DROP USER nonexistent;
 DROP ROLE test_role;

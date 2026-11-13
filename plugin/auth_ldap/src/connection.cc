@@ -15,13 +15,21 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 #include "plugin/auth_ldap/include/connection.h"
 
+#include <ldap.h>
 #include <iostream>
 #include <iterator>
 #include <regex>
+#include <string>
 
 #include "plugin/auth_ldap/include/plugin_log.h"
 
 namespace {
+
+// Upper bound for the client-side wait of the requests made while verifying
+// the identity of a bind. They are made with conn_mutex_ held, which
+// Pool::zombie_control() also takes (under pool_mutex_), so an unresponsive
+// server must not be able to block them indefinitely.
+constexpr long identity_check_timeout_sec = 5;
 
 // RFC 4515 §3 requires these octets to be escaped as \XX
 // when they appear in an LDAP filter assertion value:
@@ -245,6 +253,160 @@ Connection::status Connection::connect_step(const std::string &bind_dn,
   }
 
   return status::SUCCESS;
+}
+
+bool Connection::is_bound_as(const std::string &expected_dn) {
+  std::lock_guard<std::mutex> lock(conn_mutex_);
+
+  if (ldap_ == nullptr) return false;
+
+  std::string authzid;
+  if (!who_am_i(authzid)) return false;
+
+  log_srv_dbg("Who am I? = [" + authzid + "]");
+
+  // RFC 4513 section 5.2.1.8: an authzId is either "dn:<DN>" or "u:<userid>".
+  // Only the DN form can be compared with the DN of the MySQL account; an
+  // empty authzId means the connection is anonymous.
+  static const std::string dn_prefix = "dn:";
+  if (authzid.compare(0, dn_prefix.size(), dn_prefix) != 0) {
+    log_srv_warn("LDAP server reported a non-DN identity [" + authzid +
+                 "] for the bind, expected [dn:" + expected_dn + "]");
+    return false;
+  }
+
+  // Whether two DNs name the same entry depends on the equality matching rule
+  // of each naming attribute (e.g. caseIgnoreMatch for uid and cn, but a
+  // caseExactMatch attribute makes "x=Admin" and "x=admin" two different
+  // entries). Do not compare the DN strings here: let the server resolve both
+  // DNs to entries and compare the entries' DNs as stored by the server. An
+  // entry always comes back with the same DN, and distinct entries cannot
+  // share one.
+  const std::string bound_dn = authzid.substr(dn_prefix.size());
+  std::string bound_entry;
+  std::string expected_entry;
+  if (!resolve_entry_dn(bound_dn, bound_entry) ||
+      !resolve_entry_dn(expected_dn, expected_entry)) {
+    log_srv_warn("Cannot resolve DN for identity check: bound as [" + authzid +
+                 "], expected [dn:" + expected_dn + "]");
+    return false;
+  }
+
+  if (bound_entry != expected_entry) {
+    log_srv_warn("LDAP bind identity mismatch: bound as [" + bound_entry +
+                 "], expected [" + expected_entry + "]");
+    return false;
+  }
+
+  return true;
+}
+
+bool Connection::who_am_i(std::string &authzid) {
+  // Not ldap_whoami_s(): it waits for the response without a time limit.
+  // Send the request asynchronously and wait for the response for at most
+  // identity_check_timeout_sec.
+  int msgid = -1;
+  int err = ldap_whoami(ldap_, nullptr, nullptr, &msgid);
+  if (err != LDAP_SUCCESS) {
+    log_warning(
+        "Who am I? request failed, cannot verify the identity of the "
+        "bind",
+        err);
+    return false;
+  }
+
+  struct timeval timeout = {identity_check_timeout_sec, 0};
+  LDAPMessage *result = nullptr;
+  const int rc = ldap_result(ldap_, msgid, LDAP_MSG_ALL, &timeout, &result);
+  if (rc <= 0 || result == nullptr) {
+    if (rc == 0) {
+      log_srv_warn("Who am I? request timed out after " +
+                   std::to_string(identity_check_timeout_sec) +
+                   " seconds, cannot verify the identity of the bind");
+    } else {
+      int ld_err = LDAP_OTHER;
+      ldap_get_option(ldap_, LDAP_OPT_RESULT_CODE, &ld_err);
+      log_warning(
+          "Who am I? response not received, cannot verify the "
+          "identity of the bind",
+          ld_err);
+    }
+    ldap_msgfree(result);
+    ldap_abandon_ext(ldap_, msgid, nullptr, nullptr);
+    return false;
+  }
+
+  // The response carries the authzId as the extended response value, and the
+  // outcome of the operation as the result code.
+  char *response_oid = nullptr;
+  struct berval *authzid_bv = nullptr;
+  int result_code = LDAP_OTHER;
+  err = ldap_parse_extended_result(ldap_, result, &response_oid, &authzid_bv,
+                                   0 /* freeit */);
+  if (err == LDAP_SUCCESS) {
+    err = ldap_parse_result(ldap_, result, &result_code, nullptr, nullptr,
+                            nullptr, nullptr, 0 /* freeit */);
+  }
+  ldap_memfree(response_oid);
+  ldap_msgfree(result);
+
+  if (err != LDAP_SUCCESS || result_code != LDAP_SUCCESS) {
+    ber_bvfree(authzid_bv);
+    log_warning(
+        "Who am I? request failed, cannot verify the identity of the "
+        "bind",
+        err != LDAP_SUCCESS ? err : result_code);
+    return false;
+  }
+
+  authzid.clear();
+  if (authzid_bv != nullptr && authzid_bv->bv_val != nullptr) {
+    authzid.assign(authzid_bv->bv_val, authzid_bv->bv_len);
+  }
+  ber_bvfree(authzid_bv);
+  return true;
+}
+
+bool Connection::resolve_entry_dn(const std::string &dn,
+                                  std::string &entry_dn) {
+  // The empty DN is the root DSE, never the identity of a user.
+  if (dn.empty()) return false;
+
+  // Aliases must not be followed: the DN has to name the entry itself.
+  int old_deref = LDAP_DEREF_NEVER;
+  ldap_get_option(ldap_, LDAP_OPT_DEREF, &old_deref);
+  int deref = LDAP_DEREF_NEVER;
+  ldap_set_option(ldap_, LDAP_OPT_DEREF, &deref);
+
+  // Base-scope search without attributes ("1.1"): only the DN is returned.
+  char no_attrs[] = "1.1";
+  char *attrs[] = {no_attrs, nullptr};
+  struct timeval search_timeout = {identity_check_timeout_sec, 0};
+  LDAPMessage *result = nullptr;
+  int err =
+      ldap_search_ext_s(ldap_, dn.c_str(), LDAP_SCOPE_BASE, "(objectClass=*)",
+                        attrs, 0 /* attrsonly */, nullptr, nullptr,
+                        &search_timeout, 2 /* sizelimit */, &result);
+
+  ldap_set_option(ldap_, LDAP_OPT_DEREF, &old_deref);
+
+  bool found = false;
+  if (err != LDAP_SUCCESS) {
+    log_warning("ldap_search_ext_s(" + dn + ", base) failed", err);
+  } else if (ldap_count_entries(ldap_, result) != 1) {
+    log_srv_warn("ldap_search_ext_s(" + dn +
+                 ", base) did not return exactly one entry");
+  } else {
+    char *returned_dn = ldap_get_dn(ldap_, ldap_first_entry(ldap_, result));
+    if (returned_dn != nullptr && returned_dn[0] != '\0') {
+      entry_dn = returned_dn;
+      found = true;
+    }
+    ldap_memfree(returned_dn);
+  }
+  ldap_msgfree(result);
+
+  return found;
 }
 
 std::size_t Connection::get_idx_pool() const { return index_; }

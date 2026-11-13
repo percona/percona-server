@@ -1952,6 +1952,10 @@ dberr_t srv_start(bool create_new_db) {
         return srv_init_abort(DB_ERROR);
       }
 
+      /* Redo can be persisted now, so the LRU managers paused at the end of
+      recovery may flush dirty pages again. */
+      buf_flush_lru_managers_resume();
+
       DBUG_EXECUTE_IF(
           "ib_recovery_print_mysql_binlog_offset",
           if (recv_needed_recovery) { trx_sys_print_mysql_binlog_offset(); });
@@ -1965,6 +1969,10 @@ dberr_t srv_start(bool create_new_db) {
       verify_page_type({TRX_SYS_SPACE, TRX_SYS_PAGE_NO}, FIL_PAGE_TYPE_TRX_SYS);
       verify_page_type({TRX_SYS_SPACE, FSP_DICT_HDR_PAGE_NO},
                        FIL_PAGE_TYPE_SYS);
+    } else {
+      /* Read-only: no page is dirty, so the LRU managers paused at the end of
+      recovery may run again. */
+      buf_flush_lru_managers_resume();
     }
 
     /* We should not start checkpointer before persisted metadata is stored. */

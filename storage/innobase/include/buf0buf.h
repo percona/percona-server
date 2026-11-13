@@ -2533,13 +2533,17 @@ struct buf_pool_t {
 
   /** Always set at startup so the LRU manager thread does not have to wait.
   Reset by buf_pool_invalidate_instance() so the manager pauses while the
-  buffer pool is being torn down / re-initialised; set again afterwards. */
+  buffer pool is being torn down / re-initialised; set again afterwards.
+  Also reset by buf_flush_lru_managers_pause() from the end of crash recovery
+  until redo writing starts. */
   os_event_t run_lru;
 
   /** Run gate for flushes, checked by buf_flush_start() inside
   the change_flush_state() critical section that sets init_flush[type].
   True in normal operation; set to false by buf_pool_invalidate_instance()
-  for the duration of a teardown. Protected by flush_state_mutex. */
+  for the duration of a teardown, and by buf_flush_lru_managers_pause() from
+  the end of crash recovery until redo writing starts. Protected by
+  flush_state_mutex. */
   bool flushing_allowed;
 
   /** Per-instance LRU flush accounting. Written by either this instance's

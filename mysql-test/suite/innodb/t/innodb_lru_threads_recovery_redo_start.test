@@ -1,0 +1,118 @@
+--source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
+
+--echo #
+--echo # With --innodb-lru-threads=ON, the LRU manager threads flush pages during
+--echo # crash recovery. Once recovery ends, flushing a dirty recovered page
+--echo # requires persisting redo up to its LSN, which is possible only after
+--echo # ib::redo::Handler::start_writing(). An LRU batch which was in progress
+--echo # when recovery ended used to fail with "end_lsn <= log_get_lsn(log)" in
+--echo # log_write_up_to(). The LRU managers are now paused from the end of
+--echo # recovery until redo writing starts.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("innodb_force_recovery is on");
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode");
+call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode");
+call mtr.add_suppression("Ignored the innodb-redo-log-capacity option in the Innodb read-only mode");
+--enable_query_log
+
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+
+# innodb_buffer_pool_debug allows two buffer pool instances, and so two LRU
+# managers, in a buffer pool smaller than 1G. With 256M, recovery applies the
+# redo of the inserts below in one batch, so many dirty pages are left in both
+# instances when it ends.
+--let $lru_params=--innodb-lru-threads=ON --innodb-buffer-pool-size=256M --innodb-buffer-pool-instances=2 --innodb-buffer-pool-debug=ON --innodb-redo-log-capacity=100M
+--let $restart_parameters=restart: $lru_params
+--source include/restart_mysqld.inc
+
+SELECT @@innodb_lru_threads, @@innodb_buffer_pool_instances;
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(512)) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT PRIMARY KEY, b VARCHAR(512)) ENGINE=InnoDB;
+
+--echo #
+--echo # 1. Recovery ends while one LRU manager writes a page and another one
+--echo #    is about to start a batch
+--echo #
+
+--echo # Make recovery replay all inserts, so that it leaves dirty pages in
+--echo # the LRU lists.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+INSERT INTO t1 VALUES (1, REPEAT('x', 512));
+--let $i = 15
+while ($i) {
+  --disable_query_log
+  INSERT INTO t1 SELECT a + (SELECT MAX(a) FROM t1), b FROM t1;
+  --enable_query_log
+  --dec $i
+}
+
+--echo # The debug point makes the LRU managers flush every dirty page from the
+--echo # end of recovery. It lets recovery end only when the LRU manager of the
+--echo # first buffer pool instance is held in a page write and the one of the
+--echo # second instance is right before buf_flush_LRU_list(), and aborts the
+--echo # server if that does not happen.
+--let $restart_parameters=restart: $lru_params --debug=d,ib_lru_flush_across_recovery_end
+--source include/kill_and_restart_mysqld.inc
+
+SELECT @@innodb_lru_threads, @@innodb_buffer_pool_instances;
+SELECT COUNT(*) FROM t1;
+
+--echo #
+--echo # 2. Startup is aborted after the end of recovery, with both LRU managers
+--echo #    paused: they have to exit
+--echo #
+
+SET GLOBAL innodb_checkpoint_disabled = ON;
+INSERT INTO t2 SELECT * FROM t1 WHERE a <= 1024;
+--disable_query_log
+INSERT INTO t1 SELECT a + 32768, b FROM t1;
+--enable_query_log
+
+--source include/kill_mysqld.inc
+
+--echo # Recovery finds redo for a tablespace whose file is missing.
+--move_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLTEST_VARDIR/tmp/t2.ibd.bak
+
+--let $abort_log=$MYSQLTEST_VARDIR/tmp/innodb_lru_threads_recovery_abort.err
+--error 1
+--exec $MYSQLD_CMD $lru_params --debug=d,ib_lru_flush_across_recovery_end > $abort_log 2>&1
+
+--let SEARCH_FILE=$abort_log
+--let SEARCH_PATTERN=Use --innodb-directories to find the tablespace files
+--source include/search_pattern.inc
+--let SEARCH_PATTERN=threads created by InnoDB had not exited at shutdown
+--source include/search_pattern.inc
+--remove_file $abort_log
+
+--move_file $MYSQLTEST_VARDIR/tmp/t2.ibd.bak $MYSQLD_DATADIR/test/t2.ibd
+
+--let $restart_parameters=restart: $lru_params
+--source include/start_mysqld.inc
+
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+
+--echo #
+--echo # 3. innodb_force_recovery=6: redo writing never starts, the LRU managers
+--echo #    are resumed anyway and exit at shutdown
+--echo #
+
+--let $restart_parameters=restart: $lru_params --innodb-force-recovery=6
+--source include/restart_mysqld.inc
+
+SELECT @@innodb_lru_threads, @@innodb_buffer_pool_instances;
+SELECT COUNT(*) FROM t1;
+
+--let $restart_parameters=restart: $lru_params
+--source include/restart_mysqld.inc
+
+DROP TABLE t1, t2;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

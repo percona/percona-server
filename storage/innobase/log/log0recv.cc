@@ -2487,8 +2487,24 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
   /* Restore state. */
   if (recv_sys->is_meb_db) dblwr::g_mode = recv_sys->dblwr_state;
 
+  /* Let recovery end while one LRU manager writes a page and another one is
+  about to start a batch. */
+  DBUG_EXECUTE_IF("ib_lru_flush_across_recovery_end",
+                  buf_flush_lru_recovery_end_debug_arm(););
+
+  /* The LRU manager threads (innodb_lru_threads) flush independently of
+  recv_writer. Stop them and wait for their batches while recovery is still on:
+  once it is off, flushing a dirty page requires persisting the redo up to the
+  page LSN, which is possible only after ib::redo::Handler::start_writing().
+  srv_start() lets them flush again after that. */
+  buf_flush_lru_managers_pause();
+
   /* Free the resources of the recovery system */
   recv_recovery_on = false;
+
+  /* Wait until the LRU manager held by the debug point above has tried to
+  start its batch. */
+  ut_d(buf_flush_lru_recovery_end_debug_disarm());
 
   /* By acquiring the mutex we ensure that the recv_writer thread won't trigger
   any more LRU batches. Now wait for currently in progress batches to finish.

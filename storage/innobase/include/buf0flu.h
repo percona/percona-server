@@ -53,7 +53,43 @@ bool buf_flush_page_cleaner_is_active();
 /** Returns the count of currently active LRU manager threads. */
 size_t buf_flush_active_lru_managers();
 
+/** Stops the LRU manager threads from starting new flush batches and waits
+for the LRU batches in progress to finish. Crash recovery calls this before it
+ends, because from then on flushing a dirty page requires persisting the redo
+up to the page LSN, which is possible only after
+ib::redo::Handler::start_writing(). Does nothing if innodb_lru_threads is OFF.
+@pre buf_pool_init() has completed
+@see buf_flush_lru_managers_resume() */
+void buf_flush_lru_managers_pause();
+
+/** Lets the LRU manager threads flush again after
+buf_flush_lru_managers_pause(). Calling it when they are not paused is
+harmless. Does nothing if innodb_lru_threads is OFF.
+@pre buf_pool_init() has completed */
+void buf_flush_lru_managers_resume();
+
 #ifdef UNIV_DEBUG
+/** The ib_lru_flush_across_recovery_end debug point: makes the LRU managers
+race with the end of crash recovery. From this call on, LRU batches flush
+every dirty page. The call returns when an LRU manager is held in a page write
+and, if there are two or more buffer pool instances, the LRU manager of the
+last one is held right before it starts a batch. The page write goes on when
+the calling thread starts to wait for the LRU batches
+(buf_flush_await_no_flushing()) or when recovery ends, the held LRU manager
+when recovery ends. So recovery ends with one LRU batch in progress, unless
+the caller waited for it, and with another one about to start. Aborts the
+server if that does not happen within a minute. Does nothing if
+innodb_lru_threads is OFF.
+@pre recovery is on and the caller owns recv_sys->writer_mutex, so that
+recv_writer requests no LRU batch
+@see buf_flush_lru_recovery_end_debug_disarm() */
+void buf_flush_lru_recovery_end_debug_arm();
+
+/** Ends what buf_flush_lru_recovery_end_debug_arm() started: waits until the
+held LRU manager has tried to start its batch, and lets LRU batches flush as
+usual again. Does nothing if the debug point is not armed.
+@pre recovery is off */
+void buf_flush_lru_recovery_end_debug_disarm();
 
 /** Value of MySQL global variable used to disable page cleaner. */
 extern bool innodb_page_cleaner_disabled_debug;

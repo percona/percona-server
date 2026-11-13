@@ -1,0 +1,66 @@
+#
+# With --innodb-lru-threads=ON, the LRU manager threads flush pages during
+# crash recovery. Once recovery ends, flushing a dirty recovered page
+# requires persisting redo up to its LSN, which is possible only after
+# ib::redo::Handler::start_writing(). An LRU batch which was in progress
+# when recovery ended used to fail with "end_lsn <= log_get_lsn(log)" in
+# log_write_up_to(). The LRU managers are now paused from the end of
+# recovery until redo writing starts.
+#
+# restart: --innodb-lru-threads=ON --innodb-buffer-pool-size=256M --innodb-buffer-pool-instances=2 --innodb-buffer-pool-debug=ON --innodb-redo-log-capacity=100M
+SELECT @@innodb_lru_threads, @@innodb_buffer_pool_instances;
+@@innodb_lru_threads	@@innodb_buffer_pool_instances
+1	2
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(512)) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT PRIMARY KEY, b VARCHAR(512)) ENGINE=InnoDB;
+#
+# 1. Recovery ends while one LRU manager writes a page and another one
+#    is about to start a batch
+#
+# Make recovery replay all inserts, so that it leaves dirty pages in
+# the LRU lists.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+INSERT INTO t1 VALUES (1, REPEAT('x', 512));
+# The debug point makes the LRU managers flush every dirty page from the
+# end of recovery. It lets recovery end only when the LRU manager of the
+# first buffer pool instance is held in a page write and the one of the
+# second instance is right before buf_flush_LRU_list(), and aborts the
+# server if that does not happen.
+# Kill and restart: --innodb-lru-threads=ON --innodb-buffer-pool-size=256M --innodb-buffer-pool-instances=2 --innodb-buffer-pool-debug=ON --innodb-redo-log-capacity=100M --debug=d,ib_lru_flush_across_recovery_end
+SELECT @@innodb_lru_threads, @@innodb_buffer_pool_instances;
+@@innodb_lru_threads	@@innodb_buffer_pool_instances
+1	2
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+32768
+#
+# 2. Startup is aborted after the end of recovery, with both LRU managers
+#    paused: they have to exit
+#
+SET GLOBAL innodb_checkpoint_disabled = ON;
+INSERT INTO t2 SELECT * FROM t1 WHERE a <= 1024;
+# Kill the server
+# Recovery finds redo for a tablespace whose file is missing.
+Pattern "Use --innodb-directories to find the tablespace files" found
+Pattern "threads created by InnoDB had not exited at shutdown" not found
+# restart: --innodb-lru-threads=ON --innodb-buffer-pool-size=256M --innodb-buffer-pool-instances=2 --innodb-buffer-pool-debug=ON --innodb-redo-log-capacity=100M
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+65536
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+1024
+#
+# 3. innodb_force_recovery=6: redo writing never starts, the LRU managers
+#    are resumed anyway and exit at shutdown
+#
+# restart: --innodb-lru-threads=ON --innodb-buffer-pool-size=256M --innodb-buffer-pool-instances=2 --innodb-buffer-pool-debug=ON --innodb-redo-log-capacity=100M --innodb-force-recovery=6
+SELECT @@innodb_lru_threads, @@innodb_buffer_pool_instances;
+@@innodb_lru_threads	@@innodb_buffer_pool_instances
+1	2
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+65536
+# restart: --innodb-lru-threads=ON --innodb-buffer-pool-size=256M --innodb-buffer-pool-instances=2 --innodb-buffer-pool-debug=ON --innodb-redo-log-capacity=100M
+DROP TABLE t1, t2;
+# restart

@@ -109,6 +109,82 @@ mysql_pfs_key_t buf_lru_manager_thread_key;
 /** Event to synchronise with the flushing. */
 os_event_t buf_flush_event;
 
+#ifdef UNIV_DEBUG
+/** State of the ib_lru_flush_across_recovery_end debug point, see
+buf_flush_lru_recovery_end_debug_arm(). */
+struct Lru_recovery_end_debug {
+  /** What the LRU manager of the last buffer pool instance does. */
+  enum class Hold {
+    /** It runs as usual. */
+    NONE,
+    /** It waits for the end of recovery right before it starts a batch. */
+    HELD,
+    /** It tried to start that batch after the end of recovery. */
+    DONE
+  };
+
+  /** True from buf_flush_lru_recovery_end_debug_arm() until
+  buf_flush_lru_recovery_end_debug_disarm(). LRU batches then flush every
+  dirty page, also if the free list is long enough. */
+  std::atomic<bool> armed{false};
+
+  /** While true, a page write of an LRU batch waits before it checks whether
+  recovery is on. Set by buf_flush_lru_recovery_end_debug_arm(). Cleared when
+  arming_thread starts to wait for the LRU batches, which could not end
+  otherwise. Such a page write also goes on when recovery ends. */
+  std::atomic<bool> hold_writes{false};
+
+  /** The thread which called buf_flush_lru_recovery_end_debug_arm(). */
+  std::atomic<std::thread::id> arming_thread{};
+
+  /** Number of page writes which are waiting because of hold_writes. */
+  std::atomic<int> held_writes{0};
+
+  /** State of the LRU manager of the last buffer pool instance. */
+  std::atomic<Hold> hold{Hold::NONE};
+};
+
+static Lru_recovery_end_debug lru_recovery_end_debug;
+
+/** The ib_lru_flush_across_recovery_end debug point: keeps a page write of an
+LRU batch in progress until the thread which ends recovery starts to wait for
+the LRU batches, or until recovery ends. A fixed delay instead would let the
+page write finish before recovery ends if that thread was slow, and the test
+would then pass also without the wait.
+@param[in]  flush_type  type of the flush the page write belongs to */
+static void buf_flush_lru_recovery_end_debug_hold_write(
+    buf_flush_t flush_type) {
+  auto &debug = lru_recovery_end_debug;
+
+  if (flush_type != BUF_FLUSH_LRU || !debug.hold_writes.load() ||
+      !recv_recovery_is_on()) {
+    return;
+  }
+
+  debug.held_writes.fetch_add(1);
+
+  while (debug.hold_writes.load() && recv_recovery_is_on()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
+  debug.held_writes.fetch_sub(1);
+}
+
+/** The ib_lru_flush_across_recovery_end debug point: lets the page writes
+held by buf_flush_lru_recovery_end_debug_hold_write() go on if the caller is
+the thread which ends recovery and it is about to wait for the LRU batches.
+@param[in]  flush_type  type of the flush batches the caller will wait for */
+static void buf_flush_lru_recovery_end_debug_release_writes(
+    buf_flush_t flush_type) {
+  auto &debug = lru_recovery_end_debug;
+
+  if (flush_type == BUF_FLUSH_LRU && debug.hold_writes.load() &&
+      debug.arming_thread.load() == std::this_thread::get_id()) {
+    debug.hold_writes.store(false);
+  }
+}
+#endif /* UNIV_DEBUG */
+
 /** Event to wait for one flushing step */
 os_event_t buf_flush_tick_event;
 
@@ -971,6 +1047,11 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
 
   ut_ad(recv_recovery_is_on() || bpage->get_newest_lsn() != 0);
 
+  /* Keep a page write of an LRU batch in progress while
+  recv_recovery_from_checkpoint_finish() ends recovery, see
+  buf_flush_lru_recovery_end_debug_arm(). */
+  ut_d(buf_flush_lru_recovery_end_debug_hold_write(flush_type));
+
   /* Force the log to the disk before writing the modified block */
   if (!srv_read_only_mode) {
     const lsn_t flush_to_lsn = bpage->get_newest_lsn();
@@ -1534,10 +1615,16 @@ static buf_flush_batch_result_t buf_flush_LRU_list_batch(buf_pool_t *buf_pool,
 
   withdraw_depth = buf_get_withdraw_depth(buf_pool);
 
+  /* The ib_lru_flush_across_recovery_end debug point: keep flushing even if
+  the free list is long enough or the LRU list is short, so that an LRU manager
+  has dirty pages to flush when recovery ends. */
+  bool keep_flushing = false;
+  ut_d(keep_flushing = lru_recovery_end_debug.armed.load());
+
   for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
        bpage != nullptr && count + evict_count < max &&
-       free_len < srv_LRU_scan_depth + withdraw_depth &&
-       lru_len > BUF_LRU_MIN_LEN;
+       (keep_flushing || (free_len < srv_LRU_scan_depth + withdraw_depth &&
+                          lru_len > BUF_LRU_MIN_LEN));
        ++scanned, bpage = buf_pool->lru_hp.get()) {
     ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
@@ -1763,8 +1850,10 @@ static bool buf_flush_start(buf_pool_t *buf_pool, buf_flush_t flush_type) {
     /* Can't start a new batch of the same type as one already running -
     various synchronization mechanisms/counters would not work.
 
-    Also, don't start one while buf_pool_invalidate_instance() has closed
-    the gate (flushing_allowed == false) for the duration of a teardown. */
+    Also, don't start one while the gate is closed (flushing_allowed == false):
+    by buf_pool_invalidate_instance() for the duration of a teardown, or by
+    buf_flush_lru_managers_pause() from the end of crash recovery until redo
+    writing starts. */
     if (!buf_pool->is_flushing(flush_type) && buf_pool->flushing_allowed) {
       buf_pool->init_flush[flush_type] = true;
       started = true;
@@ -1800,6 +1889,8 @@ static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type,
 }
 
 void buf_flush_await_no_flushing(buf_pool_t *buf_pool, buf_flush_t flush_type) {
+  ut_d(buf_flush_lru_recovery_end_debug_release_writes(flush_type));
+
   if (buf_pool == nullptr) {
     for (ulong i = 0; i < srv_buf_pool_instances; ++i) {
       buf_flush_await_no_flushing(buf_pool_from_array(i), flush_type);
@@ -2685,6 +2776,148 @@ size_t buf_flush_active_lru_managers() {
   return count;
 }
 
+void buf_flush_lru_managers_pause() {
+  if (!srv_lru_threads_enabled) {
+    return;
+  }
+
+  for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+    buf_pool_t *buf_pool = buf_pool_from_array(i);
+
+    /* Park the LRU manager on its next loop iteration. */
+    os_event_reset(buf_pool->run_lru);
+
+    /* A manager which is already past os_event_wait(run_lru) must not start
+    a new batch: buf_flush_start() checks this flag. */
+    mutex_enter(&buf_pool->flush_state_mutex);
+    buf_pool->flushing_allowed = false;
+    mutex_exit(&buf_pool->flush_state_mutex);
+  }
+
+  buf_flush_await_no_flushing(nullptr, BUF_FLUSH_LRU);
+}
+
+void buf_flush_lru_managers_resume() {
+  if (!srv_lru_threads_enabled) {
+    return;
+  }
+
+  for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+    buf_pool_t *buf_pool = buf_pool_from_array(i);
+
+    mutex_enter(&buf_pool->flush_state_mutex);
+    buf_pool->flushing_allowed = true;
+    mutex_exit(&buf_pool->flush_state_mutex);
+
+    os_event_set(buf_pool->run_lru);
+  }
+}
+
+#ifdef UNIV_DEBUG
+/** Waits until a condition of the ib_lru_flush_across_recovery_end debug
+point holds. Aborts the server if it does not hold within a minute, so that a
+test which missed the race it wants fails instead of passing without it.
+@param[in]  condition  the condition to wait for
+@param[in]  what       what the condition means, for the error message */
+template <typename Condition>
+static void buf_flush_lru_recovery_end_debug_wait(Condition &&condition,
+                                                  const char *what) {
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds{60};
+
+  while (!condition()) {
+    if (std::chrono::steady_clock::now() > deadline) {
+      ib::fatal(UT_LOCATION_HERE)
+          << "ib_lru_flush_across_recovery_end: timed out waiting for " << what;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+}
+
+void buf_flush_lru_recovery_end_debug_arm() {
+  ut_ad(recv_recovery_is_on());
+  ut_ad(mutex_own(&recv_sys->writer_mutex));
+
+  if (!srv_lru_threads_enabled) {
+    return;
+  }
+
+  auto &debug = lru_recovery_end_debug;
+  const bool hold = srv_buf_pool_instances > 1;
+
+  debug.arming_thread.store(std::this_thread::get_id());
+  debug.hold_writes.store(true);
+  debug.armed.store(true);
+
+  /* Both conditions stay true once they are: the page write is held until
+  this thread waits for the LRU batches or ends recovery, and the LRU manager
+  until recovery ends. */
+  buf_flush_lru_recovery_end_debug_wait(
+      [&]() {
+        return debug.held_writes.load() > 0 &&
+               (!hold ||
+                debug.hold.load() == Lru_recovery_end_debug::Hold::HELD);
+      },
+      "an LRU manager to write a page and another one to be about to start a"
+      " batch");
+}
+
+void buf_flush_lru_recovery_end_debug_disarm() {
+  ut_ad(!recv_recovery_is_on());
+
+  auto &debug = lru_recovery_end_debug;
+
+  if (!debug.armed.load()) {
+    return;
+  }
+
+  if (debug.hold.load() != Lru_recovery_end_debug::Hold::NONE) {
+    buf_flush_lru_recovery_end_debug_wait(
+        [&]() {
+          return debug.hold.load() == Lru_recovery_end_debug::Hold::DONE;
+        },
+        "the held LRU manager to try to start its batch");
+  }
+
+  debug.hold_writes.store(false);
+  debug.armed.store(false);
+}
+
+/** The ib_lru_flush_across_recovery_end debug point: holds the LRU manager of
+the last buffer pool instance, if there are two or more, right before it
+starts a batch, until recovery ends. The caller is then past
+os_event_wait(run_lru), so only flushing_allowed can stop its batch.
+@param[in]  buf_pool_instance  buffer pool instance of the calling LRU manager
+@return true if the caller was held; it must then call
+buf_lru_manager_hold_done_debug() after it tried to start the batch */
+static bool buf_lru_manager_hold_debug(size_t buf_pool_instance) {
+  auto &debug = lru_recovery_end_debug;
+
+  if (!debug.armed.load() || buf_pool_instance == 0 ||
+      buf_pool_instance + 1 != srv_buf_pool_instances) {
+    return false;
+  }
+
+  auto expected = Lru_recovery_end_debug::Hold::NONE;
+  if (!debug.hold.compare_exchange_strong(expected,
+                                          Lru_recovery_end_debug::Hold::HELD)) {
+    return false;
+  }
+
+  while (recv_recovery_is_on()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
+  return true;
+}
+
+/** Tells buf_flush_lru_recovery_end_debug_disarm() that the LRU manager held
+by buf_lru_manager_hold_debug() tried to start its batch. */
+static void buf_lru_manager_hold_done_debug() {
+  lru_recovery_end_debug.hold.store(Lru_recovery_end_debug::Hold::DONE);
+}
+#endif /* UNIV_DEBUG */
+
 void buf_flush_page_cleaner_init() {
   ut_ad(page_cleaner == nullptr);
 
@@ -2740,8 +2973,14 @@ static void buf_flush_page_cleaner_close(void) {
   /* Wait for all LRU manager threads to exit. They observe
   srv_shutdown_state > SRV_SHUTDOWN_CLEANUP and break out of their
   loops; the run_lru event is always set during normal shutdown so they
-  do not block. */
+  do not block. It is not set if startup was aborted between the end of
+  recovery and the start of redo writing (buf_flush_lru_managers_pause()), so
+  set it here. flushing_allowed stays false then, so they exit without
+  flushing pages which would need redo persisted. */
   if (srv_lru_threads_enabled) {
+    for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+      os_event_set(buf_pool_from_array(i)->run_lru);
+    }
     for (size_t i = 0; i < srv_threads.m_lru_managers_n; ++i) {
       srv_threads.m_lru_managers[i].wait();
     }
@@ -3068,10 +3307,11 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *, SYS_VAR *, void *,
     /* With LRU manager threads enabled, convergence also waits for each of
     them to reach buf_flush_page_cleaner_disabled_loop(). An LRU manager
     parked on os_event_wait(buf_pool->run_lru) (a buf_pool_invalidate_instance()
-    window) does not reach that loop until run_lru is set again, so this
-    wait can stall for as long as that window lasts. Both this and the
-    manager's own adaptive sleep (up to 1s) are transient in practice, but
-    worth knowing if a debug test using this variable ever hangs here. */
+    or buf_flush_lru_managers_pause() window) does not reach that loop until
+    run_lru is set again, so this wait can stall for as long as that window
+    lasts. Both this and the manager's own adaptive sleep (up to 1s) are
+    transient in practice, but worth knowing if a debug test using this
+    variable ever hangs here. */
     const auto all_flushing_threads =
         srv_n_page_cleaners +
         (srv_lru_threads_enabled ? srv_buf_pool_instances : 0);
@@ -3650,9 +3890,10 @@ healthy workloads.
 The thread runs until srv_shutdown_state reaches SRV_SHUTDOWN_FLUSH_PHASE,
 mirroring the page cleaner coordinator's pre-flush loop, so that user
 threads keep finding free pages throughout every earlier shutdown phase.
-The buf_pool's run_lru event is set at startup; it is reset only inside
-buf_pool_invalidate_instance() so the manager pauses while the pool is
-torn down. */
+The buf_pool's run_lru event is set at startup; it is reset only by
+buf_pool_invalidate_instance(), so the manager pauses while the pool is
+torn down, and by buf_flush_lru_managers_pause(), so it pauses from the end
+of crash recovery until redo writing starts. */
 static void buf_lru_manager_thread(size_t buf_pool_instance) {
 #ifdef UNIV_LINUX
   /* linux might be able to set different setting for each thread
@@ -3688,15 +3929,19 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
     just as a flush does, so the adaptive-sleep "made progress" signal must
     consider both. The flush-specific stats below count flushes only.
     buf_flush_LRU_list() (via buf_flush_start()) is a no-op returning a zero
-    result if buf_pool_invalidate_instance() has cleared flushing_allowed in
-    the meantime; resetting run_lru only guarantees that the *next*
-    os_event_wait() above parks, so this check is what stops a thread that
-    already returned from the wait (or was in the sleep) from starting a
-    batch after invalidation began. */
+    result if buf_pool_invalidate_instance() or buf_flush_lru_managers_pause()
+    has cleared flushing_allowed in the meantime; resetting run_lru only
+    guarantees that the *next* os_event_wait() above parks, so this check is
+    what stops a thread that already returned from the wait (or was in the
+    sleep) from starting a batch after the invalidation or the pause began. */
+
+    ut_d(const bool held_debug = buf_lru_manager_hold_debug(buf_pool_instance));
 
     const auto lru_start = std::chrono::steady_clock::now();
     bool started = false;
     const auto result = buf_flush_LRU_list(buf_pool, &started);
+
+    ut_d(if (held_debug) { buf_lru_manager_hold_done_debug(); });
     const auto lru_time = std::chrono::steady_clock::now() - lru_start;
     lru_n_processed = result.n_flushed + result.n_evicted;
 

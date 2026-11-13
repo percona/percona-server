@@ -1,0 +1,253 @@
+#
+# PS-11793: a skip scan on a partitioned MyRocks table returned only the
+# rows of the first key prefix group. The range read in that group left
+# its end range in the handler of the partition, and it limited the read
+# of the first row of the next group.
+# Expected: the same rows with and without skip scan.
+#
+# One partition, primary key
+CREATE TABLE t (ip_col INT, ipkey INT, PRIMARY KEY (ipkey, ip_col))
+ENGINE=ROCKSDB
+PARTITION BY RANGE (ip_col) (PARTITION p1 VALUES LESS THAN (1000));
+INSERT INTO t VALUES (150,1),(160,2),(170,3),(150,4),(160,5),(170,6);
+EXPLAIN SELECT /*+ SKIP_SCAN(t PRIMARY) */ * FROM t WHERE ip_col = 160;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	p1	range	PRIMARY	PRIMARY	8	NULL	#	#	Using where; Using index for skip scan
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1` `PRIMARY`) */ `test`.`t`.`ip_col` AS `ip_col`,`test`.`t`.`ipkey` AS `ipkey` from `test`.`t` where (`test`.`t`.`ip_col` = 160)
+SELECT /*+ SKIP_SCAN(t PRIMARY) */ * FROM t WHERE ip_col = 150;
+ip_col	ipkey
+150	1
+150	4
+SELECT /*+ SKIP_SCAN(t PRIMARY) */ * FROM t WHERE ip_col = 160;
+ip_col	ipkey
+160	2
+160	5
+SELECT /*+ SKIP_SCAN(t PRIMARY) */ * FROM t WHERE ip_col > 155;
+ip_col	ipkey
+160	2
+170	3
+160	5
+170	6
+SELECT /*+ NO_SKIP_SCAN(t) */ * FROM t WHERE ip_col > 155;
+ip_col	ipkey
+160	2
+170	3
+160	5
+170	6
+DROP TABLE t;
+# Three partitions, primary key and secondary key
+CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL,
+PRIMARY KEY (a, b, c), KEY k (b, c, d))
+ENGINE=ROCKSDB
+PARTITION BY HASH (c) PARTITIONS 3;
+INSERT INTO t
+WITH RECURSIVE seq (n) AS
+(SELECT 0 UNION ALL SELECT n + 1 FROM seq WHERE n < 63)
+SELECT n DIV 16, (n DIV 4) % 4, n % 4, n FROM seq;
+# Skipped key part: a
+EXPLAIN SELECT /*+ SKIP_SCAN(t PRIMARY) */ a, b, c FROM t WHERE b > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	p0,p1,p2	range	PRIMARY,k	PRIMARY	8	NULL	#	#	Using where; Using index for skip scan
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1` `PRIMARY`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where (`test`.`t`.`b` > 2)
+SELECT /*+ SKIP_SCAN(t PRIMARY) */ a, b, c FROM t WHERE b > 2;
+a	b	c
+0	3	0
+0	3	1
+0	3	2
+0	3	3
+1	3	0
+1	3	1
+1	3	2
+1	3	3
+2	3	0
+2	3	1
+2	3	2
+2	3	3
+3	3	0
+3	3	1
+3	3	2
+3	3	3
+SELECT /*+ NO_SKIP_SCAN(t) */ a, b, c FROM t WHERE b > 2 ORDER BY a, b, c;
+a	b	c
+0	3	0
+0	3	1
+0	3	2
+0	3	3
+1	3	0
+1	3	1
+1	3	2
+1	3	3
+2	3	0
+2	3	1
+2	3	2
+2	3	3
+3	3	0
+3	3	1
+3	3	2
+3	3	3
+# Equality on a, skipped key part: b
+EXPLAIN SELECT /*+ SKIP_SCAN(t PRIMARY) */ a, b, c FROM t
+WHERE a IN (1, 3) AND c > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	p0,p1,p2	range	PRIMARY	PRIMARY	12	NULL	#	#	Using where; Using index for skip scan
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1` `PRIMARY`) */ `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c` from `test`.`t` where ((`test`.`t`.`a` in (1,3)) and (`test`.`t`.`c` > 1))
+SELECT /*+ SKIP_SCAN(t PRIMARY) */ a, b, c FROM t WHERE a IN (1, 3) AND c > 1;
+a	b	c
+1	0	2
+1	0	3
+1	1	2
+1	1	3
+1	2	2
+1	2	3
+1	3	2
+1	3	3
+3	0	2
+3	0	3
+3	1	2
+3	1	3
+3	2	2
+3	2	3
+3	3	2
+3	3	3
+SELECT /*+ NO_SKIP_SCAN(t) */ a, b, c FROM t WHERE a IN (1, 3) AND c > 1
+ORDER BY a, b, c;
+a	b	c
+1	0	2
+1	0	3
+1	1	2
+1	1	3
+1	2	2
+1	2	3
+1	3	2
+1	3	3
+3	0	2
+3	0	3
+3	1	2
+3	1	3
+3	2	2
+3	2	3
+3	3	2
+3	3	3
+# Secondary key, skipped key part: b
+EXPLAIN SELECT /*+ SKIP_SCAN(t k) */ b, c, d FROM t WHERE c > 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	p0,p1,p2	range	k	k	8	NULL	#	#	Using where; Using index for skip scan
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1` `k`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where (`test`.`t`.`c` > 2)
+SELECT /*+ SKIP_SCAN(t k) */ b, c, d FROM t WHERE c > 2;
+b	c	d
+0	3	3
+0	3	19
+0	3	35
+0	3	51
+1	3	7
+1	3	23
+1	3	39
+1	3	55
+2	3	11
+2	3	27
+2	3	43
+2	3	59
+3	3	15
+3	3	31
+3	3	47
+3	3	63
+SELECT /*+ NO_SKIP_SCAN(t) */ b, c, d FROM t WHERE c > 2 ORDER BY b, c, d;
+b	c	d
+0	3	3
+0	3	19
+0	3	35
+0	3	51
+1	3	7
+1	3	23
+1	3	39
+1	3	55
+2	3	11
+2	3	27
+2	3	43
+2	3	59
+3	3	15
+3	3	31
+3	3	47
+3	3	63
+# Secondary key, the condition selects one partition
+EXPLAIN SELECT /*+ SKIP_SCAN(t k) */ b, c, d FROM t WHERE c = 1 AND d < 40;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	p1	range	k	k	8	NULL	#	#	Using where; Using index for skip scan
+Warnings:
+Note	1003	/* select#1 */ select /*+ SKIP_SCAN(`t`@`select#1` `k`) */ `test`.`t`.`b` AS `b`,`test`.`t`.`c` AS `c`,`test`.`t`.`d` AS `d` from `test`.`t` where ((`test`.`t`.`c` = 1) and (`test`.`t`.`d` < 40))
+SELECT /*+ SKIP_SCAN(t k) */ b, c, d FROM t WHERE c = 1 AND d < 40;
+b	c	d
+0	1	1
+0	1	17
+0	1	33
+1	1	5
+1	1	21
+1	1	37
+2	1	9
+2	1	25
+3	1	13
+3	1	29
+SELECT /*+ NO_SKIP_SCAN(t) */ b, c, d FROM t WHERE c = 1 AND d < 40
+ORDER BY b, c, d;
+b	c	d
+0	1	1
+0	1	17
+0	1	33
+1	1	5
+1	1	21
+1	1	37
+2	1	9
+2	1	25
+3	1	13
+3	1	29
+#
+# A loose index scan reads the maximum of a group after a range read of
+# the group prefixes. With the end range of that read left in the
+# partition, a debug server aborted with "Assertion
+# `lower_bound_slice->compare(*upper_bound_slice) <= 0' failed" in
+# ha_rocksdb::setup_iterator_bounds().
+# Expected: the same rows as without the loose index scan.
+#
+# Flush the rows and count all keys, so that the plan does not depend
+# on the approximate number of rows in the memtable or on sampling.
+SET @save_sampling_pct = @@global.rocksdb_table_stats_sampling_pct;
+SET GLOBAL rocksdb_table_stats_sampling_pct = 100;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+SET GLOBAL rocksdb_table_stats_sampling_pct = @save_sampling_pct;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT a, MAX(b) FROM t FORCE INDEX (PRIMARY)
+WHERE a < 3 AND b < 3 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	p0,p1,p2	range	PRIMARY	PRIMARY	8	NULL	#	#	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` FORCE INDEX (PRIMARY) where ((`test`.`t`.`a` < 3) and (`test`.`t`.`b` < 3)) group by `test`.`t`.`a`
+SELECT a, MAX(b) FROM t FORCE INDEX (PRIMARY) WHERE a < 3 AND b < 3 GROUP BY a;
+a	MAX(b)
+0	2
+1	2
+2	2
+SELECT a, MAX(b) FROM t IGNORE INDEX (PRIMARY, k) WHERE a < 3 AND b < 3
+GROUP BY a ORDER BY a;
+a	MAX(b)
+0	2
+1	2
+2	2
+SELECT a, MIN(b), MAX(b) FROM t FORCE INDEX (PRIMARY)
+WHERE a > 0 AND b BETWEEN 1 AND 2 GROUP BY a;
+a	MIN(b)	MAX(b)
+1	1	2
+2	1	2
+3	1	2
+SELECT a, MIN(b), MAX(b) FROM t IGNORE INDEX (PRIMARY, k)
+WHERE a > 0 AND b BETWEEN 1 AND 2 GROUP BY a ORDER BY a;
+a	MIN(b)	MAX(b)
+1	1	2
+2	1	2
+3	1	2
+DROP TABLE t;

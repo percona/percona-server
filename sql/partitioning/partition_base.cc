@@ -2517,6 +2517,35 @@ int Partition_base::index_end_in_part(uint part) {
 }
 
 /**
+  Clear the end range of a partition before an index read that is not a range
+  read.
+
+  The SQL layer sets and clears the end range only in this handler.
+  read_range_first_in_part() copies it to the handler of the partition, and it
+  stays there until the index is closed. The storage engine may limit an index
+  read to the end range, as MyRocks does with its iterator bounds. Without the
+  reset, a later index read in the same partition would then miss the rows
+  behind the end of the previous range. Skip scan is such a reader: after the
+  range read in one key prefix group it reads the first row of the next group.
+  Loose index scan is another: after a range read of the group prefixes it
+  reads the minimum or the maximum of a group, and a MyRocks debug server
+  aborted on iterator bounds that were not in order.
+
+  Both readers use index_read_map_in_part(). Nothing in the server calls
+  index_first_in_part(), index_last_in_part() or
+  index_read_last_map_in_part() after a range read on the same open index at
+  present. They clear the end range all the same, so that such a reader
+  would not get a stale one. As no statement reaches them, the unit test
+  PartitionBaseEndRangeTest (unittest/gunit/partition_base-t.cc) calls them.
+
+  @param part  Partition to read from.
+*/
+
+void Partition_base::clear_end_range_in_part(uint part) {
+  m_file[part]->set_end_range(nullptr, RANGE_SCAN_ASC);
+}
+
+/**
   Read one record in an index scan and start an index scan in one partition.
 
   index_read_map_in_part starts a new index scan using a start key.
@@ -2540,6 +2569,7 @@ int Partition_base::index_read_map_in_part(uint part, uchar *buf,
                                            const uchar *key,
                                            key_part_map keypart_map,
                                            enum ha_rkey_function find_flag) {
+  clear_end_range_in_part(part);
   return m_file[part]->ha_index_read_map(buf, key, keypart_map, find_flag);
 }
 
@@ -2560,6 +2590,7 @@ int Partition_base::index_read_map_in_part(uint part, uchar *buf,
 */
 
 int Partition_base::index_first_in_part(uint part, uchar *buf) {
+  clear_end_range_in_part(part);
   return m_file[part]->ha_index_first(buf);
 }
 
@@ -2580,6 +2611,7 @@ int Partition_base::index_first_in_part(uint part, uchar *buf) {
 */
 
 int Partition_base::index_last_in_part(uint part, uchar *buf) {
+  clear_end_range_in_part(part);
   return m_file[part]->ha_index_last(buf);
 }
 
@@ -2601,6 +2633,7 @@ int Partition_base::index_last_in_part(uint part, uchar *buf) {
 int Partition_base::index_read_last_map_in_part(uint part, uchar *buf,
                                                 const uchar *key,
                                                 key_part_map keypart_map) {
+  clear_end_range_in_part(part);
   return m_file[part]->ha_index_read_last_map(buf, key, keypart_map);
 }
 

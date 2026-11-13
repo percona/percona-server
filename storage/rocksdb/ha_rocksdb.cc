@@ -10104,6 +10104,21 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
 
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
+#ifndef NDEBUG
+  /*
+    The optimizer must not see a rec_per_key element change between having
+    an estimate and having none, so info() gives every key part an estimate
+    here, also when it fails.
+  */
+  for (uint i = 0; i < m_tbl_def->m_key_count; i++) {
+    if (is_hidden_pk(i, *table, *m_tbl_def)) continue;
+    const KEY &k = table->key_info[i];
+    for (uint j = 0; j < k.actual_key_parts; j++) {
+      assert(k.has_records_per_key(j));
+    }
+  }
+#endif
+
   /*
     The following load_XXX code calls row decode functions, and they do
     that without having done ::external_lock() or index_init()/rnd_init().
@@ -14155,6 +14170,11 @@ static rec_per_key_t rdb_guess_rec_per_key(const KEY &key, uint key_part,
                                    (first_part - whole_key));
 }
 
+std::optional<ha_rows> ha_rocksdb::records_found() const {
+  if (m_update_stats_failed) return std::nullopt;
+  return stats.records;
+}
+
 /**
   @return
     HA_EXIT_SUCCESS  OK
@@ -14165,22 +14185,40 @@ int ha_rocksdb::info(uint flag) {
 
   if (!table) DBUG_RETURN(HA_EXIT_FAILURE);
 
+  /*
+    Set ref_length before anything that can fail. open() ignores the result
+    of this function, and handler::ha_open() and Partition_base::open() then
+    size the row position buffers with ref_length. If it kept its default
+    value because update_stats() failed, position() would write past the end
+    of these buffers.
+  */
+  if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST)) {
+    ref_length = m_pk_descr->max_storage_fmt_length();
+  }
+
+  int stats_ret = HA_EXIT_SUCCESS;
   if (flag & HA_STATUS_VARIABLE) {
-    int ret = update_stats(&stats, m_tbl_def, /* from_handler */ true);
-    if (ret != HA_EXIT_SUCCESS) {
-      return ret;
-    }
+    stats_ret = update_stats(&stats, m_tbl_def, /* from_handler */ true);
+    m_update_stats_failed = (stats_ret != HA_EXIT_SUCCESS);
   }
 
   if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST)) {
-    ref_length = m_pk_descr->max_storage_fmt_length();
-
+    /*
+      If update_stats() failed, the number of rows is not known. This call
+      then only gives an estimate to the key parts that have none, which is
+      the case when the table is opened: open() ignores the result of this
+      function, and the statements that ignore it too (single-table UPDATE
+      and DELETE) go on to optimize. The same holds for a call without
+      HA_STATUS_VARIABLE after a call in which update_stats() failed, as
+      Partition_base::info() makes them.
+    */
+    const std::optional<ha_rows> found = records_found();
+    const ha_rows records = found.value_or(0);
     for (uint i = 0; i < m_tbl_def->m_key_count; i++) {
       if (is_hidden_pk(i, *table, *m_tbl_def)) {
         continue;
       }
       KEY *const k = &table->key_info[i];
-      auto records = stats.records;
       for (uint j = 0; j < k->actual_key_parts; j++) {
         const Rdb_index_stats &k_stats = m_key_descr_arr[i]->m_stats;
         rec_per_key_t x = REC_PER_KEY_UNKNOWN;
@@ -14246,12 +14284,21 @@ int ha_rocksdb::info(uint flag) {
           rows, as with InnoDB.
         */
         if (x == REC_PER_KEY_UNKNOWN) {
+          if (!found.has_value() && k->has_records_per_key(j)) {
+            continue;
+          }
           x = rdb_guess_rec_per_key(*k, j, records);
         }
         k->set_records_per_key(j, x);
       }
     }
+  }
 
+  if (stats_ret != HA_EXIT_SUCCESS) {
+    DBUG_RETURN(stats_ret);
+  }
+
+  if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST)) {
     stats.create_time = m_tbl_def->get_create_time();
   }
 
@@ -15863,6 +15910,10 @@ int ha_rocksdb::analyze(THD *const thd, HA_CHECK_OPT *const check_opt) {
 int ha_rocksdb::adjust_handler_stats_sst_and_memtable(ha_statistics *ha_stats,
                                                       Rdb_tbl_def *tbl_def) {
   DBUG_ENTER_FUNC();
+
+  /* Test only: simulate a failed recalculation of bad cached stats */
+  DBUG_EXECUTE_IF("myrocks_simulate_stats_recalc_failure",
+                  DBUG_RETURN(HA_EXIT_FAILURE););
 
   /*
     If any stats are negative due to bad cached stats, re-run analyze table

@@ -72,6 +72,10 @@ if (!$vault_namespace)
 {
   --let $vault_namespace = $MTR_VAULT_NAMESPACE
 }
+if ($skip_vault_conf_namespace)
+{
+  --let $vault_namespace =
+}
 if ($vault_namespace)
 {
   --let $config_content = `SELECT CONCAT('$config_content', ', \"vault_namespace\": \"', '$vault_namespace', '\"')`

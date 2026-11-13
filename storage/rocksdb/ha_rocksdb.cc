@@ -14259,14 +14259,19 @@ int ha_rocksdb::info(uint flag) {
     stats.update_time = m_tbl_def->m_update_time;
   } else {
     if (flag & HA_STATUS_VARIABLE) {
-      if (stats.records == 0) {
-        // We should return records >= 1 since MyRocks does not set
-        // HA_STATS_RECORDS_IS_EXACT. However, for SHOW TABLE STATUS, we still
-        // want to show the best estimate, so we only adjust if !(flag &
-        // HA_STATUS_TIME).
-        //
-        // There is a similar comment about this adjustment in
-        // ha_innobase::info_low.
+      // We should return records >= 1 since MyRocks does not set
+      // HA_STATS_RECORDS_IS_EXACT. However, for SHOW TABLE STATUS, we still
+      // want to show the best estimate, so we only adjust if !(flag &
+      // HA_STATUS_TIME).
+      //
+      // There is a similar comment about this adjustment in
+      // ha_innobase::info_low.
+      //
+      // A partition of a partitioned table reports the rows it found:
+      // Partition_base::info() adds up the partitions and adjusts the sum
+      // once, as ha_innopart does, so that a table whose partitions have no
+      // rows is not reported with one row per partition.
+      if (stats.records == 0 && table->part_info == nullptr) {
         stats.records++;
       }
     }

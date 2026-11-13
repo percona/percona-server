@@ -1099,8 +1099,14 @@ void Partition_base::update_create_info(HA_CREATE_INFO *create_info) {
     Archive need this since it flushes in ::info.
     HA_STATUS_AUTO is optimized so it will not always be forwarded
     to all partitions, but HA_STATUS_VARIABLE will.
+
+    HA_STATUS_TIME makes info() report the number of rows it found. Without
+    it, info() reports at least one row, for the optimizer. ANALYZE TABLE
+    stores the statistics of the table after this call
+    (dd::info_schema::update_table_stats()) and would store TABLE_ROWS 1 for
+    a table without rows.
   */
-  info(HA_STATUS_VARIABLE);
+  info(HA_STATUS_VARIABLE | HA_STATUS_TIME);
 
   info(HA_STATUS_AUTO);
 
@@ -2875,6 +2881,16 @@ int Partition_base::info(uint flag) {
     if (stats.records && stats.records < 2 &&
         !(m_file[0]->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
       stats.records = 2;
+    /*
+      The partitions report the rows they found, also when they have none
+      (see ha_rocksdb::info()). Without HA_STATUS_TIME, report at least one
+      row for the table, as a non-partitioned table and ha_innopart do,
+      because the count is not exact. With HA_STATUS_TIME (SHOW TABLE STATUS,
+      INFORMATION_SCHEMA, ANALYZE TABLE) report the count found.
+    */
+    if (stats.records == 0 && !(flag & HA_STATUS_TIME) &&
+        !(m_file[0]->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
+      stats.records = 1;
     if (stats.records > 0)
       stats.mean_rec_length = (ulong)(stats.data_file_length / stats.records);
     else

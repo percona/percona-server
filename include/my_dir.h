@@ -47,7 +47,6 @@
 #define MY_S_IFBLK S_IFBLK   /* block special */
 #define MY_S_IFREG S_IFREG   /* regular */
 #define MY_S_IFIFO S_IFIFO   /* fifo */
-#define MY_S_IFLNK S_IFLNK   /* symbolic link */
 #define MY_S_IFSOCK S_IFSOCK /* socket */
 #define MY_S_ISUID S_ISUID   /* set user id on execution */
 #define MY_S_ISGID S_ISGID   /* set group id on execution */
@@ -59,7 +58,6 @@
 #define MY_S_ISDIR(m) (((m)&MY_S_IFMT) == MY_S_IFDIR)
 #define MY_S_ISCHR(m) (((m)&MY_S_IFMT) == MY_S_IFCHR)
 #define MY_S_ISBLK(m) (((m)&MY_S_IFMT) == MY_S_IFBLK)
-#define MY_S_ISLNK(m) (((m)&MY_S_IFMT) == MY_S_IFLNK)
 #define MY_S_ISREG(m) (((m)&MY_S_IFMT) == MY_S_IFREG)
 #define MY_S_ISFIFO(m) (((m)&MY_S_IFMT) == MY_S_IFIFO)
 #define MY_S_ISSOCK(m) (((m)&MY_S_IFMT) == MY_S_IFSOCK)

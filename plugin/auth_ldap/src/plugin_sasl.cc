@@ -215,8 +215,8 @@ mysql_declare_plugin(auth_ldap_sasl) {
       "LDAP SASL authentication plugin", /* description */
       PLUGIN_LICENSE_GPL,                /* license type */
       &auth_ldap_sasl_init,              /* init function */
+      nullptr,                           /* check uninstall function */
       &auth_ldap_sasl_deinit,            /* deinit function */
-      nullptr,                           /* no check function */
       0x0100,                            /* version = 1.0 */
       nullptr,                           /* no status variables */
       mpaldap_sysvars,                   /* system variables */

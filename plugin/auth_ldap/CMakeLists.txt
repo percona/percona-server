@@ -21,6 +21,21 @@ IF(WITH_PERCONA_AUTHENTICATION_LDAP)
   	MESSAGE(FATAL_ERROR "Required LDAP dev library not found. Please install LDAP development files!")
   ENDIF(NOT HAVE_LDAP)
 
+  # ldap_set_urllist_proc() is declared in the macOS SDK's ldap.h but not
+  # exported by LDAP.framework, so check that it can actually be linked.
+  INCLUDE(CheckSymbolExists)
+  CMAKE_PUSH_CHECK_STATE()
+  SET(CMAKE_REQUIRED_LIBRARIES ${LDAP_LIBRARY} ${LBER_LIBRARY})
+  IF(LDAP_INCLUDE_DIR)
+    SET(CMAKE_REQUIRED_INCLUDES ${LDAP_INCLUDE_DIR})
+  ENDIF()
+  CHECK_SYMBOL_EXISTS(ldap_set_urllist_proc "ldap.h"
+    HAVE_LDAP_SET_URLLIST_PROC)
+  CMAKE_POP_CHECK_STATE()
+  IF(HAVE_LDAP_SET_URLLIST_PROC)
+    ADD_DEFINITIONS(-DHAVE_LDAP_SET_URLLIST_PROC)
+  ENDIF()
+
   SET(ALP_SOURCES_SIMPLE
     src/log_client.cc
     src/plugin_common.cc

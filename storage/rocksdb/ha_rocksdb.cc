@@ -15616,6 +15616,12 @@ static int calculate_cardinality_table_scan(
     rdb->GetApproximateMemTableStats(kd->get_cf(), r, &memtableCount,
                                      &memtableSize);
 
+    /*
+      Test only: the estimate is approximate and can be 0 for a memtable
+      that has rows of this index.
+    */
+    DBUG_EXECUTE_IF("myrocks_simulate_zero_memtable_count", memtableCount = 0;);
+
     if (scan_type == SCAN_TYPE_MEMTABLE_ONLY &&
         memtableCount < (uint64_t)stat.m_rows / 10) {
       // skip tables that already have enough stats from SST files to reduce
@@ -15723,13 +15729,9 @@ static void adjust_cardinality(
   for (auto &src : *stats) {
     Rdb_index_stats &stat = src.second;
     if ((uint64_t)stat.m_rows > max_num_rows_scanned) {
-      stat.adjust_cardinality(stat.m_rows / max_num_rows_scanned);
+      stat.adjust_cardinality(static_cast<double>(stat.m_rows) /
+                              max_num_rows_scanned);
     }
-#ifndef NDEBUG
-    for (size_t i = 0; i < stat.m_distinct_keys_per_prefix.size(); i++) {
-      assert(stat.m_distinct_keys_per_prefix[i] <= stat.m_rows);
-    }
-#endif
   }
 }
 
@@ -15830,7 +15832,22 @@ static int calculate_stats(
     if (scan_type == SCAN_TYPE_FULL_TABLE && max_num_rows_scanned > 0) {
       adjust_cardinality(&stats, scan_type, max_num_rows_scanned);
     }
+    // The table scan does not limit its estimates to the number of rows,
+    // as Rdb_tbl_prop_coll does for the statistics of an SST file.
+    for (auto &it : stats) {
+      it.second.limit_cardinality_to_rows();
+    }
   }
+
+#ifndef NDEBUG
+  // Checked here, and not where the estimates are limited, so that a debug
+  // server notices statistics that were not limited at all.
+  if (scan_type != SCAN_TYPE_NONE) {
+    for (const auto &it : stats) {
+      assert(it.second.cardinality_within_rows());
+    }
+  }
+#endif
 
   // set and persist new stats
   ddl_manager.set_stats(stats);

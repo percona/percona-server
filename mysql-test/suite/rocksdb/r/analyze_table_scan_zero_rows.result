@@ -1,0 +1,31 @@
+#
+# PS-11694: the statistics of a table scan take the number of rows in
+# the memtable from an estimate that can be 0 while the scan finds keys
+# there. An index without rows then gets no distinct keys, as nothing
+# can be scaled down to its number of rows.
+# Expected: ANALYZE TABLE succeeds, with and without a row cap.
+#
+SET SESSION information_schema_stats_expiry = 0;
+SET @save_use_scan = @@global.rocksdb_table_stats_use_table_scan;
+SET @save_max_rows = @@global.rocksdb_table_stats_max_num_rows_scanned;
+SET @save_sampling_pct = @@global.rocksdb_table_stats_sampling_pct;
+SET GLOBAL rocksdb_table_stats_use_table_scan = ON;
+SET GLOBAL rocksdb_table_stats_sampling_pct = 100;
+CREATE TABLE t1 (pk INT PRIMARY KEY, a INT, KEY ka (a)) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+SET SESSION debug = "+d,myrocks_simulate_zero_memtable_count";
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = 2;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET SESSION debug = "-d,myrocks_simulate_zero_memtable_count";
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5
+SET GLOBAL rocksdb_table_stats_use_table_scan = @save_use_scan;
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = @save_max_rows;
+SET GLOBAL rocksdb_table_stats_sampling_pct = @save_sampling_pct;
+DROP TABLE t1;

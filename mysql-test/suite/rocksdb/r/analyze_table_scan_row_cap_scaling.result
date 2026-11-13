@@ -1,0 +1,55 @@
+#
+# ANALYZE TABLE with rocksdb_table_stats_use_table_scan = ON scans at
+# most rocksdb_table_stats_max_num_rows_scanned rows of each index and
+# scales the number of distinct keys it found up to the whole index, by
+# rows / rows scanned. The factor was computed with an integer division,
+# so that scanning 900 of 1000 rows did not scale at all.
+# Expected: the cardinality of a unique key is the number of rows,
+# whatever part of them is scanned.
+#
+SET SESSION information_schema_stats_expiry = 0;
+SET @save_use_scan = @@global.rocksdb_table_stats_use_table_scan;
+SET @save_sampling_pct = @@global.rocksdb_table_stats_sampling_pct;
+SET @save_max_rows = @@global.rocksdb_table_stats_max_num_rows_scanned;
+SET GLOBAL rocksdb_table_stats_use_table_scan = ON;
+SET GLOBAL rocksdb_table_stats_sampling_pct = 100;
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t1 WITH RECURSIVE s (n) AS
+(SELECT 0 UNION ALL SELECT n + 1 FROM s WHERE n < 999) SELECT n FROM s;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = 0;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+CARDINALITY
+1000
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = 300;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+CARDINALITY
+1000
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = 600;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+CARDINALITY
+1000
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = 900;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+CARDINALITY
+1000
+SET GLOBAL rocksdb_table_stats_use_table_scan = @save_use_scan;
+SET GLOBAL rocksdb_table_stats_sampling_pct = @save_sampling_pct;
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = @save_max_rows;
+DROP TABLE t1;

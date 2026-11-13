@@ -337,6 +337,13 @@ class HNSW {
         m_rng(seed) {
     assert(dimensions > 0);
     assert(M >= 2);
+    /* The lock stripes, and as a result the whole object, are
+    alignas(64). Plain malloc-based allocators do not honour that. With
+    wide aligned stores (e.g. AVX-512) an optimised build faults in this
+    constructor on a misaligned object; this assert catches the
+    misalignment in debug builds too, whatever instructions the compiler
+    chose. */
+    assert(reinterpret_cast<uintptr_t>(this) % alignof(HNSW) == 0);
   }
   HNSW(const HNSW &) = delete;
   HNSW &operator=(const HNSW &) = delete;

@@ -54,6 +54,26 @@ class Partition_base : public handler,
   virtual handler *get_file_handler(TABLE_SHARE *share,
                                     MEM_ROOT *alloc) const = 0;
 
+  /**
+    Let a partition set what info() sets for HA_STATUS_CONST for the whole
+    table, like the rec_per_key estimates, which the partitions share.
+    info() calls it for the partition with the most rows, after it refreshed
+    the statistics (HA_STATUS_VARIABLE) of every partition.
+
+    A storage engine overrides it if its partitions need to know that they
+    set them for the table, or need the statistics of the other partitions.
+
+    @param file  Handler of the partition.
+    @param flag  HA_STATUS_CONST, with HA_STATUS_NO_LOCK or without.
+
+    @return Operation status.
+      @retval    0  Success
+      @retval != 0  Error code
+  */
+  virtual int info_const_in_part(handler *file, uint flag) {
+    return file->info(flag);
+  }
+
  private:
   /* Data for the partition handler */
   int m_mode;  // Open mode

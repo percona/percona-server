@@ -14201,6 +14201,30 @@ std::optional<ha_rows> ha_rocksdb::records_found() const {
     HA_EXIT_FAILURE  Error
 */
 int ha_rocksdb::info(uint flag) {
+  return info_low(flag, /* for_table */ false, std::nullopt);
+}
+
+int ha_rocksdb::info_for_partitioned_table(uint flag,
+                                           std::optional<ha_rows> table_rows) {
+  return info_low(flag, /* for_table */ true, table_rows);
+}
+
+/**
+  The implementation of info().
+
+  @param flag        See handler::info().
+  @param for_table   This handler is a partition and sets the rec_per_key
+                     estimates of the whole table, see
+                     info_for_partitioned_table().
+  @param table_rows  With for_table, the number of rows in all partitions,
+                     or nothing if it is not known.
+
+  @return
+    HA_EXIT_SUCCESS  OK
+    HA_EXIT_FAILURE  Error
+*/
+int ha_rocksdb::info_low(uint flag, bool for_table,
+                         std::optional<ha_rows> table_rows) {
   DBUG_ENTER_FUNC();
 
   if (!table) DBUG_RETURN(HA_EXIT_FAILURE);
@@ -14222,7 +14246,30 @@ int ha_rocksdb::info(uint flag) {
     m_update_stats_failed = (stats_ret != HA_EXIT_SUCCESS);
   }
 
-  if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST)) {
+  /*
+    The rec_per_key estimates belong to the TABLE_SHARE, so the partitions of
+    a partitioned table share them. A partition sets them only for
+    HA_STATUS_CONST, which Partition_base::info() sends to the partition with
+    the most rows (info_for_partitioned_table()). If every partition set them
+    for HA_STATUS_VARIABLE too, as a table without partitions does to follow
+    its statistics, the estimates of the table would be those of the
+    partition that was read last, which may have few rows or none.
+  */
+  const bool is_partition = table->part_info != nullptr;
+  const bool set_rec_per_key = (flag & HA_STATUS_CONST) ||
+                               ((flag & HA_STATUS_VARIABLE) && !is_partition);
+
+  if (set_rec_per_key) {
+    /*
+      A partition sets the estimates of the table only when
+      Partition_base::info() asks it to (for_table). open() calls this
+      function with HA_STATUS_CONST for every partition, also when a session
+      opens the table once more. There a partition only gives an estimate to
+      the key parts that have none, so that it does not replace the estimates
+      of the table with its own until Partition_base::open() has them set
+      again, while other sessions optimize queries with them.
+    */
+    const bool only_missing = is_partition && !for_table;
     /*
       If update_stats() failed, the number of rows is not known. This call
       then only gives an estimate to the key parts that have none, which is
@@ -14233,13 +14280,27 @@ int ha_rocksdb::info(uint flag) {
       Partition_base::info() makes them.
     */
     const std::optional<ha_rows> found = records_found();
-    const ha_rows records = found.value_or(0);
+    /*
+      The number of rows in the table, which limits the estimates, and from
+      which the ones without index statistics are guessed, see below. The
+      estimates are those of the table, so a partition must not take its own
+      rows for it: the first key part would match 1% of the rows of the
+      partition, and SHOW INDEX and the optimizer relate that to the rows of
+      the table. If it is not known, because update_stats() failed for
+      another partition, this partition does not set the estimates from its
+      index statistics either.
+    */
+    const std::optional<ha_rows> rows_in_table = for_table ? table_rows : found;
+    const ha_rows records = rows_in_table.has_value() ? found.value_or(0) : 0;
     for (uint i = 0; i < m_tbl_def->m_key_count; i++) {
       if (is_hidden_pk(i, *table, *m_tbl_def)) {
         continue;
       }
       KEY *const k = &table->key_info[i];
       for (uint j = 0; j < k->actual_key_parts; j++) {
+        if (only_missing && k->has_records_per_key(j)) {
+          continue;
+        }
         const Rdb_index_stats &k_stats = m_key_descr_arr[i]->m_stats;
         rec_per_key_t x = REC_PER_KEY_UNKNOWN;
 
@@ -14277,10 +14338,10 @@ int ha_rocksdb::info(uint flag) {
             }
           }
 
-          if (x > records) x = records;
+          if (x > *rows_in_table) x = *rows_in_table;
         }
 
-        // 1 <= x <= records, or x = REC_PER_KEY_UNKNOWN
+        // 1 <= x <= rows in the table, or x = REC_PER_KEY_UNKNOWN
         /*
           The rec_per_key arrays belong to the TABLE_SHARE and are read without
           synchronization by every session that optimizes a query on this
@@ -14304,10 +14365,10 @@ int ha_rocksdb::info(uint flag) {
           rows, as with InnoDB.
         */
         if (x == REC_PER_KEY_UNKNOWN) {
-          if (!found.has_value() && k->has_records_per_key(j)) {
+          if (!rows_in_table.has_value() && k->has_records_per_key(j)) {
             continue;
           }
-          x = rdb_guess_rec_per_key(*k, j, records);
+          x = rdb_guess_rec_per_key(*k, j, rows_in_table.value_or(0));
         }
         k->set_records_per_key(j, x);
       }
@@ -15951,6 +16012,12 @@ int ha_rocksdb::adjust_handler_stats_sst_and_memtable(ha_statistics *ha_stats,
   /* Test only: simulate a failed recalculation of bad cached stats */
   DBUG_EXECUTE_IF("myrocks_simulate_stats_recalc_failure",
                   DBUG_RETURN(HA_EXIT_FAILURE););
+  /* The same for the partitions with the name p0 only */
+  DBUG_EXECUTE_IF("myrocks_simulate_stats_recalc_failure_p0", {
+    if (tbl_def->full_tablename().ends_with("#P#p0")) {
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+  });
 
   /*
     If any stats are negative due to bad cached stats, re-run analyze table

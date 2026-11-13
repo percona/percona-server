@@ -1677,6 +1677,7 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked,
         m_part_info->part_expr->get_monotonicity_info();
   else if (m_part_info->list_of_part_fields)
     m_part_func_monotonicity_info = MONOTONIC_STRICT_INCREASING;
+  DEBUG_SYNC(ha_thd(), "partition_open_before_info");
   info(HA_STATUS_VARIABLE | HA_STATUS_CONST);
   DBUG_RETURN(0);
 
@@ -2890,6 +2891,7 @@ int Partition_base::info(uint flag) {
       We report last time of all underlying handlers
     */
     handler *file;
+    handler *file_with_most_rows = nullptr;
     stats.records = 0;
     stats.deleted = 0;
     stats.data_file_length = 0;
@@ -2902,6 +2904,11 @@ int Partition_base::info(uint flag) {
       res = file->info(HA_STATUS_VARIABLE | no_lock_flag | extra_var_flag);
       if (res && !error) {
         error = res;
+      }
+      if (file->stats.records > 0 &&
+          (file_with_most_rows == nullptr ||
+           file->stats.records > file_with_most_rows->stats.records)) {
+        file_with_most_rows = file;
       }
       stats.records += file->stats.records;
       stats.deleted += file->stats.deleted;
@@ -2928,6 +2935,28 @@ int Partition_base::info(uint flag) {
       stats.mean_rec_length = (ulong)(stats.data_file_length / stats.records);
     else
       stats.mean_rec_length = 0;
+    /*
+      The partitions share the rec_per_key estimates of the table and set
+      them only for HA_STATUS_CONST (see ha_rocksdb::info()). Let the
+      partition with the most rows set them now, as the HA_STATUS_CONST
+      branch below does at open and for ANALYZE TABLE, so that they follow
+      the statistics of the table as they do for a table without partitions.
+
+      Only a statement that uses all partitions does so. The estimates are
+      those of the table for every statement and every session, so the
+      largest of the partitions that are left after pruning must not set
+      them: it may be a small one, whose rows say little about the table.
+      ha_innopart does not set them for HA_STATUS_VARIABLE at all. If the
+      partitions have no rows, the estimates stay as they are.
+    */
+    if (!(flag & HA_STATUS_CONST) && file_with_most_rows != nullptr &&
+        bitmap_is_set_all(&m_part_info->read_partitions)) {
+      res = info_const_in_part(file_with_most_rows,
+                               HA_STATUS_CONST | no_lock_flag);
+      if (res && !error) {
+        error = res;
+      }
+    }
   }
   if (flag & HA_STATUS_CONST) {
     DBUG_PRINT("info", ("HA_STATUS_CONST"));
@@ -3011,7 +3040,7 @@ int Partition_base::info(uint flag) {
               });
 
     file = m_file[handler_instance];
-    res = file->info(HA_STATUS_CONST | no_lock_flag);
+    res = info_const_in_part(file, HA_STATUS_CONST | no_lock_flag);
     if (res && !error) {
       error = res;
     }

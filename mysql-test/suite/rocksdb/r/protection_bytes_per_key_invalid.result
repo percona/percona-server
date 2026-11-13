@@ -1,0 +1,89 @@
+CREATE TABLE t1 (a INT, b VARCHAR(10)) ENGINE=ROCKSDB;
+CREATE TABLE t2 (pk INT PRIMARY KEY, b VARCHAR(10)) ENGINE=ROCKSDB;
+SET @save_global = @@global.rocksdb_protection_bytes_per_key;
+# Unsupported values are rejected
+SET SESSION rocksdb_protection_bytes_per_key = 1;
+ERROR 42000: Variable 'rocksdb_protection_bytes_per_key' can't be set to the value of '1'
+SET SESSION rocksdb_protection_bytes_per_key = 2;
+ERROR 42000: Variable 'rocksdb_protection_bytes_per_key' can't be set to the value of '2'
+SET SESSION rocksdb_protection_bytes_per_key = 3;
+ERROR 42000: Variable 'rocksdb_protection_bytes_per_key' can't be set to the value of '3'
+SET SESSION rocksdb_protection_bytes_per_key = 4;
+ERROR 42000: Variable 'rocksdb_protection_bytes_per_key' can't be set to the value of '4'
+SET GLOBAL rocksdb_protection_bytes_per_key = 1;
+ERROR 42000: Variable 'rocksdb_protection_bytes_per_key' can't be set to the value of '1'
+SET GLOBAL rocksdb_protection_bytes_per_key = 2;
+ERROR 42000: Variable 'rocksdb_protection_bytes_per_key' can't be set to the value of '2'
+SET GLOBAL rocksdb_protection_bytes_per_key = 3;
+ERROR 42000: Variable 'rocksdb_protection_bytes_per_key' can't be set to the value of '3'
+SET GLOBAL rocksdb_protection_bytes_per_key = 4;
+ERROR 42000: Variable 'rocksdb_protection_bytes_per_key' can't be set to the value of '4'
+SELECT @@session.rocksdb_protection_bytes_per_key,
+@@global.rocksdb_protection_bytes_per_key;
+@@session.rocksdb_protection_bytes_per_key	@@global.rocksdb_protection_bytes_per_key
+0	0
+# Writes work with 8 (hidden primary key and explicit primary key)
+SET SESSION rocksdb_protection_bytes_per_key = 8;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
+INSERT INTO t2 VALUES (1, 'a'), (2, 'b');
+BEGIN;
+INSERT INTO t1 VALUES (5, 'x');
+UPDATE t2 SET b = 'c' WHERE pk = 2;
+DELETE FROM t2 WHERE pk = 1;
+COMMIT;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	a
+2	b
+5	x
+SELECT * FROM t2 ORDER BY pk;
+pk	b
+2	c
+# A new connection with the global value 8 can write
+SET GLOBAL rocksdb_protection_bytes_per_key = 8;
+SELECT @@session.rocksdb_protection_bytes_per_key;
+@@session.rocksdb_protection_bytes_per_key
+8
+INSERT INTO t1 VALUES (3, 'd');
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+4
+# Writes work with 0
+SET SESSION rocksdb_protection_bytes_per_key = 0;
+INSERT INTO t2 VALUES (3, 'e');
+SELECT * FROM t2 ORDER BY pk;
+pk	b
+2	c
+3	e
+SET GLOBAL rocksdb_protection_bytes_per_key = @save_global;
+SET SESSION rocksdb_protection_bytes_per_key = DEFAULT;
+DROP TABLE t1, t2;
+# A startup value does not go through the check of SET. MyRocks refuses
+# to start with an unsupported value instead of failing every write.
+call mtr.add_suppression("Plugin rocksdb reported: 'Invalid argument: rocksdb_protection_bytes_per_key = 3, RocksDB supports only 0 and 8'");
+call mtr.add_suppression("Plugin 'ROCKSDB' init function returned error");
+call mtr.add_suppression("Plugin 'ROCKSDB' registration as a STORAGE ENGINE failed");
+# After a failed init, rocksdb_done_func() reports the threads that were
+# never started.
+call mtr.add_suppression("Plugin rocksdb reported: 'Couldn't stop the background thread: \\(errno=22\\)'");
+call mtr.add_suppression("Plugin rocksdb reported: 'Couldn't stop the index thread: \\(errno=22\\)'");
+call mtr.add_suppression("Plugin rocksdb reported: 'Couldn't stop the index stats calculation thread: \\(errno=22\\)'");
+call mtr.add_suppression("Plugin rocksdb reported: 'Couldn't stop the manual compaction thread: \\(errno=22\\)'");
+# restart: --rocksdb-protection-bytes-per-key=3
+SELECT COUNT(*) AS rocksdb_engine FROM INFORMATION_SCHEMA.ENGINES
+WHERE ENGINE = 'ROCKSDB';
+rocksdb_engine
+0
+Pattern found.
+# MyRocks starts with 8.
+# restart: --rocksdb-protection-bytes-per-key=8
+SELECT @@global.rocksdb_protection_bytes_per_key;
+@@global.rocksdb_protection_bytes_per_key
+8
+CREATE TABLE t1 (a INT, b VARCHAR(10)) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 'a');
+SELECT * FROM t1;
+a	b
+1	a
+DROP TABLE t1;
+# restart:

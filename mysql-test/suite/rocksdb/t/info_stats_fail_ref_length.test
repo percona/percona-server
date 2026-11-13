@@ -1,0 +1,167 @@
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # PS-11796: ha_rocksdb::info() is the only place that sets ref_length.
+--echo # When update_stats() failed (e.g. the recalculation of bad cached stats
+--echo # failed), it returned before that, with a plain return instead of
+--echo # DBUG_RETURN, and ha_rocksdb::open() ignores the result. A debug server
+--echo # aborted with "missing DBUG_RETURN". A release server kept the default
+--echo # ref_length of 8 bytes for the opened handler, while a BIGINT primary
+--echo # key needs 12, so position() wrote past the row position buffers. A
+--echo # partitioned table took its own ref_length at open from these 8 bytes,
+--echo # and a later position() on it crashed.
+--echo #
+--echo # info() also returned before it gave the key parts their rec_per_key
+--echo # estimates, so a table opened this way had none, which the optimizer
+--echo # must not see change (PS-11840). ha_rocksdb::open() asserts that every
+--echo # key part has an estimate.
+--echo #
+
+CREATE TABLE t1 (pk BIGINT PRIMARY KEY, a INT) ENGINE=ROCKSDB
+  PARTITION BY HASH(pk) PARTITIONS 2;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+CREATE TABLE t2 (pk VARCHAR(200) PRIMARY KEY, a INT) ENGINE=ROCKSDB;
+INSERT INTO t2 VALUES (REPEAT('a', 150), 1), (REPEAT('b', 150), 2);
+
+--echo # Open t1 and t2 while the stats recalculation fails.
+FLUSH TABLES;
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+LOCK TABLES t1 READ, t2 READ;
+UNLOCK TABLES;
+SET SESSION debug = "-d,myrocks_simulate_stats_recalc_failure";
+
+--echo # An UPDATE of the scanned key buffers row ids with position().
+UPDATE t1 SET pk = pk + 10 WHERE pk BETWEEN 1 AND 3;
+SELECT * FROM t1 ORDER BY pk;
+UPDATE t2 SET pk = CONCAT(pk, 'x') WHERE pk > 'a';
+SELECT LENGTH(pk), LEFT(pk, 1), RIGHT(pk, 1), a FROM t2 ORDER BY pk;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # A table that has estimates keeps them when update_stats() fails for a
+--echo # statement that goes on all the same, as a single-table UPDATE does:
+--echo # 500 rows for each of the 2 values of a.
+--echo #
+SET @save_sampling_pct = @@global.rocksdb_table_stats_sampling_pct;
+SET GLOBAL rocksdb_table_stats_sampling_pct = 100;
+CREATE TABLE t3 (pk INT PRIMARY KEY, a INT, b INT, c INT, KEY kab (a, b))
+  ENGINE=ROCKSDB;
+INSERT INTO t3 WITH RECURSIVE s (i) AS
+  (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 1000)
+  SELECT i, i MOD 2, i, i FROM s;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+SET GLOBAL rocksdb_table_stats_sampling_pct = @save_sampling_pct;
+ANALYZE TABLE t3;
+--echo # Take the estimate from the index statistics, not from an index dive.
+SET SESSION eq_range_index_dive_limit = 1;
+EXPLAIN UPDATE t3 FORCE INDEX (kab) SET c = 0 WHERE a = 1;
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+EXPLAIN UPDATE t3 FORCE INDEX (kab) SET c = 0 WHERE a = 1;
+SET SESSION debug = "-d,myrocks_simulate_stats_recalc_failure";
+
+--echo #
+--echo # A table that is opened for the first time while update_stats() fails
+--echo # has no estimates to keep, and its number of rows is not known, so it
+--echo # gets the estimates of a table without rows, 1 row for each value, and
+--echo # not ones made from the row count that the failed call left behind.
+--echo # The next statement for which update_stats() works sets the estimates
+--echo # from the index statistics.
+--echo #
+FLUSH TABLES;
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+EXPLAIN UPDATE t3 FORCE INDEX (kab) SET c = 0 WHERE a = 1;
+SET SESSION debug = "-d,myrocks_simulate_stats_recalc_failure";
+EXPLAIN UPDATE t3 FORCE INDEX (kab) SET c = 0 WHERE a = 1;
+DROP TABLE t3;
+
+--echo #
+--echo # A table keeps its estimates too when another session opens it while
+--echo # update_stats() fails, also if it is partitioned.
+--echo # Partition_base::info() refreshes the statistics of every partition
+--echo # and then lets one of them set the estimates in a call of its own,
+--echo # which took the 0 rows that the failed refresh left behind for the
+--echo # number of rows and set the estimates of a table without rows. The
+--echo # rows are in the memtable, so there are no index statistics: the
+--echo # estimate is the default of 8 rows for the first of the 4 key parts
+--echo # (with the primary key) of kabc.
+--echo #
+CREATE TABLE t4 (pk INT PRIMARY KEY, a INT, b INT, c INT, KEY kabc (a, b, c))
+  ENGINE=ROCKSDB;
+CREATE TABLE t4p (pk INT PRIMARY KEY, a INT, b INT, c INT, KEY kabc (a, b, c))
+  ENGINE=ROCKSDB PARTITION BY HASH (pk) PARTITIONS 2;
+INSERT INTO t4 WITH RECURSIVE s (i) AS
+  (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 1000)
+  SELECT i, i MOD 2, i, i FROM s;
+INSERT INTO t4p WITH RECURSIVE s (i) AS
+  (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 1000)
+  SELECT i, i MOD 2, i, i FROM s;
+--replace_column 11 #
+EXPLAIN UPDATE t4 FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+--replace_column 11 #
+EXPLAIN UPDATE t4p FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+--echo # This connection keeps the tables in use, so that the other one opens
+--echo # them again.
+LOCK TABLES t4 READ, t4p READ;
+--connect (con_fail,localhost,root,,)
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+LOCK TABLES t4 READ, t4p READ;
+UNLOCK TABLES;
+--connection default
+--disconnect con_fail
+UNLOCK TABLES;
+--echo # The estimates as they are now: these statements do not refresh them,
+--echo # as update_stats() fails for them too.
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+--replace_column 11 #
+EXPLAIN UPDATE t4 FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+--replace_column 11 #
+EXPLAIN UPDATE t4p FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+SET SESSION debug = "-d,myrocks_simulate_stats_recalc_failure";
+
+--echo #
+--echo # The same with index statistics: 500 rows for each value of a. Then
+--echo # the index statistics change, as rows with 100 other values of a are
+--echo # flushed, and no statement has set the estimates from them yet when
+--echo # the other session opens the tables. The estimates stay as they are:
+--echo # the partition must not set them from the new index statistics and
+--echo # the number of rows that the failed refresh left behind either.
+--echo #
+SET GLOBAL rocksdb_table_stats_sampling_pct = 100;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+ANALYZE TABLE t4, t4p;
+INSERT INTO t4 WITH RECURSIVE s (i) AS
+  (SELECT 1001 UNION ALL SELECT i + 1 FROM s WHERE i < 2000)
+  SELECT i, 1000 + i MOD 100, i, i FROM s;
+INSERT INTO t4p WITH RECURSIVE s (i) AS
+  (SELECT 1001 UNION ALL SELECT i + 1 FROM s WHERE i < 2000)
+  SELECT i, 1000 + i MOD 100, i, i FROM s;
+--replace_column 11 #
+EXPLAIN UPDATE t4 FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+--replace_column 11 #
+EXPLAIN UPDATE t4p FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+LOCK TABLES t4 READ, t4p READ;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+SET GLOBAL rocksdb_table_stats_sampling_pct = @save_sampling_pct;
+--connect (con_fail,localhost,root,,)
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+LOCK TABLES t4 READ, t4p READ;
+UNLOCK TABLES;
+--connection default
+--disconnect con_fail
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+UNLOCK TABLES;
+--replace_column 11 #
+EXPLAIN UPDATE t4 FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+--replace_column 11 #
+EXPLAIN UPDATE t4p FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+SET SESSION debug = "-d,myrocks_simulate_stats_recalc_failure";
+--echo # A statement for which update_stats() works sets the estimates from
+--echo # the index statistics: 2000 rows with 102 values of a.
+--replace_column 11 #
+EXPLAIN UPDATE t4 FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+--replace_column 11 #
+EXPLAIN UPDATE t4p FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+DROP TABLE t4, t4p;
+SET SESSION eq_range_index_dive_limit = DEFAULT;

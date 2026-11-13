@@ -26,6 +26,7 @@
 #include <cinttypes>
 #include <deque>
 #include <map>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -310,6 +311,12 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
     MySQL index number for duplicate key error
   */
   uint m_dupp_errkey;
+
+  /*
+    update_stats() failed in the last info() with HA_STATUS_VARIABLE, so
+    stats.records is not the number of rows
+  */
+  bool m_update_stats_failed = false;
 
   [[nodiscard]] int create_key_defs(
       const TABLE &table_arg, Rdb_tbl_def &tbl_def_arg,
@@ -822,6 +829,12 @@ class ha_rocksdb : public my_core::handler, public blob_buffer {
       MY_ATTRIBUTE((__warn_unused_result__));
   void position(const uchar *const record) override;
   int info(uint) override;
+
+  /**
+    @return the number of rows that the last info() with HA_STATUS_VARIABLE
+            found, or nothing if update_stats() failed in it.
+  */
+  std::optional<ha_rows> records_found() const;
 
   /* This function will always return success, therefore no annotation related
    * to checking the return value. Can't change the signature because it's

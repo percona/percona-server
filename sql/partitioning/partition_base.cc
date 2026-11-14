@@ -1099,8 +1099,14 @@ void Partition_base::update_create_info(HA_CREATE_INFO *create_info) {
     Archive need this since it flushes in ::info.
     HA_STATUS_AUTO is optimized so it will not always be forwarded
     to all partitions, but HA_STATUS_VARIABLE will.
+
+    HA_STATUS_TIME makes info() report the number of rows it found. Without
+    it, info() reports at least one row, for the optimizer. ANALYZE TABLE
+    stores the statistics of the table after this call
+    (dd::info_schema::update_table_stats()) and would store TABLE_ROWS 1 for
+    a table without rows.
   */
-  info(HA_STATUS_VARIABLE);
+  info(HA_STATUS_VARIABLE | HA_STATUS_TIME);
 
   info(HA_STATUS_AUTO);
 
@@ -1671,6 +1677,7 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked,
         m_part_info->part_expr->get_monotonicity_info();
   else if (m_part_info->list_of_part_fields)
     m_part_func_monotonicity_info = MONOTONIC_STRICT_INCREASING;
+  DEBUG_SYNC(ha_thd(), "partition_open_before_info");
   info(HA_STATUS_VARIABLE | HA_STATUS_CONST);
   DBUG_RETURN(0);
 
@@ -2511,6 +2518,35 @@ int Partition_base::index_end_in_part(uint part) {
 }
 
 /**
+  Clear the end range of a partition before an index read that is not a range
+  read.
+
+  The SQL layer sets and clears the end range only in this handler.
+  read_range_first_in_part() copies it to the handler of the partition, and it
+  stays there until the index is closed. The storage engine may limit an index
+  read to the end range, as MyRocks does with its iterator bounds. Without the
+  reset, a later index read in the same partition would then miss the rows
+  behind the end of the previous range. Skip scan is such a reader: after the
+  range read in one key prefix group it reads the first row of the next group.
+  Loose index scan is another: after a range read of the group prefixes it
+  reads the minimum or the maximum of a group, and a MyRocks debug server
+  aborted on iterator bounds that were not in order.
+
+  Both readers use index_read_map_in_part(). Nothing in the server calls
+  index_first_in_part(), index_last_in_part() or
+  index_read_last_map_in_part() after a range read on the same open index at
+  present. They clear the end range all the same, so that such a reader
+  would not get a stale one. As no statement reaches them, the unit test
+  PartitionBaseEndRangeTest (unittest/gunit/partition_base-t.cc) calls them.
+
+  @param part  Partition to read from.
+*/
+
+void Partition_base::clear_end_range_in_part(uint part) {
+  m_file[part]->set_end_range(nullptr, RANGE_SCAN_ASC);
+}
+
+/**
   Read one record in an index scan and start an index scan in one partition.
 
   index_read_map_in_part starts a new index scan using a start key.
@@ -2534,6 +2570,7 @@ int Partition_base::index_read_map_in_part(uint part, uchar *buf,
                                            const uchar *key,
                                            key_part_map keypart_map,
                                            enum ha_rkey_function find_flag) {
+  clear_end_range_in_part(part);
   return m_file[part]->ha_index_read_map(buf, key, keypart_map, find_flag);
 }
 
@@ -2554,6 +2591,7 @@ int Partition_base::index_read_map_in_part(uint part, uchar *buf,
 */
 
 int Partition_base::index_first_in_part(uint part, uchar *buf) {
+  clear_end_range_in_part(part);
   return m_file[part]->ha_index_first(buf);
 }
 
@@ -2574,6 +2612,7 @@ int Partition_base::index_first_in_part(uint part, uchar *buf) {
 */
 
 int Partition_base::index_last_in_part(uint part, uchar *buf) {
+  clear_end_range_in_part(part);
   return m_file[part]->ha_index_last(buf);
 }
 
@@ -2595,6 +2634,7 @@ int Partition_base::index_last_in_part(uint part, uchar *buf) {
 int Partition_base::index_read_last_map_in_part(uint part, uchar *buf,
                                                 const uchar *key,
                                                 key_part_map keypart_map) {
+  clear_end_range_in_part(part);
   return m_file[part]->ha_index_read_last_map(buf, key, keypart_map);
 }
 
@@ -2851,6 +2891,7 @@ int Partition_base::info(uint flag) {
       We report last time of all underlying handlers
     */
     handler *file;
+    handler *file_with_most_rows = nullptr;
     stats.records = 0;
     stats.deleted = 0;
     stats.data_file_length = 0;
@@ -2864,6 +2905,11 @@ int Partition_base::info(uint flag) {
       if (res && !error) {
         error = res;
       }
+      if (file->stats.records > 0 &&
+          (file_with_most_rows == nullptr ||
+           file->stats.records > file_with_most_rows->stats.records)) {
+        file_with_most_rows = file;
+      }
       stats.records += file->stats.records;
       stats.deleted += file->stats.deleted;
       stats.data_file_length += file->stats.data_file_length;
@@ -2875,10 +2921,42 @@ int Partition_base::info(uint flag) {
     if (stats.records && stats.records < 2 &&
         !(m_file[0]->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
       stats.records = 2;
+    /*
+      The partitions report the rows they found, also when they have none
+      (see ha_rocksdb::info()). Without HA_STATUS_TIME, report at least one
+      row for the table, as a non-partitioned table and ha_innopart do,
+      because the count is not exact. With HA_STATUS_TIME (SHOW TABLE STATUS,
+      INFORMATION_SCHEMA, ANALYZE TABLE) report the count found.
+    */
+    if (stats.records == 0 && !(flag & HA_STATUS_TIME) &&
+        !(m_file[0]->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
+      stats.records = 1;
     if (stats.records > 0)
       stats.mean_rec_length = (ulong)(stats.data_file_length / stats.records);
     else
       stats.mean_rec_length = 0;
+    /*
+      The partitions share the rec_per_key estimates of the table and set
+      them only for HA_STATUS_CONST (see ha_rocksdb::info()). Let the
+      partition with the most rows set them now, as the HA_STATUS_CONST
+      branch below does at open and for ANALYZE TABLE, so that they follow
+      the statistics of the table as they do for a table without partitions.
+
+      Only a statement that uses all partitions does so. The estimates are
+      those of the table for every statement and every session, so the
+      largest of the partitions that are left after pruning must not set
+      them: it may be a small one, whose rows say little about the table.
+      ha_innopart does not set them for HA_STATUS_VARIABLE at all. If the
+      partitions have no rows, the estimates stay as they are.
+    */
+    if (!(flag & HA_STATUS_CONST) && file_with_most_rows != nullptr &&
+        bitmap_is_set_all(&m_part_info->read_partitions)) {
+      res = info_const_in_part(file_with_most_rows,
+                               HA_STATUS_CONST | no_lock_flag);
+      if (res && !error) {
+        error = res;
+      }
+    }
   }
   if (flag & HA_STATUS_CONST) {
     DBUG_PRINT("info", ("HA_STATUS_CONST"));
@@ -2962,7 +3040,7 @@ int Partition_base::info(uint flag) {
               });
 
     file = m_file[handler_instance];
-    res = file->info(HA_STATUS_CONST | no_lock_flag);
+    res = info_const_in_part(file, HA_STATUS_CONST | no_lock_flag);
     if (res && !error) {
       error = res;
     }

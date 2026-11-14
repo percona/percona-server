@@ -1198,6 +1198,16 @@ static int rocksdb_check_write_disable_wal(
     THD *const thd, struct SYS_VAR *var MY_ATTRIBUTE((__unused__)), void *save,
     struct st_mysql_value *value);
 
+/*
+  rocksdb_protection_bytes_per_key is passed to RocksDB as
+  WriteOptions::protection_bytes_per_key, which supports only 0 (no
+  protection) and 8. Other values make rocksdb::WriteBatch assert on debug
+  builds and every write fail with "Invalid argument" on release builds.
+*/
+static bool rdb_is_valid_protection_bytes_per_key(long long value) {
+  return value == 0 || value == 8;
+}
+
 static int rocksdb_validate_protection_bytes_per_key(
     THD *thd MY_ATTRIBUTE((__unused__)),
     struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)), void *var_ptr,
@@ -1211,8 +1221,7 @@ static int rocksdb_validate_protection_bytes_per_key(
     return HA_EXIT_FAILURE;
   }
 
-  if (new_value != 0 && new_value != 1 && new_value != 2 && new_value != 4 &&
-      new_value != 8) {
+  if (!rdb_is_valid_protection_bytes_per_key(new_value)) {
     return HA_EXIT_FAILURE;
   }
 
@@ -8319,6 +8328,17 @@ static int rocksdb_init_internal(void *const p) {
     DBUG_RETURN(1);
   }
 
+  // A value given at startup does not go through the check function of the
+  // variable, see rocksdb_validate_protection_bytes_per_key().
+  if (!rdb_is_valid_protection_bytes_per_key(
+          THDVAR(nullptr, protection_bytes_per_key))) {
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Invalid argument: rocksdb_protection_bytes_per_key = %lu, "
+                    "RocksDB supports only 0 and 8",
+                    THDVAR(nullptr, protection_bytes_per_key));
+    DBUG_RETURN(HA_EXIT_FAILURE);
+  }
+
 #ifdef FB_HAVE_WSENV
   // Initialize WSEnv with rocksdb_ws_env_path
   if (rdb_has_wsenv()) {
@@ -10103,6 +10123,21 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked,
   m_ttl_bytes = m_converter->get_ttl_bytes_buffer();
 
   info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
+
+#ifndef NDEBUG
+  /*
+    The optimizer must not see a rec_per_key element change between having
+    an estimate and having none, so info() gives every key part an estimate
+    here, also when it fails.
+  */
+  for (uint i = 0; i < m_tbl_def->m_key_count; i++) {
+    if (is_hidden_pk(i, *table, *m_tbl_def)) continue;
+    const KEY &k = table->key_info[i];
+    for (uint j = 0; j < k.actual_key_parts; j++) {
+      assert(k.has_records_per_key(j));
+    }
+  }
+#endif
 
   /*
     The following load_XXX code calls row decode functions, and they do
@@ -14121,32 +14156,151 @@ int ha_rocksdb::update_stats(ha_statistics *ha_stats, Rdb_tbl_def *tbl_def,
 }
 
 /**
+  The number of rows per value of the first key_part + 1 parts of a key for
+  which there are no index statistics.
+
+  It is the estimate the optimizer makes itself when the storage engine gives
+  it none (guess_rec_per_key() in sql/opt_statistics.cc): the whole key
+  matches 1 row if it is unique and 10 rows otherwise (fewer in a small
+  table), the first key part matches 1% of the rows, and the key parts in
+  between are interpolated. MyRocks has to make it here because it must not
+  leave an estimate unknown, see ha_rocksdb::info().
+
+  @param key       The key.
+  @param key_part  Number of the last key part of the prefix, from 0.
+  @param rows      Number of rows in the table.
+
+  @return the estimate, at least 1.
+*/
+static rec_per_key_t rdb_guess_rec_per_key(const KEY &key, uint key_part,
+                                           ha_rows rows) {
+  const bool unique = (key.actual_flags & HA_NOSAME) != 0;
+  const rec_per_key_t whole_key =
+      unique ? 1.0f
+             : std::min(10.0f,
+                        std::max(static_cast<rec_per_key_t>(rows) / 10, 1.0f));
+  const rec_per_key_t first_part = rows * 0.01f;
+
+  if (first_part < whole_key) return whole_key;
+  if (key.actual_key_parts == 1) return unique ? 1.0f : first_part;
+  if (key_part + 1 >= key.actual_key_parts) return whole_key;
+  return std::max(whole_key,
+                  first_part - (static_cast<rec_per_key_t>(key_part) /
+                                (key.actual_key_parts - 1)) *
+                                   (first_part - whole_key));
+}
+
+std::optional<ha_rows> ha_rocksdb::records_found() const {
+  if (m_update_stats_failed) return std::nullopt;
+  return stats.records;
+}
+
+/**
   @return
     HA_EXIT_SUCCESS  OK
     HA_EXIT_FAILURE  Error
 */
 int ha_rocksdb::info(uint flag) {
+  return info_low(flag, /* for_table */ false, std::nullopt);
+}
+
+int ha_rocksdb::info_for_partitioned_table(uint flag,
+                                           std::optional<ha_rows> table_rows) {
+  return info_low(flag, /* for_table */ true, table_rows);
+}
+
+/**
+  The implementation of info().
+
+  @param flag        See handler::info().
+  @param for_table   This handler is a partition and sets the rec_per_key
+                     estimates of the whole table, see
+                     info_for_partitioned_table().
+  @param table_rows  With for_table, the number of rows in all partitions,
+                     or nothing if it is not known.
+
+  @return
+    HA_EXIT_SUCCESS  OK
+    HA_EXIT_FAILURE  Error
+*/
+int ha_rocksdb::info_low(uint flag, bool for_table,
+                         std::optional<ha_rows> table_rows) {
   DBUG_ENTER_FUNC();
 
   if (!table) DBUG_RETURN(HA_EXIT_FAILURE);
 
-  if (flag & HA_STATUS_VARIABLE) {
-    int ret = update_stats(&stats, m_tbl_def, /* from_handler */ true);
-    if (ret != HA_EXIT_SUCCESS) {
-      return ret;
-    }
-  }
-
+  /*
+    Set ref_length before anything that can fail. open() ignores the result
+    of this function, and handler::ha_open() and Partition_base::open() then
+    size the row position buffers with ref_length. If it kept its default
+    value because update_stats() failed, position() would write past the end
+    of these buffers.
+  */
   if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST)) {
     ref_length = m_pk_descr->max_storage_fmt_length();
+  }
 
+  int stats_ret = HA_EXIT_SUCCESS;
+  if (flag & HA_STATUS_VARIABLE) {
+    stats_ret = update_stats(&stats, m_tbl_def, /* from_handler */ true);
+    m_update_stats_failed = (stats_ret != HA_EXIT_SUCCESS);
+  }
+
+  /*
+    The rec_per_key estimates belong to the TABLE_SHARE, so the partitions of
+    a partitioned table share them. A partition sets them only for
+    HA_STATUS_CONST, which Partition_base::info() sends to the partition with
+    the most rows (info_for_partitioned_table()). If every partition set them
+    for HA_STATUS_VARIABLE too, as a table without partitions does to follow
+    its statistics, the estimates of the table would be those of the
+    partition that was read last, which may have few rows or none.
+  */
+  const bool is_partition = table->part_info != nullptr;
+  const bool set_rec_per_key = (flag & HA_STATUS_CONST) ||
+                               ((flag & HA_STATUS_VARIABLE) && !is_partition);
+
+  if (set_rec_per_key) {
+    /*
+      A partition sets the estimates of the table only when
+      Partition_base::info() asks it to (for_table). open() calls this
+      function with HA_STATUS_CONST for every partition, also when a session
+      opens the table once more. There a partition only gives an estimate to
+      the key parts that have none, so that it does not replace the estimates
+      of the table with its own until Partition_base::open() has them set
+      again, while other sessions optimize queries with them.
+    */
+    const bool only_missing = is_partition && !for_table;
+    /*
+      If update_stats() failed, the number of rows is not known. This call
+      then only gives an estimate to the key parts that have none, which is
+      the case when the table is opened: open() ignores the result of this
+      function, and the statements that ignore it too (single-table UPDATE
+      and DELETE) go on to optimize. The same holds for a call without
+      HA_STATUS_VARIABLE after a call in which update_stats() failed, as
+      Partition_base::info() makes them.
+    */
+    const std::optional<ha_rows> found = records_found();
+    /*
+      The number of rows in the table, which limits the estimates, and from
+      which the ones without index statistics are guessed, see below. The
+      estimates are those of the table, so a partition must not take its own
+      rows for it: the first key part would match 1% of the rows of the
+      partition, and SHOW INDEX and the optimizer relate that to the rows of
+      the table. If it is not known, because update_stats() failed for
+      another partition, this partition does not set the estimates from its
+      index statistics either.
+    */
+    const std::optional<ha_rows> rows_in_table = for_table ? table_rows : found;
+    const ha_rows records = rows_in_table.has_value() ? found.value_or(0) : 0;
     for (uint i = 0; i < m_tbl_def->m_key_count; i++) {
       if (is_hidden_pk(i, *table, *m_tbl_def)) {
         continue;
       }
       KEY *const k = &table->key_info[i];
-      auto records = stats.records;
       for (uint j = 0; j < k->actual_key_parts; j++) {
+        if (only_missing && k->has_records_per_key(j)) {
+          continue;
+        }
         const Rdb_index_stats &k_stats = m_key_descr_arr[i]->m_stats;
         rec_per_key_t x = REC_PER_KEY_UNKNOWN;
 
@@ -14184,14 +14338,48 @@ int ha_rocksdb::info(uint flag) {
             }
           }
 
-          if (x > records) x = records;
+          if (x > *rows_in_table) x = *rows_in_table;
         }
 
-        // 1 <= x <= records, or x = REC_PER_KEY_UNKNOWN
+        // 1 <= x <= rows in the table, or x = REC_PER_KEY_UNKNOWN
+        /*
+          The rec_per_key arrays belong to the TABLE_SHARE and are read without
+          synchronization by every session that optimizes a query on this
+          table. Server code calls has_records_per_key() and then
+          records_per_key() or guess_rec_per_key(), so a reader breaks if an
+          element changes between having an estimate and having none, in
+          either direction.
+
+          Therefore never store REC_PER_KEY_UNKNOWN, as InnoDB never does:
+          when there is no estimate (a table or partition without rows, or
+          with rows but without index statistics if
+          rocksdb_debug_optimizer_no_zero_cardinality is OFF), store the one
+          the optimizer would make itself. It is computed again on every
+          call, so it follows the number of rows until there are index
+          statistics. open() calls this function, and every session opens
+          the table before it optimizes a query, so readers only ever see
+          one estimate replace another.
+
+          As a consequence SHOW INDEX reports a Cardinality (rows /
+          estimate) for such a table and not NULL: 0 for a table without
+          rows, as with InnoDB.
+        */
+        if (x == REC_PER_KEY_UNKNOWN) {
+          if (!rows_in_table.has_value() && k->has_records_per_key(j)) {
+            continue;
+          }
+          x = rdb_guess_rec_per_key(*k, j, rows_in_table.value_or(0));
+        }
         k->set_records_per_key(j, x);
       }
     }
+  }
 
+  if (stats_ret != HA_EXIT_SUCCESS) {
+    DBUG_RETURN(stats_ret);
+  }
+
+  if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST)) {
     stats.create_time = m_tbl_def->get_create_time();
   }
 
@@ -14199,14 +14387,19 @@ int ha_rocksdb::info(uint flag) {
     stats.update_time = m_tbl_def->m_update_time;
   } else {
     if (flag & HA_STATUS_VARIABLE) {
-      if (stats.records == 0) {
-        // We should return records >= 1 since MyRocks does not set
-        // HA_STATS_RECORDS_IS_EXACT. However, for SHOW TABLE STATUS, we still
-        // want to show the best estimate, so we only adjust if !(flag &
-        // HA_STATUS_TIME).
-        //
-        // There is a similar comment about this adjustment in
-        // ha_innobase::info_low.
+      // We should return records >= 1 since MyRocks does not set
+      // HA_STATS_RECORDS_IS_EXACT. However, for SHOW TABLE STATUS, we still
+      // want to show the best estimate, so we only adjust if !(flag &
+      // HA_STATUS_TIME).
+      //
+      // There is a similar comment about this adjustment in
+      // ha_innobase::info_low.
+      //
+      // A partition of a partitioned table reports the rows it found:
+      // Partition_base::info() adds up the partitions and adjusts the sum
+      // once, as ha_innopart does, so that a table whose partitions have no
+      // rows is not reported with one row per partition.
+      if (stats.records == 0 && table->part_info == nullptr) {
         stats.records++;
       }
     }
@@ -15484,6 +15677,12 @@ static int calculate_cardinality_table_scan(
     rdb->GetApproximateMemTableStats(kd->get_cf(), r, &memtableCount,
                                      &memtableSize);
 
+    /*
+      Test only: the estimate is approximate and can be 0 for a memtable
+      that has rows of this index.
+    */
+    DBUG_EXECUTE_IF("myrocks_simulate_zero_memtable_count", memtableCount = 0;);
+
     if (scan_type == SCAN_TYPE_MEMTABLE_ONLY &&
         memtableCount < (uint64_t)stat.m_rows / 10) {
       // skip tables that already have enough stats from SST files to reduce
@@ -15591,13 +15790,9 @@ static void adjust_cardinality(
   for (auto &src : *stats) {
     Rdb_index_stats &stat = src.second;
     if ((uint64_t)stat.m_rows > max_num_rows_scanned) {
-      stat.adjust_cardinality(stat.m_rows / max_num_rows_scanned);
+      stat.adjust_cardinality(static_cast<double>(stat.m_rows) /
+                              max_num_rows_scanned);
     }
-#ifndef NDEBUG
-    for (size_t i = 0; i < stat.m_distinct_keys_per_prefix.size(); i++) {
-      assert(stat.m_distinct_keys_per_prefix[i] <= stat.m_rows);
-    }
-#endif
   }
 }
 
@@ -15698,7 +15893,22 @@ static int calculate_stats(
     if (scan_type == SCAN_TYPE_FULL_TABLE && max_num_rows_scanned > 0) {
       adjust_cardinality(&stats, scan_type, max_num_rows_scanned);
     }
+    // The table scan does not limit its estimates to the number of rows,
+    // as Rdb_tbl_prop_coll does for the statistics of an SST file.
+    for (auto &it : stats) {
+      it.second.limit_cardinality_to_rows();
+    }
   }
+
+#ifndef NDEBUG
+  // Checked here, and not where the estimates are limited, so that a debug
+  // server notices statistics that were not limited at all.
+  if (scan_type != SCAN_TYPE_NONE) {
+    for (const auto &it : stats) {
+      assert(it.second.cardinality_within_rows());
+    }
+  }
+#endif
 
   // set and persist new stats
   ddl_manager.set_stats(stats);
@@ -15798,6 +16008,16 @@ int ha_rocksdb::analyze(THD *const thd, HA_CHECK_OPT *const check_opt) {
 int ha_rocksdb::adjust_handler_stats_sst_and_memtable(ha_statistics *ha_stats,
                                                       Rdb_tbl_def *tbl_def) {
   DBUG_ENTER_FUNC();
+
+  /* Test only: simulate a failed recalculation of bad cached stats */
+  DBUG_EXECUTE_IF("myrocks_simulate_stats_recalc_failure",
+                  DBUG_RETURN(HA_EXIT_FAILURE););
+  /* The same for the partitions with the name p0 only */
+  DBUG_EXECUTE_IF("myrocks_simulate_stats_recalc_failure_p0", {
+    if (tbl_def->full_tablename().ends_with("#P#p0")) {
+      DBUG_RETURN(HA_EXIT_FAILURE);
+    }
+  });
 
   /*
     If any stats are negative due to bad cached stats, re-run analyze table

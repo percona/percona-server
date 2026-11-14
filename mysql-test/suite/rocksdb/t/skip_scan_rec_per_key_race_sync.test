@@ -1,0 +1,95 @@
+--source include/have_rocksdb.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+--echo #
+--echo # PS-11840: race on the rec_per_key arrays while a skip scan is costed,
+--echo # made deterministic with DEBUG_SYNC (rocksdb.skip_scan_rec_per_key_race
+--echo # is the stress-loop version).
+--echo #
+--echo # ha_rocksdb::info() rewrites the rec_per_key elements of table->key_info
+--echo # for every statement. Those arrays belong to the TABLE_SHARE and are
+--echo # shared by all sessions. It used to write REC_PER_KEY_UNKNOWN for a
+--echo # table without rows, and for a table with rows but without index
+--echo # statistics if rocksdb_debug_optimizer_no_zero_cardinality is OFF.
+--echo # cost_skip_scan() reads the same element twice: once in
+--echo # has_records_per_key() and once in guess_rec_per_key() or
+--echo # records_per_key(). When another session rewrote it in between, a debug
+--echo # server aborted:
+--echo # 1. unknown, then known: "!key->has_records_per_key(used_keyparts - 1)" in
+--echo #    guess_rec_per_key() (the assertion reported in PS-10150);
+--echo # 2. known, then unknown: "keys_per_group >= 0" in cost_skip_scan().
+--echo # Now info() gives every element an estimate when the table is opened and
+--echo # never stores REC_PER_KEY_UNKNOWN, so neither case can happen.
+--echo # Expected: both queries of con1 complete without a crash.
+--echo #
+--echo # con1 arms both sync points, cost_skip_scan_no_records_per_key and
+--echo # cost_skip_scan_has_records_per_key, so it stops after
+--echo # has_records_per_key() whatever that returned, and the test never waits
+--echo # for a sync point that is not reached.
+--echo #
+
+--let $save_no_zero_cardinality = `SELECT @@global.rocksdb_debug_optimizer_no_zero_cardinality`
+
+--echo # Clear signals that earlier tests may have left on this server.
+SET DEBUG_SYNC = 'RESET';
+--connect (con1, localhost, root,,)
+--connect (con2, localhost, root,,)
+
+--echo #
+--echo # Case 1: t1 has no rows, so info() used to write REC_PER_KEY_UNKNOWN.
+--echo # con1 costs a skip scan and stops after has_records_per_key() returned
+--echo # false (before the fix). con2 inserts rows and reads the table: info()
+--echo # writes estimates. The rows are flushed, so that their number comes
+--echo # from the SST files and not from the memtable estimate, which can be 0.
+--echo #
+CREATE TABLE t1 (ip_col INT, ipkey INT, PRIMARY KEY (ipkey, ip_col))
+  ENGINE=ROCKSDB;
+
+--connection con1
+SET DEBUG_SYNC = 'cost_skip_scan_no_records_per_key SIGNAL con1_costing WAIT_FOR con1_go';
+SET DEBUG_SYNC = 'cost_skip_scan_has_records_per_key SIGNAL con1_costing WAIT_FOR con1_go';
+--send SELECT /*+ SKIP_SCAN(t1 PRIMARY) */ COUNT(*) FROM t1 WHERE ip_col = 50
+
+--connection con2
+SET DEBUG_SYNC = 'now WAIT_FOR con1_costing TIMEOUT 60';
+INSERT INTO t1 VALUES (150,1),(160,2),(170,3),(150,4),(160,5),(170,6);
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+SELECT COUNT(*) FROM t1 WHERE ip_col = 150;
+SET DEBUG_SYNC = 'now SIGNAL con1_go';
+
+--connection con1
+--reap
+SET DEBUG_SYNC = 'RESET';
+
+--echo #
+--echo # Case 2: the rows of t2 are in the memtable, so t2 has no index
+--echo # statistics, and its estimates are the ones MyRocks makes up if
+--echo # rocksdb_debug_optimizer_no_zero_cardinality is ON. con1 costs a skip
+--echo # scan and stops after has_records_per_key() returned true. con2 reads
+--echo # the table with the variable OFF: info() used to write
+--echo # REC_PER_KEY_UNKNOWN.
+--echo #
+CREATE TABLE t2 (ip_col INT, ipkey INT, PRIMARY KEY (ipkey, ip_col))
+  ENGINE=ROCKSDB;
+INSERT INTO t2 VALUES (150,1),(160,2),(170,3),(150,4),(160,5),(170,6);
+SET DEBUG_SYNC = 'cost_skip_scan_no_records_per_key SIGNAL con1_costing WAIT_FOR con1_go';
+SET DEBUG_SYNC = 'cost_skip_scan_has_records_per_key SIGNAL con1_costing WAIT_FOR con1_go';
+--send SELECT /*+ SKIP_SCAN(t2 PRIMARY) */ COUNT(*) FROM t2 WHERE ip_col = 150
+
+--connection con2
+SET DEBUG_SYNC = 'now WAIT_FOR con1_costing TIMEOUT 60';
+SET GLOBAL rocksdb_debug_optimizer_no_zero_cardinality = OFF;
+SELECT COUNT(*) FROM t2 WHERE ip_col = 50;
+--eval SET GLOBAL rocksdb_debug_optimizer_no_zero_cardinality = $save_no_zero_cardinality
+SET DEBUG_SYNC = 'now SIGNAL con1_go';
+--disconnect con2
+
+--connection con1
+--reap
+SET DEBUG_SYNC = 'RESET';
+--disconnect con1
+
+--connection default
+DROP TABLE t1, t2;
+--source include/wait_until_count_sessions.inc

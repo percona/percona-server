@@ -1,0 +1,109 @@
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # PS-11840: the rec_per_key estimates are shared by all sessions and read
+--echo # without synchronization, so ha_rocksdb::info() gives every key part an
+--echo # estimate as soon as the table is opened, as InnoDB does, and never
+--echo # stores REC_PER_KEY_UNKNOWN. Where it has no estimate, it stores the one
+--echo # the optimizer makes itself for a key without statistics. This test
+--echo # records what SHOW INDEX / INFORMATION_SCHEMA.STATISTICS report as a
+--echo # consequence.
+--echo #
+
+SET SESSION information_schema_stats_expiry = 0;
+
+--echo #
+--echo # 1. A table that never had rows has estimates (1 row per value, as with
+--echo #    InnoDB), so Cardinality is not NULL, before and after ANALYZE TABLE,
+--echo #    whether it is partitioned or not. Cardinality is rows / estimate,
+--echo #    so it is 0.
+--echo #
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a), KEY kb (b)) ENGINE=ROCKSDB;
+CREATE TABLE tp (a INT PRIMARY KEY) ENGINE=ROCKSDB
+  PARTITION BY HASH (a) PARTITIONS 4;
+ANALYZE TABLE t1, tp;
+SELECT TABLE_NAME, INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 'tp')
+  ORDER BY TABLE_NAME, INDEX_NAME;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM tp;
+ANALYZE TABLE t1, tp;
+SELECT TABLE_NAME, INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME IN ('t1', 'tp')
+  ORDER BY TABLE_NAME, INDEX_NAME;
+DROP TABLE tp;
+
+--echo #
+--echo # 2. A table that lost all its rows: Cardinality is 0 again, not NULL,
+--echo #    also after the table definition is reloaded.
+--echo #
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+ANALYZE TABLE t1;
+SELECT INDEX_NAME, CARDINALITY > 0 AS has_rows
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' ORDER BY INDEX_NAME;
+DELETE FROM t1;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+SET GLOBAL rocksdb_compact_cf = 'default';
+ANALYZE TABLE t1;
+--let $wait_condition = SELECT TABLE_ROWS = 0 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1'
+--source include/wait_condition.inc
+SELECT INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' ORDER BY INDEX_NAME;
+FLUSH TABLES;
+SELECT INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' ORDER BY INDEX_NAME;
+DROP TABLE t1;
+
+--echo #
+--echo # 3. A table that has rows but no index statistics (the rows are in the
+--echo #    memtable), with rocksdb_debug_optimizer_no_zero_cardinality = OFF.
+--echo #    The estimates are the ones the optimizer made itself while MyRocks
+--echo #    reported none: the first part of a key matches 1% of the rows, so
+--echo #    Cardinality is 100, and a unique key matches one row. They do not
+--echo #    depend on the number of rows the table had when it was opened.
+--echo #
+SET @save_no_zero_cardinality = @@global.rocksdb_debug_optimizer_no_zero_cardinality;
+SET @save_cachetime = @@global.rocksdb_force_compute_memtable_stats_cachetime;
+SET GLOBAL rocksdb_debug_optimizer_no_zero_cardinality = OFF;
+SET GLOBAL rocksdb_force_compute_memtable_stats_cachetime = 0;
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=ROCKSDB;
+INSERT INTO t2 WITH RECURSIVE s (i) AS
+  (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 20)
+  SELECT i, i FROM s;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+ANALYZE TABLE t2;
+--echo # t3: k is unique, g has 100 values.
+CREATE TABLE t3 (pk INT PRIMARY KEY, k INT, g INT, v INT,
+                 KEY kk (k), KEY kg (g, k)) ENGINE=ROCKSDB;
+--echo # Opened without rows.
+SELECT COUNT(*) FROM t3;
+SET SESSION cte_max_recursion_depth = 3000;
+INSERT INTO t3 WITH RECURSIVE s (i) AS
+  (SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 3000)
+  SELECT i, i, i % 100, i FROM s;
+--let $show_estimates = SELECT INDEX_NAME, IF(INDEX_NAME = 'PRIMARY', IF(CARDINALITY > 100, 'rows', CARDINALITY), CARDINALITY) AS CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't3' AND SEQ_IN_INDEX = 1 ORDER BY INDEX_NAME
+--eval $show_estimates
+--echo # Opened with rows.
+FLUSH TABLES;
+--eval $show_estimates
+--echo # A join reads t3 with the index, as it did while MyRocks reported no
+--echo # estimates, and not with a scan.
+--replace_column 10 # 11 #
+EXPLAIN SELECT * FROM t2 JOIN t3 ON t3.k = t2.b;
+FLUSH STATUS;
+SELECT COUNT(*), SUM(t3.v) FROM t2 JOIN t3 ON t3.k = t2.b;
+SHOW SESSION STATUS WHERE Variable_name IN
+  ('Handler_read_key', 'Handler_read_rnd_next');
+--echo # With index statistics.
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+ANALYZE TABLE t3;
+SELECT INDEX_NAME, CARDINALITY > 2000 AS about_3000
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't3' AND INDEX_NAME <> 'kg'
+  ORDER BY INDEX_NAME;
+DROP TABLE t2, t3;
+SET SESSION cte_max_recursion_depth = DEFAULT;
+SET GLOBAL rocksdb_force_compute_memtable_stats_cachetime = @save_cachetime;
+SET GLOBAL rocksdb_debug_optimizer_no_zero_cardinality = @save_no_zero_cardinality;

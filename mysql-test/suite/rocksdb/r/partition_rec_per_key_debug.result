@@ -1,0 +1,109 @@
+#
+# PS-12040: the partitions of a partitioned table share the rec_per_key
+# estimates of the table, and only the partition that
+# Partition_base::info() asks for it sets them, from the statistics of
+# all partitions. These are the cases of rocksdb.partition_rec_per_key
+# that need a debug server.
+#
+SET @save_sampling_pct = @@global.rocksdb_table_stats_sampling_pct;
+SET GLOBAL rocksdb_table_stats_sampling_pct = 100;
+CREATE TABLE t_driver (x INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t_driver VALUES (1), (2), (3), (4), (5);
+#
+# 1. A session opens the table once more while another one optimizes a
+#    query on it. ha_rocksdb::open() of each partition set the
+#    estimates of the table to those of the partition, until
+#    Partition_base::open() had them set again when all partitions
+#    were open. The last partition has 2 rows with different values of
+#    a, the first one 1000 rows with the same value. Expected: the
+#    other session reads t1 with a scan, as it does when no session
+#    opens the table, and not with an index lookup of 1 row.
+#
+CREATE TABLE t1 (pk INT, part_col INT, a INT, v INT,
+PRIMARY KEY (pk, part_col), KEY ka (a)) ENGINE=ROCKSDB
+PARTITION BY RANGE (part_col) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 WITH RECURSIVE s (i) AS
+(SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 1000)
+SELECT i, 10, 1, i FROM s;
+INSERT INTO t1 VALUES (1001, 200, 1, 1), (1002, 200, 2, 2);
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+ANALYZE TABLE t_driver, t1;
+Table	Op	Msg_type	Msg_text
+test.t_driver	analyze	status	OK
+test.t1	analyze	status	OK
+# The statement reads one partition, so it does not set the estimates
+# itself.
+EXPLAIN SELECT * FROM t_driver STRAIGHT_JOIN t1 ON t1.a = t_driver.x WHERE t1.part_col < 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_driver	NULL	index	PRIMARY	PRIMARY	4	NULL	#	#	Using index
+1	SIMPLE	t1	p0	ALL	ka	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_driver`.`x` AS `x`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`part_col` AS `part_col`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`v` AS `v` from `test`.`t_driver` straight_join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t_driver`.`x`) and (`test`.`t1`.`part_col` < 100))
+# This connection keeps the table in use, so that the other one opens
+# it again, and stops when it has opened the partitions.
+LOCK TABLES t_driver READ, t1 READ;
+SET DEBUG_SYNC = 'partition_open_before_info SIGNAL partitions_open WAIT_FOR continue_open';
+SELECT COUNT(*) FROM t1;
+SET DEBUG_SYNC = 'now WAIT_FOR partitions_open';
+EXPLAIN SELECT * FROM t_driver STRAIGHT_JOIN t1 ON t1.a = t_driver.x WHERE t1.part_col < 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_driver	NULL	index	PRIMARY	PRIMARY	4	NULL	#	#	Using index
+1	SIMPLE	t1	p0	ALL	ka	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t_driver`.`x` AS `x`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`part_col` AS `part_col`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`v` AS `v` from `test`.`t_driver` straight_join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t_driver`.`x`) and (`test`.`t1`.`part_col` < 100))
+SET DEBUG_SYNC = 'now SIGNAL continue_open';
+COUNT(*)
+1002
+UNLOCK TABLES;
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+#
+# 2. update_stats() fails for one partition. Then the number of rows in
+#    the table is not known, and the estimates stay as they are, also
+#    if Partition_base::info() picks a partition for which it worked.
+#    The first partition has 1000 rows in the memtable, so it has no
+#    index statistics and the estimate is the default of 4 rows for the
+#    first of the 3 key parts (with the primary key) of ka. The last
+#    partition has 20 rows with different values of a and index
+#    statistics. When update_stats() fails for the first partition, it
+#    reports no rows, and the last one is the one with the most rows.
+#    Expected: 4 rows for each value of a, and not the 1 row of the
+#    last partition.
+#
+CREATE TABLE t2 (pk INT, part_col INT, a INT, v INT,
+PRIMARY KEY (pk, part_col), KEY ka (a)) ENGINE=ROCKSDB
+PARTITION BY RANGE (part_col) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN MAXVALUE);
+INSERT INTO t2 WITH RECURSIVE s (i) AS
+(SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 20)
+SELECT 2000 + i, 200, i, i FROM s;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+INSERT INTO t2 WITH RECURSIVE s (i) AS
+(SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 1000)
+SELECT i, 10, 1, i FROM s;
+# Take the estimate from the index statistics, not from an index dive.
+SET SESSION eq_range_index_dive_limit = 1;
+EXPLAIN UPDATE t2 FORCE INDEX (ka) SET v = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t2	p0,p1	range	ka	ka	5	const	4	#	Using where
+Warnings:
+Note	1003	update `test`.`t2` FORCE INDEX (`ka`) set `test`.`t2`.`v` = 0 where (`test`.`t2`.`a` = 1)
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure_p0";
+EXPLAIN UPDATE t2 FORCE INDEX (ka) SET v = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t2	p0,p1	range	ka	ka	5	const	4	#	Using where
+Warnings:
+Note	1003	update `test`.`t2` FORCE INDEX (`ka`) set `test`.`t2`.`v` = 0 where (`test`.`t2`.`a` = 1)
+SET SESSION debug = "-d,myrocks_simulate_stats_recalc_failure_p0";
+EXPLAIN UPDATE t2 FORCE INDEX (ka) SET v = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t2	p0,p1	range	ka	ka	5	const	4	#	Using where
+Warnings:
+Note	1003	update `test`.`t2` FORCE INDEX (`ka`) set `test`.`t2`.`v` = 0 where (`test`.`t2`.`a` = 1)
+SET SESSION eq_range_index_dive_limit = DEFAULT;
+DROP TABLE t2;
+DROP TABLE t_driver;
+SET GLOBAL rocksdb_table_stats_sampling_pct = @save_sampling_pct;

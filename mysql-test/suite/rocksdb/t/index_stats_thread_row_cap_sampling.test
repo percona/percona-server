@@ -1,0 +1,90 @@
+#
+# PS-11694, background statistics path: the same cardinality overflow as
+# rocksdb.analyze_table_scan_row_cap_sampling, but reached through
+# Rdb_index_stats_thread -> calculate_stats_for_table() -> calculate_stats()
+# -> adjust_cardinality() instead of ANALYZE TABLE. With
+# rocksdb_table_stats_use_table_scan=ON, an INPLACE ADD INDEX queues the
+# table for the background thread, which scans it with the row cap
+# rocksdb_table_stats_max_num_rows_scanned and the default key sampling
+# (rocksdb_table_stats_sampling_pct = 10). A debug server asserts in
+# adjust_cardinality() inside the background thread; a release server
+# stores a cardinality larger than the table.
+#
+# A single calculation does not always overflow (the sampled keys vary), and
+# the thread recalculates a table at most every 10 seconds, so the test
+# queues several tables instead of one table several times.
+#
+# The test does not run ANALYZE TABLE, so a fix that covers only the
+# ANALYZE path does not make it pass.
+#
+# Expected: every background calculation succeeds and no index cardinality
+# exceeds the number of rows in its table.
+#
+--source include/have_rocksdb.inc
+
+--let $n_tables = 8
+
+--disable_query_log
+--let $i = 1
+while ($i <= $n_tables)
+{
+  --eval CREATE TABLE t$i (pk INT PRIMARY KEY, hi INT, lo INT, KEY khi (hi)) ENGINE=ROCKSDB
+  --eval INSERT INTO t$i WITH RECURSIVE s(n) AS (SELECT 0 UNION ALL SELECT n + 1 FROM s WHERE n < 999) SELECT n, n, n % 10 FROM s
+  --inc $i
+}
+--enable_query_log
+--echo # Created $n_tables tables with 1000 rows each
+SET GLOBAL rocksdb_force_flush_memtable_now = 1;
+
+SET @save_use_scan = @@global.rocksdb_table_stats_use_table_scan;
+SET @save_max_rows = @@global.rocksdb_table_stats_max_num_rows_scanned;
+# Set the row cap first, so that every background calculation that the
+# switch to table-scan statistics allows runs with the cap.
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = 100;
+SET GLOBAL rocksdb_table_stats_use_table_scan = ON;
+
+# Let any request queued before the ALTERs drain first.
+--let $wait_timeout = 120
+--let $wait_condition = SELECT variable_value = 0 FROM performance_schema.global_status WHERE variable_name = 'rocksdb_table_index_stats_req_queue_length'
+--source include/wait_condition.inc
+
+--let $success_before = query_get_value(SHOW GLOBAL STATUS LIKE 'rocksdb_table_index_stats_success', Value, 1)
+--let $failure_before = query_get_value(SHOW GLOBAL STATUS LIKE 'rocksdb_table_index_stats_failure', Value, 1)
+
+--echo # INPLACE ADD INDEX queues each table for the background statistics thread
+--disable_query_log
+--let $i = 1
+while ($i <= $n_tables)
+{
+  --eval ALTER TABLE t$i ADD INDEX klo (lo), ALGORITHM=INPLACE
+  --inc $i
+}
+--enable_query_log
+
+--let $wait_condition = SELECT variable_value >= $success_before + $n_tables FROM performance_schema.global_status WHERE variable_name = 'rocksdb_table_index_stats_success'
+--source include/wait_condition.inc
+
+--let $failure_after = query_get_value(SHOW GLOBAL STATUS LIKE 'rocksdb_table_index_stats_failure', Value, 1)
+--let $assert_text = No background statistics calculation failed
+--let $assert_cond = $failure_after = $failure_before
+--source include/assert.inc
+
+# Reopen the tables so that the handlers read the statistics stored by the
+# thread.
+FLUSH TABLES;
+
+--echo # Background statistics: index cardinality never exceeds the row count
+SELECT COUNT(*) AS n_indexes, SUM(cardinality > 1000) AS over_row_count
+  FROM information_schema.statistics
+  WHERE table_schema = 'test' AND table_name LIKE 't%';
+
+SET GLOBAL rocksdb_table_stats_use_table_scan = @save_use_scan;
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = @save_max_rows;
+--disable_query_log
+--let $i = 1
+while ($i <= $n_tables)
+{
+  --eval DROP TABLE t$i
+  --inc $i
+}
+--enable_query_log

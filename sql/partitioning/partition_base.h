@@ -47,9 +47,32 @@ class Partition_base_share : public Partition_share {
 class Partition_base : public handler,
                        public Partition_helper,
                        public Partition_handler {
+  // Unit test of the private functions that read an index in a partition.
+  friend class PartitionBaseEndRangeTest;
+
  private:
   virtual handler *get_file_handler(TABLE_SHARE *share,
                                     MEM_ROOT *alloc) const = 0;
+
+  /**
+    Let a partition set what info() sets for HA_STATUS_CONST for the whole
+    table, like the rec_per_key estimates, which the partitions share.
+    info() calls it for the partition with the most rows, after it refreshed
+    the statistics (HA_STATUS_VARIABLE) of every partition.
+
+    A storage engine overrides it if its partitions need to know that they
+    set them for the table, or need the statistics of the other partitions.
+
+    @param file  Handler of the partition.
+    @param flag  HA_STATUS_CONST, with HA_STATUS_NO_LOCK or without.
+
+    @return Operation status.
+      @retval    0  Success
+      @retval != 0  Error code
+  */
+  virtual int info_const_in_part(handler *file, uint flag) {
+    return file->info(flag);
+  }
 
  private:
   /* Data for the partition handler */
@@ -948,6 +971,7 @@ class Partition_base : public handler,
   int rnd_pos_in_part(uint part_id, uchar *buf, uchar *pos);
   int index_init_in_part(uint part, uint keynr, bool sorted);
   int index_end_in_part(uint part);
+  void clear_end_range_in_part(uint part);
   int index_last_in_part(uint part, uchar *buf) override;
   int index_first_in_part(uint part, uchar *buf) override;
   int index_prev_in_part(uint part, uchar *buf) override;

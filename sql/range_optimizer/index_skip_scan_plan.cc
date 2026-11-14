@@ -36,6 +36,7 @@
 #include "my_table_map.h"
 #include "mysql/strings/m_ctype.h"
 #include "sql/current_thd.h"
+#include "sql/debug_sync.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
@@ -731,12 +732,15 @@ void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
 
   /* Compute the number of keys in a group. */
   if (index_info->has_records_per_key(distinct_key_parts - 1)) {
+    DEBUG_SYNC(current_thd, "cost_skip_scan_has_records_per_key");
     // Use index statistics
     keys_per_group = index_info->records_per_key(distinct_key_parts - 1);
     assert(keys_per_group >= 0);
-  } else
+  } else {
+    DEBUG_SYNC(current_thd, "cost_skip_scan_no_records_per_key");
     /* If there is no statistics try to guess */
     keys_per_group = guess_rec_per_key(table, index_info, distinct_key_parts);
+  }
 
   num_groups = (uint)(skip_scan_records / keys_per_group) + 1;
   num_groups = std::max(num_groups, 1U);

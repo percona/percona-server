@@ -1,0 +1,518 @@
+#
+# Check that the Tmp_table_sizes and Tmp_disk_table_sizes figures reported by
+# the query_plan slow log verbosity level are an accurate measure of the
+# internal temporary tables a statement used.
+#
+# How the figures are produced:
+#   - close_tmp_table() (sql/sql_tmp_table.cc) calls account_tmp_table_size()
+#     for every internal tmp table, just before the table is dropped, which
+#     asks the handler for the largest size it has held through
+#     handler::tmp_table_bytes_high_water() and adds it to
+#     thd->tmp_tables_size.
+#     If the table ended up on disk the same figure is also added to
+#     thd->tmp_tables_disk_size, so Tmp_disk_table_sizes is a subset of
+#     Tmp_table_sizes in the same way that Tmp_disk_tables is a subset of
+#     Tmp_tables.  The size of the tables that stayed in memory is the
+#     difference between the two.
+#   - MEMORY reports the bytes occupied by its record blocks and indexes
+#     (ha_heap.cc).
+#   - TempTable reports the bytes its allocator is currently holding, taken
+#     from the TableResourceMonitor that also enforces tmp_table_size.  This
+#     is deliberately not the allocator's allocated_mem_counter, which is
+#     cumulative and never decremented: the counter stays in
+#     stats.data_file_length for the optimizer's cost model.
+#   - InnoDB measures the index segments directly.  Its cached statistics
+#     cannot be used, because an internal tmp table is an intrinsic table and
+#     intrinsic tables never refresh their statistics, so the cache keeps
+#     reporting the single page that dict_stats_empty_table() put there when
+#     the table was created and empty.
+#   - When an in-memory tmp table overflows, create_ondisk_from_heap() swaps
+#     the handler underneath the same TABLE without going through
+#     close_tmp_table(), so it accounts for the in-memory footprint itself
+#     before the in-memory handler is destroyed.  The statement therefore
+#     reports memory bytes plus disk bytes for a table that spilled.
+#   - A tmp table is not always measurable when it is dropped.  A plan may
+#     empty it and refill it, and emptying it gives back everything it held:
+#     TempTable returns the memory to its resource monitor, and InnoDB
+#     truncates the B-tree back to an empty root while the session temporary
+#     tablespace keeps every extent the table made it allocate.
+#     handler::ha_delete_all_rows() therefore records the size of an internal
+#     tmp table before emptying it, and the figure reported is the largest one
+#     seen - a maximum, not a sum, so a table filled twice to the same size is
+#     reported once.
+#
+# The cases below are grouped into:
+#   INVARIANT - must hold for any sane implementation.
+#   ACCURACY  - probes whether the byte counts actually track the tmp table.
+#
+# All SQL is run with the query log off, so the only output is the per-case
+# markers.  The raw byte counts are written to
+# $MYSQL_TMP_DIR/tmp_table_sizes_report.tsv while the test runs.  It is
+# removed again at the end, because include/check-testcase.test lists that
+# directory and would report a leftover file as leaked state.  To keep the
+# numbers for inspection, comment out the --remove_file at the end of this
+# file:
+#   cat <builddir>/mysql-test/var/tmp/tmp_table_sizes_report.tsv
+# A run that fails part way through leaves the report behind either way, so
+# the figures are available when a case dies.
+#
+
+#--source include/have_innodb.inc
+
+--error 0,1
+--remove_file $MYSQL_TMP_DIR/tmp_table_sizes_report.tsv
+
+--source include/log_prepare.inc
+
+--disable_query_log
+--disable_result_log
+SET SESSION cte_max_recursion_depth = 100000;
+
+# t_wide: 2000 rows, every (g, pad) pair distinct.
+CREATE TABLE t_wide (
+  id INT NOT NULL PRIMARY KEY,
+  g INT NOT NULL,
+  pad CHAR(100) CHARACTER SET latin1 NOT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t_wide (id, g, pad)
+WITH RECURSIVE seq(n) AS (
+  SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 2000
+)
+SELECT n, n, REPEAT('x', 100) FROM seq;
+
+# t_dup and t_clean deliberately use VARCHAR rather than CHAR.  TempTable only
+# routes row memory through the allocator per row - and frees it again when a
+# row is rejected as a duplicate - if at least one column is variable-length
+# (Handler::is_field_type_fixed_size(), Row::copy_to_own_memory()).  With
+# fixed-size columns the rows sit in 64K Storage pages that are reused in
+# place, so allocator accounting barely moves and case 7 would prove nothing.
+#
+# t_dup: 2000 rows, but only 20 distinct (g, pad) pairs.
+CREATE TABLE t_dup (
+  id INT NOT NULL PRIMARY KEY,
+  g INT NOT NULL,
+  pad VARCHAR(100) CHARACTER SET latin1 NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t_dup (id, g, pad) SELECT id, id % 20, pad FROM t_wide;
+
+# t_clean: 20 rows, i.e. exactly what de-duplicating t_dup boils down to.
+CREATE TABLE t_clean LIKE t_dup;
+INSERT INTO t_clean (id, g, pad) SELECT id, id, pad FROM t_wide WHERE id <= 20;
+
+ANALYZE TABLE t_wide, t_dup, t_clean;
+
+SET SESSION long_query_time = 0;
+SET SESSION min_examined_row_limit = 0;
+SET SESSION log_slow_verbosity = 'microtime,query_plan';
+SET SESSION log_slow_filter = default;
+--enable_result_log
+--enable_query_log
+
+# Width of one row of a (INT, CHAR(100) latin1) tmp table: 4 + 100 + null byte.
+--let $row_width = 105
+--let $page_size = `SELECT @@innodb_page_size`
+
+--echo #
+--echo # Case 1 (INVARIANT): a statement with no internal tmp table must report
+--echo # Tmp_tables: 0 and both size figures 0.
+--echo #
+--let tts_case = no_tmp_table
+--let tts_expected = 0
+--let $tts_query = SELECT * FROM t_wide WHERE id = 1
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+if ($tmp_tables == -1) {
+  --die No Tmp_tables line found in the slow query log
+}
+if ($tmp_tables != 0) {
+  --echo Tmp_tables was $tmp_tables, expected 0
+  --die Case 1 failed
+}
+if ($tmp_table_sizes != 0) {
+  --echo Tmp_table_sizes was $tmp_table_sizes, expected 0
+  --die Case 1 failed
+}
+if ($tmp_disk_table_sizes != 0) {
+  --echo Tmp_disk_table_sizes was $tmp_disk_table_sizes, expected 0
+  --die Case 1 failed
+}
+--echo Case 1 passed
+
+--disable_query_log
+SET SESSION internal_tmp_mem_storage_engine = MEMORY;
+--enable_query_log
+
+--echo #
+--echo # Case 2 (ACCURACY): MEMORY engine, 200-row materialised derived table.
+--echo # The tmp table holds 200 rows of 105 bytes, so the reported size should
+--echo # be at least 200 * 105 and not wildly above it.  Nothing goes to disk,
+--echo # so Tmp_disk_table_sizes must be 0.
+--echo #
+--let tts_case = memory_derived_200
+--let tts_expected = at least 21000, disk 0
+--let $tts_query = SELECT COUNT(*) FROM (SELECT DISTINCT g, pad FROM t_wide WHERE id <= 200) dt
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+--let $size_200 = $tmp_table_sizes
+if ($tmp_tables == 0) {
+  --die Case 2 did not materialise a tmp table, adjust the query
+}
+# Each temporary table allocates a sizeable first block before any row is
+# stored (around 64K for TempTable, more for the MEMORY heap), and the plan
+# may use more than one table, so the payload is only a lower bound and the
+# upper bound has to allow a block per table.
+--let $lo = `SELECT 200 * $row_width`
+--let $hi = `SELECT 200 * $row_width * 3 + 1048576 * $tmp_tables`
+--let $ok = `SELECT $size_200 BETWEEN $lo AND $hi`
+if (!$ok) {
+  --echo Tmp_table_sizes was $size_200, expected between $lo and $hi
+  --die Case 2 failed
+}
+if ($tmp_disk_tables != 0) {
+  --die Case 2 unexpectedly spilled to disk, adjust the query
+}
+if ($tmp_disk_table_sizes != 0) {
+  --echo Tmp_disk_table_sizes was $tmp_disk_table_sizes for an in-memory table
+  --die Case 2 failed: in-memory bytes were counted as disk bytes
+}
+--echo Case 2 passed
+
+--echo #
+--echo # Case 3 (ACCURACY): same shape, 2000 rows instead of 200.  Ten times the
+--echo # data must be reflected in the reported size.
+--echo #
+--let tts_case = memory_derived_2000
+--let tts_expected = at least 210000, roughly 10x memory_derived_200
+--let $tts_query = SELECT COUNT(*) FROM (SELECT DISTINCT g, pad FROM t_wide WHERE id <= 2000) dt
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+--let $size_2000 = $tmp_table_sizes
+--let $lo = `SELECT 2000 * $row_width`
+--let $hi = `SELECT 2000 * $row_width * 3 + 1048576 * $tmp_tables`
+--let $ok = `SELECT $size_2000 BETWEEN $lo AND $hi`
+if (!$ok) {
+  --echo Tmp_table_sizes was $size_2000, expected between $lo and $hi
+  --die Case 3 failed
+}
+# The fixed per-table overhead is identical in both statements, so it cancels
+# out of the difference; the extra 1800 rows must show up as extra bytes.
+--let $lo = `SELECT 1800 * $row_width`
+--let $ok = `SELECT $size_2000 - $size_200 >= $lo`
+if (!$ok) {
+  --echo 200 rows reported $size_200 bytes, 2000 rows reported $size_2000
+  --echo the extra 1800 rows added only `SELECT $size_2000 - $size_200` bytes, expected at least $lo
+  --die Case 3 failed: size did not scale with the number of rows
+}
+--echo Case 3 passed
+
+--echo #
+--echo # Case 4 (ACCURACY): same 2000 rows, but a narrow tmp table (one INT
+--echo # column instead of INT + CHAR(100)).  It must report fewer bytes than
+--echo # case 3.
+--echo #
+--let tts_case = memory_derived_2000_narrow
+--let tts_expected = well below memory_derived_2000
+--let $tts_query = SELECT COUNT(*) FROM (SELECT DISTINCT g FROM t_wide WHERE id <= 2000) dt
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+--let $size_narrow = $tmp_table_sizes
+--let $ok = `SELECT $size_narrow > 0 AND $size_narrow < $size_2000`
+if (!$ok) {
+  --echo narrow tmp table reported $size_narrow bytes, wide one reported $size_2000
+  --die Case 4 failed: size did not scale with row width
+}
+--echo Case 4 passed
+
+--echo #
+--echo # Case 5 (ACCURACY): two materialised derived tables of 200 rows each in
+--echo # one statement.  The figure is a sum over all tmp tables, so it must be
+--echo # close to twice the case 2 figure rather than equal to it.
+--echo #
+--let tts_case = memory_two_tmp_tables
+--let tts_expected = roughly 2x memory_derived_200
+--let $tts_query = SELECT COUNT(*) FROM (SELECT DISTINCT g, pad FROM t_wide WHERE id <= 200) d1 JOIN (SELECT DISTINCT g, pad FROM t_wide WHERE id BETWEEN 201 AND 400) d2 ON d1.g = d2.g - 200
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+if ($tmp_tables < 2) {
+  --echo Tmp_tables was $tmp_tables, expected at least 2
+  --die Case 5 failed: the plan did not use two tmp tables, adjust the query
+}
+--let $lo = `SELECT FLOOR(1.8 * $size_200)`
+--let $ok = `SELECT $tmp_table_sizes >= $lo`
+if (!$ok) {
+  --echo two tmp tables reported $tmp_table_sizes bytes, one reported $size_200
+  --die Case 5 failed: sizes of the individual tmp tables were not summed
+}
+--echo Case 5 passed
+
+--disable_query_log
+SET SESSION internal_tmp_mem_storage_engine = TempTable;
+--enable_query_log
+
+--echo #
+--echo # Case 6 (INVARIANT): TempTable engine, 2000-row materialised derived
+--echo # table.  A non-empty tmp table must report a non-zero size, and an
+--echo # in-memory one must report no disk bytes.
+--echo #
+--let tts_case = temptable_derived_2000
+--let tts_expected = greater than 0, disk 0
+--let $tts_query = SELECT COUNT(*) FROM (SELECT DISTINCT g, pad FROM t_wide WHERE id <= 2000) dt
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+if ($tmp_tables == 0) {
+  --die Case 6 did not materialise a tmp table, adjust the query
+}
+if ($tmp_table_sizes == 0) {
+  --die Case 6 failed: non-empty tmp table reported Tmp_table_sizes: 0
+}
+if ($tmp_disk_table_sizes != 0) {
+  --echo Tmp_disk_table_sizes was $tmp_disk_table_sizes for an in-memory table
+  --die Case 6 failed
+}
+--echo Case 6 passed
+
+--echo #
+--echo # Case 7 (ACCURACY): two statements that build the *same* 20-row tmp
+--echo # table, one from a 20-row source and one by de-duplicating 2000 rows
+--echo # down to 20.  The resulting tmp table is identical, so the reported
+--echo # sizes must be close.  A large gap means the figure counts cumulative
+--echo # allocations rather than the size of the tmp table.
+--echo #
+--let tts_case = temptable_distinct_20_of_20
+--let tts_expected = baseline for temptable_distinct_20_of_2000
+--let $tts_query = SELECT COUNT(*) FROM (SELECT DISTINCT g, pad FROM t_clean) dt
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+--let $size_clean = $tmp_table_sizes
+
+--let tts_case = temptable_distinct_20_of_2000
+--let tts_expected = close to temptable_distinct_20_of_20
+--let $tts_query = SELECT COUNT(*) FROM (SELECT DISTINCT g, pad FROM t_dup) dt
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+--let $size_dup = $tmp_table_sizes
+
+--let $hi = `SELECT $size_clean * 5 DIV 4`
+--let $ok = `SELECT $size_dup <= $hi`
+if (!$ok) {
+  --echo 20 distinct rows out of 20 reported $size_clean bytes
+  --echo 20 distinct rows out of 2000 reported $size_dup bytes
+  --die Case 7 failed: reported size tracks rows processed, not tmp table size
+}
+--echo Case 7 passed
+
+--echo #
+--echo # Case 8 (ACCURACY): force the in-memory tmp table to overflow to InnoDB
+--echo # on disk.  2000 rows of 105 bytes end up on disk, so the reported disk
+--echo # size should be in that ballpark rather than near the 16K in-memory
+--echo # limit, and the total must exceed it by the memory the table held
+--echo # before it spilled.
+--echo #
+--disable_query_log
+SET SESSION internal_tmp_mem_storage_engine = MEMORY;
+SET SESSION max_heap_table_size = 16384;
+SET SESSION tmp_table_size = 16384;
+--enable_query_log
+
+--let tts_case = disk_spill_2000
+--let tts_expected = disk at least 105000, total greater than disk
+--let $tts_query = SELECT COUNT(*) FROM (SELECT DISTINCT g, pad FROM t_wide WHERE id <= 2000) dt
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+if ($tmp_disk_tables == 0) {
+  --echo Tmp_disk_tables was 0, expected at least 1
+  --die Case 8 failed: the tmp table did not overflow to disk, lower tmp_table_size
+}
+--let $lo = `SELECT 2000 * $row_width DIV 2`
+--let $ok = `SELECT $tmp_disk_table_sizes >= $lo`
+if (!$ok) {
+  --echo Tmp_disk_table_sizes was $tmp_disk_table_sizes, expected at least $lo
+  --die Case 8 failed: on-disk tmp table size is not reflected
+}
+# The specific regression this guards: InnoDB's cached statistics for an
+# intrinsic table are frozen at one page by dict_stats_empty_table(), so a
+# figure of exactly one page per spilled table means the cache is being read
+# instead of the index segments being measured.
+--let $frozen = `SELECT $page_size * $tmp_disk_tables`
+if ($tmp_disk_table_sizes == $frozen) {
+  --echo Tmp_disk_table_sizes was $tmp_disk_table_sizes, exactly $tmp_disk_tables InnoDB page(s)
+  --die Case 8 failed: reporting the frozen one-page stat, not the real size
+}
+# The table filled 16K of memory before spilling, and those bytes belong in the
+# total but not in the disk figure.
+--let $ok = `SELECT $tmp_table_sizes > $tmp_disk_table_sizes`
+if (!$ok) {
+  --echo Tmp_table_sizes was $tmp_table_sizes, Tmp_disk_table_sizes was $tmp_disk_table_sizes
+  --die Case 8 failed: the memory a spilled table used before spilling was lost
+}
+--echo Case 8 passed
+
+--echo #
+--echo # Case 9 (INVARIANT): an on-disk tmp table occupies whole InnoDB pages,
+--echo # so the disk figure must be a multiple of innodb_page_size.
+--echo #
+--let $ok = `SELECT $tmp_disk_table_sizes % $page_size = 0`
+if (!$ok) {
+  --echo Tmp_disk_table_sizes was $tmp_disk_table_sizes, innodb_page_size is $page_size
+  --die Case 9 failed: disk size is not a whole number of pages
+}
+--echo Case 9 passed
+
+--disable_query_log
+SET SESSION max_heap_table_size = default;
+SET SESSION tmp_table_size = default;
+SET SESSION internal_tmp_mem_storage_engine = default;
+--enable_query_log
+
+--echo #
+--echo # Case 10 (INVARIANT): the counters are per statement.  Repeating case 1
+--echo # right after the heavy cases above must report zeroes again.
+--echo #
+--let tts_case = no_carry_over
+--let tts_expected = 0
+--let $tts_query = SELECT * FROM t_wide WHERE id = 1
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+if ($tmp_tables != 0) {
+  --echo Tmp_tables was $tmp_tables, expected 0
+  --die Case 10 failed: counters carried over from the previous statement
+}
+if ($tmp_table_sizes != 0) {
+  --echo Tmp_table_sizes was $tmp_table_sizes, expected 0
+  --die Case 10 failed: counters carried over from the previous statement
+}
+if ($tmp_disk_table_sizes != 0) {
+  --echo Tmp_disk_table_sizes was $tmp_disk_table_sizes, expected 0
+  --die Case 10 failed: counters carried over from the previous statement
+}
+--echo Case 10 passed
+
+--echo #
+--echo # Case 11 (INVARIANT): a window function frame buffer is an internal tmp
+--echo # table too.  If it is counted in Tmp_tables it must contribute bytes.
+--echo #
+--let tts_case = window_frame_buffer
+--let tts_expected = greater than 0 if Tmp_tables is greater than 0
+--let $tts_query = SELECT g, SUM(g) OVER (ORDER BY g ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) FROM t_wide
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+if ($tmp_tables) {
+  if ($tmp_table_sizes == 0) {
+    --echo Tmp_tables was $tmp_tables but Tmp_table_sizes was 0
+    --die Case 11 failed
+  }
+}
+--echo Case 11 passed
+
+--echo #
+--echo # Case 12 (INVARIANT): a CTE referenced twice is materialised, and the
+--echo # materialisation must be accounted for.
+--echo #
+--let tts_case = cte_materialized
+--let tts_expected = greater than 0 if Tmp_tables is greater than 0
+--let $tts_query = WITH c AS (SELECT g, pad FROM t_wide WHERE id <= 2000 LIMIT 2000) SELECT COUNT(*) FROM c AS a JOIN c AS b ON a.g = b.g
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+if ($tmp_tables == 0) {
+  --die Case 12 did not materialise the CTE, adjust the query
+}
+if ($tmp_table_sizes == 0) {
+  --echo Tmp_tables was $tmp_tables but Tmp_table_sizes was 0
+  --die Case 12 failed
+}
+if ($tmp_disk_table_sizes > $tmp_table_sizes) {
+  --echo Tmp_disk_table_sizes $tmp_disk_table_sizes exceeds Tmp_table_sizes $tmp_table_sizes
+  --die Case 12 failed: the disk figure is not a subset of the total
+}
+--echo Case 12 passed
+
+--echo #
+--echo # Case 13 (ACCURACY): ORDER BY over a UNION ALL.  The union result is
+--echo # materialised into a tmp table and then sorted, and this plan empties
+--echo # the tmp table through TABLE::empty_result_table() before it is
+--echo # dropped.  Emptying it releases everything it held, so a figure taken
+--echo # only at drop time would report an almost empty table for a statement
+--echo # that materialised 4000 rows.
+--echo #
+--let tts_case = union_order_memory
+--let tts_expected = at least half of 4000 * 105, disk 0
+--let $tts_query = SELECT g, pad FROM t_wide UNION ALL SELECT g, pad FROM t_wide ORDER BY g LIMIT 10
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+if ($tmp_tables == 0) {
+  --die Case 13 did not materialise the union, adjust the query
+}
+--let $lo = `SELECT 4000 * $row_width DIV 2`
+--let $ok = `SELECT $tmp_table_sizes >= $lo`
+if (!$ok) {
+  --echo Tmp_table_sizes was $tmp_table_sizes, expected at least $lo
+  --die Case 13 failed: the tmp table was measured after it had been emptied
+}
+if ($tmp_disk_table_sizes != 0) {
+  --echo Tmp_disk_table_sizes was $tmp_disk_table_sizes for an in-memory table
+  --die Case 13 failed
+}
+--echo Case 13 passed
+
+--echo #
+--echo # Case 14 (ACCURACY): the same shape forced on to disk.  This is the
+--echo # query shape from PS-10854, which reported a single InnoDB page while
+--echo # the session temporary tablespace grew by tens of megabytes: the plan
+--echo # truncates the B-tree back to an empty root before the table is
+--echo # dropped, although the tablespace keeps every extent the table made it
+--echo # allocate.
+--echo #
+--disable_query_log
+SET SESSION internal_tmp_mem_storage_engine = MEMORY;
+SET SESSION max_heap_table_size = 16384;
+SET SESSION tmp_table_size = 16384;
+--enable_query_log
+
+--let tts_case = union_order_disk
+--let tts_expected = disk well above one page
+--let $tts_query = SELECT g, pad FROM t_wide UNION ALL SELECT g, pad FROM t_wide ORDER BY g LIMIT 10
+--source include/percona_slow_log_tmp_table_sizes_run.inc
+
+if ($tmp_disk_tables == 0) {
+  --echo Tmp_disk_tables was 0, expected at least 1
+  --die Case 14 failed: the union did not overflow to disk, lower tmp_table_size
+}
+--let $frozen = `SELECT $page_size * $tmp_disk_tables`
+if ($tmp_disk_table_sizes == $frozen) {
+  --echo Tmp_disk_table_sizes was $tmp_disk_table_sizes, exactly $tmp_disk_tables InnoDB page(s)
+  --die Case 14 failed: this is the PS-10854 symptom, the table was measured empty
+}
+--let $lo = `SELECT 4000 * $row_width DIV 2`
+--let $ok = `SELECT $tmp_disk_table_sizes >= $lo`
+if (!$ok) {
+  --echo Tmp_disk_table_sizes was $tmp_disk_table_sizes, expected at least $lo
+  --die Case 14 failed: on-disk size of the sorted union is not reflected
+}
+if ($tmp_disk_table_sizes > $tmp_table_sizes) {
+  --echo Tmp_disk_table_sizes $tmp_disk_table_sizes exceeds Tmp_table_sizes $tmp_table_sizes
+  --die Case 14 failed: the disk figure is not a subset of the total
+}
+--echo Case 14 passed
+
+--disable_query_log
+SET SESSION max_heap_table_size = default;
+SET SESSION tmp_table_size = default;
+SET SESSION internal_tmp_mem_storage_engine = default;
+--enable_query_log
+
+--disable_query_log
+DROP TABLE t_wide, t_dup, t_clean;
+SET SESSION cte_max_recursion_depth = default;
+SET SESSION long_query_time = default;
+SET SESSION min_examined_row_limit = default;
+SET SESSION log_slow_verbosity = default;
+SET SESSION log_slow_filter = default;
+--enable_query_log
+
+--source include/log_cleanup.inc
+
+--echo #
+--echo # Per-case byte counts were written to
+--echo # <builddir>/mysql-test/var/tmp/tmp_table_sizes_report.tsv
+--echo # Comment out the --remove_file below to keep them for inspection.
+--echo #
+--remove_file $MYSQL_TMP_DIR/tmp_table_sizes_report.tsv

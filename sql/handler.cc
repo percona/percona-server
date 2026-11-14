@@ -5141,6 +5141,17 @@ int handler::ha_delete_all_rows() {
   assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type == F_WRLCK);
   mark_trx_read_write();
 
+  /*
+    Emptying an internal temporary table releases the space it held, so this is
+    the last chance to see how large it got.  Internal temporary tables are the
+    ones create_tmp_table() builds, which are exactly the ones marked
+    TABLE_CATEGORY_TEMPORARY; no other table is reported in the slow log, so no
+    other table pays for the measurement.
+  */
+  if (table_share != nullptr &&
+      table_share->table_category == TABLE_CATEGORY_TEMPORARY)
+    note_tmp_table_bytes_peak();
+
   return delete_all_rows();
 }
 

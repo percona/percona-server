@@ -15,7 +15,7 @@
 --let grep_pattern = ^# InnoDB_trx_id: [0-9a-fA-F]+\$
 --source include/log_grep.inc
 # Query plan
---let grep_pattern = ^# Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+\$
+--let grep_pattern = ^# Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+  Tmp_disk_table_sizes: \d+\$
 --source include/log_grep.inc
 --let grep_pattern = ^# Full_scan: (Yes|No)  Full_join: (Yes|No)  Tmp_table: (Yes|No)  Tmp_table_on_disk: (Yes|No)\$
 --source include/log_grep.inc

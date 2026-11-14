@@ -860,12 +860,19 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
       goto err; /* purecov: inspected */
   }
 
+  /*
+    Tmp_table_sizes is the total size of all internal temporary tables used by
+    the statement, wherever they resided.  Tmp_disk_table_sizes is the part of
+    that total which resided on disk, so it is always <= Tmp_table_sizes, just
+    as Tmp_disk_tables is always <= Tmp_tables.  The size of the temporary
+    tables that stayed in memory is the difference between the two.
+  */
   if (thd->variables.log_slow_verbosity & (1ULL << SLOG_V_QUERY_PLAN))
     if (my_b_printf(&log_file,
                     "# Tmp_tables: %lu  Tmp_disk_tables: %lu"
-                    "  Tmp_table_sizes: %llu\n",
+                    "  Tmp_table_sizes: %llu  Tmp_disk_table_sizes: %llu\n",
                     thd->tmp_tables_used, thd->tmp_tables_disk_used,
-                    thd->tmp_tables_size) == (uint)-1)
+                    thd->tmp_tables_size, thd->tmp_tables_disk_size) == (uint)-1)
       goto err;
 
   if (opt_log_slow_sp_statements == 1 && thd->sp_runtime_ctx &&

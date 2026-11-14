@@ -197,6 +197,8 @@ class ha_innobase : public handler {
 
   int info(uint) override;
 
+  ulonglong tmp_table_bytes_used() override;
+
   int enable_indexes(uint mode) override;
 
   int disable_indexes(uint mode) override;

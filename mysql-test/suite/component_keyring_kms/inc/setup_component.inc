@@ -8,6 +8,11 @@
 # KMS_ENDPOINT       (optional, custom endpoint, e.g. a KMS emulator)
 # KMS_SESSION_TOKEN  (optional, session token of temporary credentials)
 
+# This setup creates the global component configuration file in the shared
+# plugin directory and ../inc/teardown_component.inc removes it, so tests
+# using it break each other when run in parallel.
+--source include/not_parallel.inc
+
 --echo # ----------------------------------------------------------------------
 --echo # Setup
 

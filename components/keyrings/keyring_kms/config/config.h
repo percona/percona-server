@@ -46,6 +46,10 @@ class Config_pod {
   std::string kms_key_;
   std::string auth_key_;
   std::string secret_access_key_;
+  /* Optional. Empty means the default kms.<region>.amazonaws.com endpoint. */
+  std::string endpoint_;
+  /* Optional. Session token of temporary (STS) credentials. */
+  std::string session_token_;
 };
 
 /**

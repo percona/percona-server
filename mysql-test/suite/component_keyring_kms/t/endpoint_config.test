@@ -1,0 +1,121 @@
+--source include/have_component_keyring_kms.inc
+
+# Test: 'endpoint' and 'session_token' configuration options
+#
+# Checks how the optional options are read and validated, and that a
+# configuration without them behaves as before they existed. Only the
+# configuration is exercised: the keyring data file stays empty, so no KMS
+# request is made and the test needs no KMS server or credentials.
+# Requests to a custom endpoint and with a session token are covered by
+# running the whole suite with the KMS_ENDPOINT and KMS_SESSION_TOKEN
+# environment variables set, see ../inc/setup_component.inc.
+
+--source ../inc/setup_component.inc
+
+CALL mtr.add_suppression("component_keyring_kms reported: .Configuration error: ");
+CALL mtr.add_suppression("The component is not initialized properly. Error: Failed to initialize or reinitialize keyring");
+CALL mtr.add_suppression("component_keyring_kms reported: .'endpoint' value .* uses plain HTTP");
+
+--echo #
+--echo # Without the new options there is no Endpoint status row
+--let $kms_extra_config =
+--let $kms_reload_must_fail =
+--source ../inc/reload_with_config.inc
+
+--echo #
+--echo # An empty endpoint means the default AWS endpoint
+--let $kms_extra_config = , \"endpoint\": \"\"
+--source ../inc/reload_with_config.inc
+
+--echo #
+--echo # A custom endpoint is shown as configured
+--let $kms_extra_config = , \"endpoint\": \"https://kms.example.invalid:8443/\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"http://127.0.0.1:4566\"
+--source ../inc/reload_with_config.inc
+--echo # A plain HTTP endpoint is accepted with a warning
+SELECT PRIO, DATA FROM performance_schema.error_log
+  WHERE DATA LIKE '%uses plain HTTP%' ORDER BY LOGGED DESC LIMIT 1;
+
+--let $kms_extra_config = , \"endpoint\": \"http://[::1]:4566\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"HTTPS://KMS.example.invalid\"
+--source ../inc/reload_with_config.inc
+
+--echo #
+--echo # A session token is accepted and never shown
+--let $kms_extra_config = , \"endpoint\": \"https://kms.example.invalid\", \"session_token\": \"mtr-session-token\"
+--source ../inc/reload_with_config.inc
+SELECT COUNT(*) FROM performance_schema.keyring_component_status
+  WHERE STATUS_VALUE LIKE '%mtr-session-token%';
+
+--echo #
+--echo # Invalid values are rejected and the loaded keyring is kept
+--let $kms_reload_must_fail = 1
+
+--let $kms_extra_config = , \"endpoint\": \"kms.example.invalid\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"ftp://kms.example.invalid\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https:///\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://kms.example.invalid/path\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://kms.example.invalid?a=b\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://user@kms.example.invalid\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://kms example.invalid\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://:443\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://kms.example.invalid:\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://kms.example.invalid:0\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://kms.example.invalid:65536\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://kms.example.invalid:44a\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://[::1\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://[]\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://[::1]4566\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": \"https://kms[1].example.invalid\"
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"endpoint\": 443
+--source ../inc/reload_with_config.inc
+
+--let $kms_extra_config = , \"session_token\": true
+--source ../inc/reload_with_config.inc
+
+--echo #
+--echo # Dropping the options restores the default endpoint
+--let $kms_reload_must_fail =
+--let $kms_extra_config =
+--source ../inc/reload_with_config.inc
+
+--source ../inc/teardown_component.inc

@@ -348,10 +348,36 @@ struct Kms_error {
   explicit operator bool() { return !okay; }
 };
 
+/**
+  A custom KMS endpoint. An empty host means the default AWS endpoint,
+  kms.<region>.amazonaws.com over HTTPS.
+*/
+struct Kms_endpoint {
+  Http_request::protocol_t protocol{Http_request::HTTPS};
+  /* host[:port], an IPv6 address in brackets */
+  std::string host;
+};
+
+/**
+  Parse a custom KMS endpoint of the form http[s]://host[:port][/].
+
+  @param [in]  url       Endpoint URL
+  @param [out] endpoint  Parsed endpoint, set only on success
+  @param [out] error     What is wrong with url, set only on failure
+
+  @returns status of parsing
+    @retval false Success
+    @retval true  Failure
+*/
+bool parse_kms_endpoint(std::string const &url, Kms_endpoint &endpoint,
+                        std::string &error);
+
 class Kms_client {
  public:
   Kms_client(std::string const &region, std::string const &key_id,
-             std::string const &secret_access_key);
+             std::string const &secret_access_key,
+             std::string const &session_token = std::string(),
+             Kms_endpoint const &endpoint = Kms_endpoint());
 
   Kms_client(Kms_client const &) = delete;
   Kms_client &operator=(Kms_client const &) = delete;
@@ -376,6 +402,8 @@ class Kms_client {
   std::string region;
   std::string key_id;
   std::string secret_access_key;
+  std::string session_token;
+  Kms_endpoint endpoint;
 
   Http_client client;
 };

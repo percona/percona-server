@@ -579,11 +579,20 @@ Kms_error Kms_client::kms_call(std::string const &amzTarget,
   using namespace rapidjson;
   Document d;
   d.Parse(r.c_str());
+  /*
+    Not every response comes from KMS: a proxy or a load balancer in front of
+    a custom endpoint can answer with anything, e.g. an HTML error page.
+  */
+  const bool is_object = !d.HasParseError() && d.IsObject();
 
   if (!response.ok()) {
+    if (!is_object || !d.HasMember("__type") || !d["__type"].IsString()) {
+      return {false, "Error: unexpected response with HTTP status " +
+                         std::to_string(response.http_code())};
+    }
     std::string errorMessage = "Error: ";
     errorMessage += d["__type"].GetString();
-    if (d.HasMember("message")) {
+    if (d.HasMember("message") && d["message"].IsString()) {
       errorMessage += ": ";
       errorMessage += d["message"].GetString();
     }
@@ -591,6 +600,10 @@ Kms_error Kms_client::kms_call(std::string const &amzTarget,
     return {false, errorMessage};
   }
 
+  if (!is_object || !d.HasMember(resultKey.c_str()) ||
+      !d[resultKey.c_str()].IsString()) {
+    return {false, "Error: response has no " + resultKey};
+  }
   result = d[resultKey.c_str()].GetString();
 
   return {true, ""};

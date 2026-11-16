@@ -1081,6 +1081,14 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
     return Wait_stats{0};
   }
 
+  /* Between the end of recovery and start_writing() nothing may wait for
+  redo: only pages modified by recovery are dirty then, and their redo is
+  already durable. A caller here would wait for redo which was not written.
+  The only exception is end_lsn == 0, which waits for nothing: the page cleaner
+  coordinator asks for it in persist_available() if buf_flush_event is set in
+  that window. flushed_to_disk_lsn is zero until start_writing() sets it. */
+  ut_ad(log.flushed_to_disk_lsn.load() != 0 || end_lsn == 0);
+
   /* We do not need to have exact numbers and we do not care if we
   lost some increments for heavy workload. The value only has usage
   when it is low workload and we need to discover that we request

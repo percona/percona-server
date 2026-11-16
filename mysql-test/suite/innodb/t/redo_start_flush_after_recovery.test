@@ -1,0 +1,53 @@
+--source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
+
+--echo #
+--echo # PS-12043: crash recovery ends (recv_recovery_on = false) before
+--echo # srv_start() calls ib::redo::Handler::start_writing(recovered_lsn), which
+--echo # moves the redo LSNs to the end of the recovered log. A dirty page written
+--echo # in between used to request persisting redo beyond the end of the log
+--echo # known to the log system, and failed with "end_lsn <= log_get_lsn(log)"
+--echo # in log_write_up_to(). Such a write can come from a background thread,
+--echo # for example an LRU manager thread (--innodb-lru-threads=ON) evicting a
+--echo # dirty page at that moment. To hit the window deterministically, the
+--echo # debug point ib_flush_before_redo_start makes the startup thread flush
+--echo # all buffer pool instances right before start_writing(), standing in
+--echo # for such a background thread. The fix does not depend on which thread
+--echo # writes the page. Round 2 repeats this with LRU manager threads enabled.
+--echo #
+
+--let $params_1=
+--let $params_2=--innodb-lru-threads=ON --innodb-buffer-pool-size=256M --innodb-buffer-pool-instances=2 --innodb-buffer-pool-debug=ON
+
+--let $round=1
+while ($round <= 2) {
+  --echo # Round $round
+  --let $params=`SELECT IF($round = 1, '$params_1', '$params_2')`
+
+  CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(512)) ENGINE=InnoDB;
+
+  --echo # Keep the checkpoint below the redo of the inserts, so that recovery
+  --echo # applies it and leaves dirty pages in the buffer pool.
+  SET GLOBAL innodb_checkpoint_disabled = ON;
+
+  --disable_query_log
+  INSERT INTO t1 VALUES (1, REPEAT('x', 512));
+  --let $i = 12
+  while ($i) {
+    INSERT INTO t1 SELECT a + (SELECT MAX(a) FROM t1), b FROM t1;
+    --dec $i
+  }
+  --enable_query_log
+
+  --let $restart_parameters=restart: $params --debug=d,ib_flush_before_redo_start
+  --source include/kill_and_restart_mysqld.inc
+
+  SELECT COUNT(*), SUM(LENGTH(b)) FROM t1;
+  CHECK TABLE t1;
+  DROP TABLE t1;
+
+  --inc $round
+}
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

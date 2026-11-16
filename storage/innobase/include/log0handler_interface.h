@@ -519,7 +519,9 @@ class Handler_interface {
 
   /** @} */
 
-  /** @name Log Write (only used after calling start_writing(...)) */
+  /** @name Log Write (only used after calling start_writing(...), except
+  peek_first_nonpersisted_lsn(), which may also be called earlier, see its
+  description) */
   /** @{ */
 
   /** Request an asynchronous append of the mtr's body's bytes to the log.
@@ -722,11 +724,17 @@ class Handler_interface {
   happened-before the call to this function, then the return value must be at
   least end_lsn.
 
-  The caller must call start_writing(lsn) before calling this function,
-  otherwise it may return Status::WRONG_STATE. This is because at least in some
-  possible implementations, the exact lsn at which persisted fragment of the log
-  ends can only be established by performing recovery (reading through whole log
-  til its end), and this is expensive, and requires cooperation with the caller.
+  The function may be called after a successful create(lsn) or
+  start_reading(), but before start_writing(lsn), and then returns 0. It must
+  not be called before create(lsn) or start_reading() has succeeded. This is
+  because at least in some possible implementations, the exact lsn at
+  which persisted fragment of the log ends can only be established by
+  performing recovery (reading through whole log til its end), and this is
+  expensive, and requires cooperation with the caller. Once start_writing(lsn)
+  has returned, the function never returns 0, so callers can use 0 to recognize
+  that writing has not started yet: for example, a page modified only by crash
+  recovery can then be written without persisting the redo, which is already
+  durable.
 
   */
   [[nodiscard]] virtual Lsn peek_first_nonpersisted_lsn() = 0;

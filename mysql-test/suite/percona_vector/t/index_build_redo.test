@@ -1,0 +1,126 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # A vector index build writes the aux table with Btree_load, without
+--echo # redo. Like every other bulk-loaded index, it must be followed by an
+--echo # MLOG_INDEX_LOAD record, here for the aux tablespace, so that a backup
+--echo # tool knows the aux was modified without redo and copies it again.
+--echo #
+--echo # Recovery with --debug=d,ib_log prints every redo record it scans; the
+--echo # test looks there for an MLOG_INDEX_LOAD of each aux space.
+--echo #
+
+SET SESSION cte_max_recursion_depth = 2000;
+
+--echo # t1: the first ADD VECTOR KEY, which rebuilds the table.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+--echo # t2: a replaced vector index, built without a table rebuild.
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+--echo # t3: OPTIMIZE TABLE of a table with a vector index.
+CREATE TABLE t3 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+--echo # t4: ALTER TABLE ... ENGINE=InnoDB of a table with a vector index.
+CREATE TABLE t4 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+--echo # t5: an empty table, whose build writes no aux rows.
+CREATE TABLE t5 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+
+--echo # 2000 rows each, so every aux spans many pages.
+INSERT INTO t1
+  WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq
+                            WHERE n < 2000)
+  SELECT n, STRING_TO_VECTOR(CONCAT('[', n, ',', n % 7, ',', n % 13, ',1]'))
+  FROM seq;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+INSERT INTO t4 SELECT * FROM t1;
+ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+ALTER TABLE t3 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+ALTER TABLE t4 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4);
+
+--echo # Keep every record from here on in the redo log.
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
+
+--let $tid_t2 = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME = 'test/t2'`
+ALTER TABLE t1 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
+ALTER TABLE t2 DROP KEY vk, ADD VECTOR KEY vk2 (v) TYPE hnsw (M = 4),
+  ALGORITHM=INPLACE;
+OPTIMIZE TABLE t3;
+ALTER TABLE t4 ENGINE=InnoDB;
+ALTER TABLE t5 ADD VECTOR KEY vk (v) TYPE hnsw (M = 4), ALGORITHM=INPLACE;
+
+--let $tid_t2_after = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME = 'test/t2'`
+--let $assert_text = Replacing the vector index of t2 did not rebuild t2
+--let $assert_cond = $tid_t2 = $tid_t2_after
+--source include/assert.inc
+
+--let $aux_space_query = SELECT s.SPACE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES s, INFORMATION_SCHEMA.INNODB_TABLES t WHERE s.NAME LIKE CONCAT('test/percona\\_vec\\_hnsw\\_', LPAD(LOWER(HEX(t.TABLE_ID)), 16, '0'), '\\_%') AND t.NAME =
+--let $aux_t1 = `$aux_space_query 'test/t1'`
+--let $aux_t2 = `$aux_space_query 'test/t2'`
+--let $aux_t3 = `$aux_space_query 'test/t3'`
+--let $aux_t4 = `$aux_space_query 'test/t4'`
+
+--let $log_file = $MYSQLTEST_VARDIR/log/index_build_redo.err
+--let $restart_parameters = restart: --debug=d,ib_log --log-error=$log_file
+--let $do_not_echo_parameters = 1
+--source include/kill_and_restart_mysqld.inc
+
+--let $assert_file = $log_file
+--let $assert_count_condition = >= 1
+
+--let $assert_text = MLOG_INDEX_LOAD for the aux of the first ADD VECTOR KEY
+--let $assert_select = log rec MLOG_INDEX_LOAD len [0-9]+ page $aux_t1:
+--source include/assert_grep.inc
+
+--let $assert_text = MLOG_INDEX_LOAD for the aux of the replaced vector index
+--let $assert_select = log rec MLOG_INDEX_LOAD len [0-9]+ page $aux_t2:
+--source include/assert_grep.inc
+
+--let $assert_text = MLOG_INDEX_LOAD for the aux of OPTIMIZE TABLE
+--let $assert_select = log rec MLOG_INDEX_LOAD len [0-9]+ page $aux_t3:
+--source include/assert_grep.inc
+
+--let $assert_text = MLOG_INDEX_LOAD for the aux of ALTER TABLE ENGINE=InnoDB
+--let $assert_select = log rec MLOG_INDEX_LOAD len [0-9]+ page $aux_t4:
+--source include/assert_grep.inc
+
+--let $assert_count_condition =
+
+--echo # The recovered tables and their vector indexes are complete.
+CHECK TABLE t1, t2, t3, t4, t5;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+SELECT COUNT(*) FROM t4;
+SELECT COUNT(*) FROM t5;
+
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t1';
+SELECT @@session.innodb_interpreter_output;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t2';
+SELECT @@session.innodb_interpreter_output;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t3';
+SELECT @@session.innodb_interpreter_output;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t4';
+SELECT @@session.innodb_interpreter_output;
+SET SESSION innodb_interpreter = 'vec_aux_verify test/t5';
+SELECT @@session.innodb_interpreter_output;
+
+--echo # Each row is its own unique nearest neighbour.
+SELECT id FROM t1
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1000,6,12,1]'), 'euclidean') LIMIT 1;
+SELECT id FROM t2
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1500,2,5,1]'), 'euclidean') LIMIT 1;
+SELECT id FROM t3
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[7,0,7,1]'), 'euclidean') LIMIT 1;
+SELECT id FROM t4
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1999,4,10,1]'), 'euclidean') LIMIT 1;
+INSERT INTO t5 VALUES (1, STRING_TO_VECTOR('[1,0,1,1]'));
+SELECT id FROM t5
+  ORDER BY DISTANCE(v, STRING_TO_VECTOR('[1,0,1,1]'), 'euclidean') LIMIT 1;
+
+--echo # Restart without the debug settings.
+--let $restart_parameters = restart
+--let $do_not_echo_parameters =
+--source include/restart_mysqld.inc
+
+DROP TABLE t1, t2, t3, t4, t5;
+--remove_file $log_file

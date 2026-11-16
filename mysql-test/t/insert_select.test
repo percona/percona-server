@@ -374,3 +374,51 @@ SELECT * FROM t1 ORDER BY a;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # PS-11940: VALUES() and columns of the insert table in ON DUPLICATE KEY
+--echo # UPDATE of an INSERT ... SELECT into a view were copied by the SELECT
+--echo # before the row was inserted
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(100));
+INSERT INTO t1 VALUES (1, 'x'), (2, 'y'), (101, 'z'), (102, 'w');
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a > 0;
+
+--echo # The SELECT reads the insert target, so it uses a temporary table.
+--echo # Rows 101 and 102 must get the inserted values, z2 and w2.
+INSERT INTO v1 (a, b)
+  SELECT a, CONCAT(b, '2') FROM v1 WHERE a > 100 LIMIT 10
+  ON DUPLICATE KEY UPDATE b = VALUES(b);
+
+SELECT * FROM t1 ORDER BY a;
+
+--echo # A column of the insert table must be read from the row that is
+--echo # updated, also when the SELECT uses a temporary table.
+CREATE TABLE t2 (a INT, b VARCHAR(100));
+INSERT INTO t2 VALUES (1, 'p'), (2, 'q');
+
+INSERT INTO v1 (a, b)
+  SELECT SQL_BUFFER_RESULT a, b FROM t2
+  ON DUPLICATE KEY UPDATE b = CONCAT(v1.b, '+', VALUES(b), '+', t2.b);
+
+SELECT * FROM t1 ORDER BY a;
+
+INSERT INTO v1 (a, b)
+  SELECT SQL_BUFFER_RESULT a, b FROM t2
+  ON DUPLICATE KEY UPDATE a = v1.a + 10;
+
+SELECT * FROM t1 ORDER BY a;
+
+--echo # The same statement as a prepared statement, executed twice.
+PREPARE s FROM "INSERT INTO v1 (a, b)
+  SELECT SQL_BUFFER_RESULT a + 10, b FROM t2
+  ON DUPLICATE KEY UPDATE b = CONCAT(v1.b, '-', t2.b)";
+EXECUTE s;
+EXECUTE s;
+DEALLOCATE PREPARE s;
+
+SELECT * FROM t1 ORDER BY a;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;

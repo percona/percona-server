@@ -1287,8 +1287,13 @@ static int get_options(int *argc, char ***argv) {
   ignore_table =
       new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
 
-  processed_compression_dictionaries =
-      new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
+  /*
+    Dictionary names are UTF-8 (see skip_compressed_columns()), and the
+    server compares them with utf8mb4_general_ci. charset_info does not
+    follow --default-character-set yet here.
+  */
+  processed_compression_dictionaries = new collation_unordered_set<string>(
+      &my_charset_utf8mb4_general_ci, PSI_NOT_INSTRUMENTED);
 
   /* Don't copy internal log tables */
   ignore_table->insert("mysql.apply_status");
@@ -2179,8 +2184,10 @@ static char *quote_name(char *name, char *buff, size_t buff_size, bool force) {
 */
 static const char *unquote_name(const char *opt_quoted_name,
                                 char *buff) noexcept {
-  if (!opt_quoted) return (const char *)opt_quoted_name;
-
+  /*
+    Do not depend on opt_quoted: with SQL_QUOTE_SHOW_CREATE=0 the server
+    still quotes names that need it.
+  */
   const char qtype = ansi_quotes_mode ? '\"' : '`';
 
   if (*opt_quoted_name != qtype) {
@@ -2193,8 +2200,9 @@ static const char *unquote_name(const char *opt_quoted_name,
   while (*opt_quoted_name) {
     if (*opt_quoted_name == qtype) {
       ++opt_quoted_name;
+      /* A doubled quote stands for one quote character. */
       if (*opt_quoted_name == qtype)
-        *to++ = qtype;
+        *to++ = *opt_quoted_name++;
       else {
         assert(*opt_quoted_name == '\0');
       }
@@ -3381,7 +3389,47 @@ static void skip_secondary_keys(const char *table, char *create_str,
   my_free(autoinc_column);
 }
 
-using dict_list_t = std::forward_list<std::string>;
+/** Dictionary name, and the name as SHOW CREATE TABLE quotes it. */
+using dict_list_t = std::forward_list<std::pair<std::string, std::string>>;
+
+/**
+   Finds the first occurrence of needle in a SHOW CREATE TABLE string that
+   is not inside a quoted string or identifier.
+
+   String literals from COMMENT and DEFAULT values double the quote
+   character, and literals in expressions escape it with a backslash
+   (connect_to_db() never sets NO_BACKSLASH_ESCAPES). Identifiers double
+   their quote character. A doubled quote is handled as leaving and entering
+   the string or identifier again.
+
+   The string is scanned byte by byte: get_table_structure() reads SHOW
+   CREATE TABLE with character_set_results=binary, so it is UTF-8, whose
+   multibyte characters never contain ASCII bytes. It must not be decoded
+   with charset_info, which follows --default-character-set.
+
+   @param str     position in SHOW CREATE TABLE output, outside of quotes
+   @param needle  text to look for; must not contain quote characters
+
+   @return the position of needle, or nullptr if not found
+*/
+static char *find_unquoted(char *str, const char *needle) {
+  const size_t needle_length = strlen(needle);
+  const char *const end = str + strlen(str);
+  char quote = '\0';
+  for (char *pos = str; pos < end; ++pos) {
+    if (quote == '\0') {
+      if (*pos == '\'' || *pos == '`' || *pos == '"')
+        quote = *pos;
+      else if (strncmp(pos, needle, needle_length) == 0)
+        return pos;
+    } else if (quote == '\'' && *pos == '\\') {
+      if (pos + 1 < end) ++pos;
+    } else if (*pos == quote) {
+      quote = '\0';
+    }
+  }
+  return nullptr;
+}
 
 /**
    Removes some compressed columns extensions from the create table
@@ -3393,7 +3441,7 @@ using dict_list_t = std::forward_list<std::string>;
 
    @param create_str     SHOW CREATE TABLE output
    @param dictionaries   the list of dictionary names found in the
-   create table definition
+   create table definition, unquoted and as quoted there
 */
 static void skip_compressed_columns(char *create_str,
                                     dict_list_t *dictionaries) {
@@ -3414,10 +3462,15 @@ static void skip_compressed_columns(char *create_str,
 
   char *ptr = create_str;
   char *end_ptr = ptr + strlen(create_str);
-  char *prefix_ptr = strstr(ptr, prefix);
+  /*
+    Only look outside quotes: the same text can be part of a COMMENT,
+    a default value or a quoted dictionary name.
+  */
+  char *prefix_ptr = find_unquoted(ptr, prefix);
   while (prefix_ptr != nullptr) {
-    char *const suffix_ptr = strstr(prefix_ptr + prefix_length, suffix);
-    assert(suffix_ptr != nullptr);
+    char *const suffix_ptr = find_unquoted(prefix_ptr + prefix_length, suffix);
+    /* Not a complete column format extension. */
+    if (suffix_ptr == nullptr) break;
     if (!opt_compressed_columns_with_dictionaries) {
       if (!opt_compressed_columns) {
         /* Strip out all compressed columns extensions. */
@@ -3436,24 +3489,32 @@ static void skip_compressed_columns(char *create_str,
       /* Do not strip out anything. Leave full column definition as is. */
       if (dictionaries != nullptr && prefix_ptr + prefix_length != suffix_ptr) {
         const char *dictionary_keyword_ptr =
-            strstr(prefix_ptr + prefix_length, dictionary_keyword);
-        assert(dictionary_keyword_ptr < suffix_ptr);
-        const auto dictionary_name_length =
-            suffix_ptr - (dictionary_keyword_ptr + dictionary_keyword_length);
+            find_unquoted(prefix_ptr + prefix_length, dictionary_keyword);
+        if (dictionary_keyword_ptr != nullptr &&
+            dictionary_keyword_ptr + dictionary_keyword_length <= suffix_ptr) {
+          const size_t dictionary_name_length =
+              suffix_ptr - (dictionary_keyword_ptr + dictionary_keyword_length);
 
-        char opt_quoted_buff[NAME_LEN * 2 + 3];
-        strncpy(opt_quoted_buff,
-                dictionary_keyword_ptr + dictionary_keyword_length,
-                dictionary_name_length);
-        opt_quoted_buff[dictionary_name_length] = '\0';
+          char opt_quoted_buff[NAME_LEN * 2 + 3];
+          /* The name comes from the server, do not trust its length. */
+          if (dictionary_name_length >= sizeof(opt_quoted_buff))
+            die(EX_CONSCHECK,
+                "Compression dictionary name exceeds the maximum length of "
+                "%zu bytes",
+                sizeof(opt_quoted_buff) - 1);
+          memcpy(opt_quoted_buff,
+                 dictionary_keyword_ptr + dictionary_keyword_length,
+                 dictionary_name_length);
+          opt_quoted_buff[dictionary_name_length] = '\0';
 
-        char unquoted_buff[NAME_LEN * 2 + 3];
-        dictionaries->emplace_front(
-            unquote_name(opt_quoted_buff, unquoted_buff));
+          char unquoted_buff[NAME_LEN * 2 + 3];
+          dictionaries->emplace_front(
+              unquote_name(opt_quoted_buff, unquoted_buff), opt_quoted_buff);
+        }
       }
       ptr = suffix_ptr + suffix_length;
     }
-    prefix_ptr = strstr(ptr, prefix);
+    prefix_ptr = find_unquoted(ptr, prefix);
   }
   DBUG_VOID_RETURN;
 }
@@ -3505,11 +3566,15 @@ cleanup:
    Prints "CREATE COMPRESSION_DICTIONARY ..." statement for the specified
    dictionary name if this is the first time this dictionary is referenced.
 
-   @param sql_file          output file
-   @param dictionary_name   dictionary name
+   @param sql_file                 output file
+   @param dictionary_name          dictionary name
+   @param quoted_dictionary_name   dictionary name as SHOW CREATE TABLE
+   quotes it: with SQL_QUOTE_SHOW_CREATE=0 the server still quotes names
+   that need it, for example keywords and numbers
 */
 static void print_optional_create_compression_dictionary(
-    FILE *sql_file, const char *dictionary_name) {
+    FILE *sql_file, const char *dictionary_name,
+    const char *quoted_dictionary_name) {
   DBUG_ENTER("print_optional_create_compression_dictionary");
   DBUG_PRINT("enter", ("dictionary: %s", dictionary_name));
 
@@ -3520,13 +3585,21 @@ static void print_optional_create_compression_dictionary(
     static const constexpr char get_zip_dict_data_stmt[] =
         "SELECT `DICT_DATA` "
         "FROM `INFORMATION_SCHEMA`.`COMPRESSION_DICTIONARY` "
-        "WHERE `DICT_NAME` = '%s'";
+        "WHERE `DICT_NAME` = _utf8mb4 X'%s'";
 
     processed_compression_dictionaries->emplace(dictionary_name);
 
+    /*
+      The name comes from SHOW CREATE TABLE, which is UTF-8 whatever the
+      connection character set is. A hex literal needs no escaping.
+    */
+    const size_t dictionary_name_length = strlen(dictionary_name);
+    char hex_name[(NAME_LEN * 2 + 3) * 2 + 1];
+    assert(dictionary_name_length * 2 < sizeof(hex_name));
+    mysql_hex_string(hex_name, dictionary_name, dictionary_name_length);
+
     char query_buff[QUERY_LENGTH];
-    snprintf(query_buff, sizeof(query_buff), get_zip_dict_data_stmt,
-             dictionary_name);
+    snprintf(query_buff, sizeof(query_buff), get_zip_dict_data_stmt, hex_name);
 
     MYSQL_RES *result = nullptr;
     if (mysql_query_with_error_report(mysql, &result, query_buff)) {
@@ -3537,16 +3610,31 @@ static void print_optional_create_compression_dictionary(
     if (row == nullptr) {
       mysql_free_result(result);
       maybe_die(EX_MYSQLERR,
-                "Couldn't read data for compresion dictionary %s (%s)\n",
+                "Couldn't read data for compression dictionary %s (%s)\n",
                 dictionary_name, mysql_error(mysql));
       DBUG_VOID_RETURN;
     }
     const ulong *const lengths = mysql_fetch_lengths(result);
     assert(lengths != nullptr);
 
-    char quoted_buff[NAME_LEN * 2 + 3];
-    const char *quoted_dictionary_name =
-        quote_name(dictionary_name, quoted_buff, false);
+    /*
+      Like CREATE TABLE, the statements are read with
+      character_set_client=utf8mb4, because the name is UTF-8. DICT_DATA is
+      a BLOB: pass it in a user variable set from a hex literal, which is
+      not converted to the connection character set. An escaped string
+      literal does not work: the mysql client splits statements with its
+      own --default-character-set, and in sjis, gbk or big5 a byte before
+      an escaping backslash can make one character with it.
+    */
+    char *const hex_data = static_cast<char *>(my_malloc(
+        PSI_NOT_INSTRUMENTED, lengths[0] * 2 + 1, MYF(MY_WME | MY_FAE)));
+    mysql_hex_string(hex_data, row[0], lengths[0]);
+
+    fputs(
+        "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
+        "/*!50503 SET character_set_client = utf8mb4 */;\n",
+        sql_file);
+    check_io(sql_file);
 
     /*
       We print DROP COMPRESSION_DICTIONARY only if no --tab
@@ -3568,15 +3656,19 @@ static void print_optional_create_compression_dictionary(
     */
     fprintf(sql_file,
                 "/*!"  STRINGIFY_ARG(FIRST_SUPPORTED_COMPRESSED_COLUMNS_VERSION)
-                " CREATE COMPRESSION_DICTIONARY %s%s (",
-                path != 0 ? "IF NOT EXISTS " : "",
+                " SET @compression_dictionary_data = X'%s' */;\n"
+                "/*!"  STRINGIFY_ARG(FIRST_SUPPORTED_COMPRESSED_COLUMNS_VERSION)
+                " CREATE COMPRESSION_DICTIONARY %s%s"
+                " (@compression_dictionary_data) */;\n"
+                "/*!"  STRINGIFY_ARG(FIRST_SUPPORTED_COMPRESSED_COLUMNS_VERSION)
+                " SET @compression_dictionary_data = NULL */;\n",
+                hex_data, path != 0 ? "IF NOT EXISTS " : "",
                 quoted_dictionary_name);
+    fputs("/*!40101 SET character_set_client = @saved_cs_client */;\n",
+          sql_file);
     check_io(sql_file);
 
-    unescape(sql_file, row[0], lengths[0]);
-    fputs(") */;\n", sql_file);
-    check_io(sql_file);
-
+    my_free(hex_data);
     mysql_free_result(result);
   }
   DBUG_VOID_RETURN;
@@ -3926,9 +4018,51 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
 
         dict_list_t referenced_dictionaries, current_dictionary;
 
+#ifndef NDEBUG
+        /* Malformed extensions, which the server never returns. */
+        static std::string debug_create;
+        debug_create.clear();
+        const auto debug_column = [](const char *name,
+                                     const std::string &extension) {
+          return std::string("  `") + name + "` blob /*!" STRINGIFY_ARG(
+                     FIRST_SUPPORTED_COMPRESSED_COLUMNS_VERSION) " "
+                 "COLUMN_FORMAT COMPRESSED" +
+                 extension;
+        };
+        const auto debug_table = [](const std::string &columns) {
+          debug_create =
+              "CREATE TABLE `t1` (\n" + columns + "\n) ENGINE=InnoDB";
+        };
+        DBUG_EXECUTE_IF("compressed_columns_no_suffix", {
+          debug_table(debug_column("a", " WITH COMPRESSION_DICTIONARY `d1`"));
+        });
+        DBUG_EXECUTE_IF("compressed_columns_no_keyword", {
+          debug_table(debug_column("a", " UNKNOWN `d1` */"));
+        });
+        DBUG_EXECUTE_IF("compressed_columns_quoted_keyword", {
+          debug_table(debug_column(
+              "a", " UNKNOWN ` WITH COMPRESSION_DICTIONARY d1` */"));
+        });
+        DBUG_EXECUTE_IF("compressed_columns_later_keyword", {
+          debug_table(
+              debug_column("a", " UNKNOWN `d1` */") + ",\n" +
+              debug_column("b", " WITH COMPRESSION_DICTIONARY `d2` */"));
+        });
+        DBUG_EXECUTE_IF("compressed_columns_name_386", {
+          debug_table(debug_column("a", " WITH COMPRESSION_DICTIONARY " +
+                                            std::string(386, 'x') + " */"));
+        });
+        DBUG_EXECUTE_IF("compressed_columns_name_387", {
+          debug_table(debug_column("a", " WITH COMPRESSION_DICTIONARY " +
+                                            std::string(387, 'x') + " */"));
+        });
+        if (!debug_create.empty()) row[1] = debug_create.data();
+#endif
+
         skip_compressed_columns(row[1], &referenced_dictionaries);
         for (const auto &it : referenced_dictionaries)
-          print_optional_create_compression_dictionary(sql_file, it.c_str());
+          print_optional_create_compression_dictionary(
+              sql_file, it.first.c_str(), it.second.c_str());
       }
 
       print_optional_drop_table(sql_file, db, table, opt_quoted_table);

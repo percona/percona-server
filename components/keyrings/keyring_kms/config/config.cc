@@ -64,8 +64,35 @@ static const std::string config_file_name = "component_keyring_kms.cnf";
 
 /* Config names */
 static const std::string config_options[] = {
-    "read_local_config", "path",     "read_only",        "region",
-    "kms_key",           "auth_key", "secret_access_key"};
+    "read_local_config", "path",     "read_only",         "region",
+    "kms_key",           "auth_key", "secret_access_key", "endpoint",
+    "session_token"};
+
+static void log_config_error(const std::string &message) {
+  const std::string full_message = "Configuration error: " + message;
+  LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, full_message.c_str());
+}
+
+/**
+  Read an optional string option.
+
+  @param [in]  config_reader  Configuration
+  @param [in]  name           Option name
+  @param [out] value          Option value, left unchanged when it is absent
+
+  @returns status of read operation
+    @retval false Success, the option is a string or absent
+    @retval true  Failure, the option is not a string
+*/
+static bool get_optional_string(Config_reader &config_reader,
+                                const std::string &name, std::string &value) {
+  if (config_reader.has_element(name)) return false;  // absent
+  if (config_reader.is_string(name)) {
+    log_config_error("'" + name + "' must be a string");
+    return true;
+  }
+  return config_reader.get_element<std::string>(name, value);
+}
 
 bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod) {
   std::unique_ptr<Config_pod> config_pod_tmp = std::make_unique<Config_pod>();
@@ -134,6 +161,35 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod) {
     return true;
   }
 
+  /* Optional custom endpoint, empty means the default AWS endpoint */
+  if (get_optional_string(*config_reader, config_options[7],
+                          config_pod_tmp->endpoint_)) {
+    return true;
+  }
+  if (!config_pod_tmp->endpoint_.empty()) {
+    aws::Kms_endpoint endpoint;
+    std::string error;
+    if (aws::parse_kms_endpoint(config_pod_tmp->endpoint_, endpoint, error)) {
+      log_config_error("'endpoint' value '" + config_pod_tmp->endpoint_ +
+                       "' is invalid: " + error);
+      return true;
+    }
+    if (endpoint.protocol == aws::Http_request::HTTP) {
+      /* KMS Encrypt requests carry the plaintext key */
+      const std::string message =
+          "'endpoint' value '" + config_pod_tmp->endpoint_ +
+          "' uses plain HTTP: keys are sent to it unencrypted. Use it only "
+          "for testing.";
+      LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, message.c_str());
+    }
+  }
+
+  /* Optional session token of temporary credentials */
+  if (get_optional_string(*config_reader, config_options[8],
+                          config_pod_tmp->session_token_)) {
+    return true;
+  }
+
   config_pod.swap(config_pod_tmp);
   return false;
 }
@@ -181,6 +237,11 @@ bool create_config(
            ? ((config_pod.kms_key_.length() == 0) ? "<NONE>"
                                                   : config_pod.kms_key_)
            : "<NOT APPLICABLE>")));
+
+  /* Shown only when configured, so the default status is unchanged */
+  if (global_config_available && !config_pod.endpoint_.empty()) {
+    metadata->push_back(std::make_pair("Endpoint", config_pod.endpoint_));
+  }
 
   return false;
 }

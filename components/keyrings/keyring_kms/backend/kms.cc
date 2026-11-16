@@ -23,12 +23,14 @@
 #include "kms.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
@@ -54,6 +56,7 @@
 
 #include <boost/algorithm/hex.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/trim.hpp>
 
@@ -463,9 +466,103 @@ int Http_client::upload_callback(char *ptr, size_t size, size_t nmemb,
   return len;
 }
 
+bool parse_kms_endpoint(std::string const &url, Kms_endpoint &endpoint,
+                        std::string &error) {
+  static constexpr std::string_view http_prefix{"http://"};
+  static constexpr std::string_view https_prefix{"https://"};
+
+  Kms_endpoint parsed;
+  std::string_view rest{url};
+  if (boost::algorithm::istarts_with(rest, https_prefix)) {
+    parsed.protocol = Http_request::HTTPS;
+    rest.remove_prefix(https_prefix.size());
+  } else if (boost::algorithm::istarts_with(rest, http_prefix)) {
+    parsed.protocol = Http_request::HTTP;
+    rest.remove_prefix(http_prefix.size());
+  } else {
+    error = "it must start with http:// or https://";
+    return true;
+  }
+
+  if (!rest.empty() && rest.back() == '/') rest.remove_suffix(1);
+  if (rest.empty()) {
+    error = "it has no host";
+    return true;
+  }
+  for (const char c : rest) {
+    if (c == '/' || c == '?' || c == '#' || c == '@' || c == '\\' ||
+        std::isspace(static_cast<unsigned char>(c)) ||
+        std::iscntrl(static_cast<unsigned char>(c))) {
+      error = "it may hold only a scheme, a host and a port";
+      return true;
+    }
+  }
+
+  std::string_view host = rest;
+  std::string_view port;
+  bool has_port = false;
+  if (rest.front() == '[') {
+    /* IPv6 address, [addr] or [addr]:port */
+    const auto close = rest.find(']');
+    if (close == std::string_view::npos || close == 1) {
+      error = "it has an invalid IPv6 address";
+      return true;
+    }
+    host = rest.substr(0, close + 1);
+    const auto after = rest.substr(close + 1);
+    if (!after.empty()) {
+      if (after.front() != ':') {
+        error = "it has an invalid IPv6 address";
+        return true;
+      }
+      port = after.substr(1);
+      has_port = true;
+    }
+  } else {
+    const auto colon = rest.find(':');
+    if (colon != std::string_view::npos) {
+      host = rest.substr(0, colon);
+      port = rest.substr(colon + 1);
+      has_port = true;
+    }
+    if (host.empty()) {
+      error = "it has no host";
+      return true;
+    }
+    if (host.find_first_of("[]") != std::string_view::npos) {
+      error = "it has an invalid host";
+      return true;
+    }
+  }
+
+  if (has_port) {
+    const bool digits_only =
+        !port.empty() && port.size() <= 5 &&
+        std::all_of(port.begin(), port.end(), [](char c) {
+          return std::isdigit(static_cast<unsigned char>(c)) != 0;
+        });
+    const unsigned long port_number =
+        digits_only ? std::stoul(std::string(port)) : 0;
+    if (port_number == 0 || port_number > 65535) {
+      error = "it has an invalid port";
+      return true;
+    }
+  }
+
+  parsed.host = std::string(rest);
+  endpoint = std::move(parsed);
+  return false;
+}
+
 Kms_client::Kms_client(std::string const &region, std::string const &key_id,
-                       std::string const &secret_access_key)
-    : region(region), key_id(key_id), secret_access_key(secret_access_key) {}
+                       std::string const &secret_access_key,
+                       std::string const &session_token,
+                       Kms_endpoint const &endpoint)
+    : region(region),
+      key_id(key_id),
+      secret_access_key(secret_access_key),
+      session_token(session_token),
+      endpoint(endpoint) {}
 
 Kms_error Kms_client::kms_call(std::string const &amzTarget,
                                std::string const &payload,
@@ -586,20 +683,34 @@ Kms_error Kms_client::recrypt(std::string const &old, std::string const &key,
 
 Http_response Kms_client::do_request(std::string const &amzTarget,
                                      std::string const &payload) {
-  const std::string host = "kms." + region + ".amazonaws.com";
+  /*
+    With no custom endpoint the request is exactly the one sent before the
+    endpoint option existed, including the "localhost" Host header it has
+    always been signed with.
+  */
+  const bool default_endpoint = endpoint.host.empty();
+  const std::string host =
+      default_endpoint ? "kms." + region + ".amazonaws.com" : endpoint.host;
 
-  Http_request req(Http_request::POST, Http_request::HTTPS, host.c_str(), "/");
+  Http_request req(Http_request::POST,
+                   default_endpoint ? Http_request::HTTPS : endpoint.protocol,
+                   host.c_str(), "/");
   req.add_header("Content-Length", std::to_string(payload.size()));
   req.add_header("Content-Type", "application/x-amz-json-1.1");
   req.add_header("X-Amz-Target", amzTarget);
   req.append_payload(payload.c_str(), payload.size());
 
-  S3_signerV4 signer(LOOKUP_DNS, region, key_id, secret_access_key);
+  S3_signerV4 signer(LOOKUP_DNS, region, key_id, secret_access_key,
+                     session_token);
 
   time_t timev;
   time(&timev);
 
-  signer.sign_request("localhost", "", req, timev);
+  /*
+    SigV4 signs the Host header. A custom endpoint (a VPC endpoint, a proxy, an
+    emulator) can route on it, so it gets the host it is actually reached at.
+  */
+  signer.sign_request(default_endpoint ? "localhost" : host, "", req, timev);
 
   Http_response resp;
   client.make_request(req, resp);

@@ -220,8 +220,12 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   but NOTE that to reset this event, the thread MUST own the writer_mutex */
   os_event_t old_flush_event;
 
-  /** Up to this lsn data has been flushed to disk (fsynced). */
-  alignas(ut::INNODB_CACHE_LINE_SIZE) atomic_lsn_t flushed_to_disk_lsn;
+  /** Up to this lsn data has been flushed to disk (fsynced).
+  It is zero until ib::redo::Handler::start_writing() sets it, as nothing else
+  writes it before. start_writing() sets it to start_lsn, which is never zero,
+  and later it only grows. So zero means that redo writing has not started
+  yet, which ib::redo::Handler::peek_first_nonpersisted_lsn() relies on. */
+  alignas(ut::INNODB_CACHE_LINE_SIZE) atomic_lsn_t flushed_to_disk_lsn{0};
 
   /** @} */
 

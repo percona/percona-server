@@ -1,0 +1,41 @@
+#
+# PS-12043: crash recovery ends (recv_recovery_on = false) before
+# srv_start() calls ib::redo::Handler::start_writing(recovered_lsn), which
+# moves the redo LSNs to the end of the recovered log. A dirty page written
+# in between used to request persisting redo beyond the end of the log
+# known to the log system, and failed with "end_lsn <= log_get_lsn(log)"
+# in log_write_up_to(). Such a write can come from a background thread,
+# for example an LRU manager thread (--innodb-lru-threads=ON) evicting a
+# dirty page at that moment. To hit the window deterministically, the
+# debug point ib_flush_before_redo_start makes the startup thread flush
+# all buffer pool instances right before start_writing(), standing in
+# for such a background thread. The fix does not depend on which thread
+# writes the page. Round 2 repeats this with LRU manager threads enabled.
+#
+# Round 1
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(512)) ENGINE=InnoDB;
+# Keep the checkpoint below the redo of the inserts, so that recovery
+# applies it and leaves dirty pages in the buffer pool.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+# Kill and restart:  --debug=d,ib_flush_before_redo_start
+SELECT COUNT(*), SUM(LENGTH(b)) FROM t1;
+COUNT(*)	SUM(LENGTH(b))
+4096	2097152
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+# Round 2
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(512)) ENGINE=InnoDB;
+# Keep the checkpoint below the redo of the inserts, so that recovery
+# applies it and leaves dirty pages in the buffer pool.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+# Kill and restart: --innodb-lru-threads=ON --innodb-buffer-pool-size=256M --innodb-buffer-pool-instances=2 --innodb-buffer-pool-debug=ON --debug=d,ib_flush_before_redo_start
+SELECT COUNT(*), SUM(LENGTH(b)) FROM t1;
+COUNT(*)	SUM(LENGTH(b))
+4096	2097152
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+# restart

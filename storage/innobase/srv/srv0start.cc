@@ -1938,6 +1938,11 @@ dberr_t srv_start(bool create_new_db) {
     }
 
     if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+      /* Write the pages left dirty by crash recovery after it has ended but
+      before redo writing starts. */
+      DBUG_EXECUTE_IF("ib_flush_before_redo_start",
+                      buf_flush_sync_all_buf_pools(););
+
       /* We need to start log threads now, because will write recovered updates
       to actual B-tree pages during pages_persistence->recover_tables() -
       an operation on pages which itself needs to be redo logged.

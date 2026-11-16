@@ -906,8 +906,10 @@ static unique_ptr<Json_object> ExplainQueryPlan(
 
     if (dml_obj->add_alias("inputs", std::move(children))) return nullptr;
 
+    // Use the base table that is inserted into: when the insert target is a
+    // view, the first table of the statement is the view, which has no TABLE.
     if (AddTableInfoToObject(dml_obj.get(),
-                             query_plan->get_lex()->query_tables[0].table)) {
+                             query_plan->get_lex()->insert_table_leaf->table)) {
       return nullptr;
     }
 

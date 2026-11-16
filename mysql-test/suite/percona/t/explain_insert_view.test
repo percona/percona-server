@@ -1,0 +1,33 @@
+--source include/elide_costs.inc
+
+--echo #
+--echo # EXPLAIN FORMAT=TREE and the iterator-based EXPLAIN FORMAT=JSON of an
+--echo # INSERT or REPLACE into a view failed with "Internal error: Failed to
+--echo # print query plan"
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(100));
+CREATE TABLE t2 (a INT, b VARCHAR(100));
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a > 0;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE INSERT INTO v1 (a, b) VALUES (1, 'x');
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE INSERT INTO v1 (a, b) SELECT a, b FROM t2;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE INSERT INTO v1 (a, b) SELECT a, b FROM t2
+  ON DUPLICATE KEY UPDATE b = t2.b;
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE REPLACE INTO v1 (a, b) SELECT a, b FROM t2;
+
+--echo # The table of the DML node is the base table of the view.
+SET @saved_explain_json_format_version = @@explain_json_format_version;
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @plan INSERT INTO v1 (a, b) SELECT a, b FROM t2;
+SELECT JSON_EXTRACT(@plan, '$.operation') AS operation,
+       JSON_EXTRACT(@plan, '$.table_name') AS table_name,
+       JSON_EXTRACT(@plan, '$.schema_name') AS schema_name;
+SET explain_json_format_version = @saved_explain_json_format_version;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;

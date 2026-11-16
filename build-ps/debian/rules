@@ -376,6 +376,11 @@ override_dh_shlibdeps:
 	dh_shlibdeps -Lpercona-server-server -l/usr/lib/mysql/private --dpkg-shlibdeps-params=--ignore-missing-info
 
 override_dh_install:
+ifeq ($(ARCH),arm64)
+	# libcoredumper is not shipped in ARM packages
+	sed -i '/coredumper/d' debian/percona-server-common.install
+	rm -rf debian/tmp/usr/include/coredumper debian/tmp/usr/lib/libcoredumper.a
+endif
 	dh_install
 	cp js/LICENSE* debian/percona-server-js/usr/share/doc/percona-server-js/
 

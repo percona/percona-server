@@ -17,7 +17,6 @@
 # two nodes naming the same row. A statement that aborts must take
 # its aux rows with it and leave nothing behind.
 #
-SET GLOBAL innodb_lock_wait_timeout = 3;
 CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
 v VECTOR(4) NOT NULL,
 VECTOR KEY (v) TYPE hnsw (M = 4));

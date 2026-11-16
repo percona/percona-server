@@ -24,9 +24,11 @@
 #include <chrono>
 #include <fstream>
 #include <memory>
+#include <string>
 #include <thread>
 
 #include "backend.h"
+#include "kms.h"
 
 #include <components/keyrings/common/data_file/reader.h>
 #include <components/keyrings/common/data_file/writer.h>
@@ -55,6 +57,16 @@ using keyring_common::json_data::output_vector;
 using keyring_common::meta::Metadata;
 using keyring_common::utils::get_random_data;
 
+namespace {
+/* The endpoint was validated when the configuration was read. */
+aws::Kms_endpoint parse_endpoint(std::string const &url) {
+  aws::Kms_endpoint endpoint;
+  std::string error;
+  if (!url.empty()) (void)aws::parse_kms_endpoint(url, endpoint, error);
+  return endpoint;
+}
+}  // namespace
+
 Json_data_extension ext;
 
 Keyring_kms_backend::Keyring_kms_backend(const std::string &keyring_kms_name,
@@ -65,7 +77,8 @@ Keyring_kms_backend::Keyring_kms_backend(const std::string &keyring_kms_name,
       read_only_(read_only),
       json_writer_(),
       valid_(false),
-      kms(config_.region_, config_.auth_key_, config_.secret_access_key_),
+      kms(config_.region_, config_.auth_key_, config_.secret_access_key_,
+          config_.session_token_, parse_endpoint(config_.endpoint_)),
       kmsKey(config_.kms_key_) {
   if (keyring_kms_name_.length() == 0) return;
   std::string data;

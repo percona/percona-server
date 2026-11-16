@@ -1,0 +1,1 @@
+--innodb-lru-threads=ON --innodb-lru-scan-depth=16384 --innodb-redo-log-capacity=64M

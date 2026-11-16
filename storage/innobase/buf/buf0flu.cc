@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <math.h>
 #include <my_dbug.h>
 #include <mysql/service_thd_wait.h>
+#include <optional>
 #include <sys/types.h>
 #include <time.h>
 
@@ -70,6 +71,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0sys.h"
 #include "ut0byte.h"
 #include "ut0math.h"
+#include "ut0mutex.h"
 #include "ut0stage.h"
 
 #ifdef UNIV_LINUX
@@ -172,6 +174,11 @@ struct page_cleaner_slot_t {
 
 /** Page cleaner structure common for all threads */
 struct page_cleaner_t {
+  /** Whether LRU managers may flush without coordinating with crash recovery.
+  Set once the coordinator passes its startup gate, after redo writing has
+  started. */
+  std::atomic<bool> lru_managers_flushing{false};
+
   ib_mutex_t mutex;        /*!< mutex to protect whole of
                            page_cleaner_t struct and
                            page_cleaner_slot_t slots. */
@@ -3163,6 +3170,10 @@ static void buf_flush_page_coordinator_thread() {
 
   os_event_wait(buf_flush_event);
 
+  /* LRU managers must pass the same startup gate as the page cleaners. */
+  page_cleaner->lru_managers_flushing.store(srv_shutdown_state.load() <
+                                            SRV_SHUTDOWN_CLEANUP);
+
   ulint ret_sleep = 0;
   ulint n_flushed_last = 0;
   ulint warn_interval = 1;
@@ -3683,6 +3694,21 @@ static void buf_lru_manager_thread(size_t buf_pool_instance) {
     buf_lru_manager_adapt_sleep_time(buf_pool, lru_n_processed, lru_sleep_time);
 
     next_loop_time = std::chrono::steady_clock::now() + lru_sleep_time;
+
+    /* Until the coordinator passes its startup gate, flush only during crash
+    recovery, holding recv_sys->writer_mutex through the batch as
+    recv_writer_thread() does: recovery holds it to stop LRU batches while it
+    ends an apply batch, and clears recv_recovery_on under it. After recovery
+    has ended, page writes must wait until redo writing starts. */
+    std::optional<IB_mutex_guard> recovery_guard;
+    if (!page_cleaner->lru_managers_flushing.load()) {
+      recovery_guard.emplace(&recv_sys->writer_mutex, UT_LOCATION_HERE);
+      if (!recv_recovery_is_on()) {
+        recovery_guard.reset();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        continue;
+      }
+    }
 
     /* {n_flushed, n_evicted}: evicting a clean page refills the free list
     just as a flush does, so the adaptive-sleep "made progress" signal must

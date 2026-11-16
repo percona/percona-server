@@ -1,0 +1,42 @@
+--source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
+
+--echo #
+--echo # PS-12043: crash recovery ends (recv_recovery_on = false) before
+--echo # srv_start() calls ib::redo::Handler::start_writing(recovered_lsn), which
+--echo # moves the redo LSNs to the end of the recovered log. A dirty page written
+--echo # in between used to request persisting redo beyond the end of the log
+--echo # known to the log system, and failed with "end_lsn <= log_get_lsn(log)"
+--echo # in log_write_up_to(). With --innodb-lru-threads=ON the LRU manager
+--echo # threads could do such a write. They must leave LRU flushing to the page
+--echo # cleaners until the page cleaner coordinator passes its startup gate.
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(512)) ENGINE=InnoDB;
+
+--echo # Keep the redo of the inserts after the checkpoint, so that recovery
+--echo # applies it and leaves dirty pages in the buffer pool.
+SET GLOBAL innodb_checkpoint_disabled = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+
+--disable_query_log
+INSERT INTO t1 VALUES (1, REPEAT('x', 512));
+# Leave more than BUF_LRU_MIN_LEN pages after recovery. innodb_lru_scan_depth
+# exceeds the free list size, so LRU flushing is needed.
+--let $i = 14
+while ($i) {
+  INSERT INTO t1 SELECT a + (SELECT MAX(a) FROM t1), b FROM t1;
+  --dec $i
+}
+--enable_query_log
+
+--echo # Delay start_writing() for 2 seconds, so the LRU managers run before it.
+--let $restart_parameters=restart: --debug=d,ib_delay_before_redo_start
+--source include/kill_and_restart_mysqld.inc
+
+SELECT COUNT(*), SUM(LENGTH(b)) FROM t1;
+CHECK TABLE t1;
+DROP TABLE t1;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

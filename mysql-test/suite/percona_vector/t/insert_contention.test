@@ -34,7 +34,16 @@
 --let $to_save = `SELECT @@global.innodb_lock_wait_timeout`
 # Keep the test quick: contention here resolves or times out, and the
 # default 50s would make a timing-out connection dominate the runtime.
-SET GLOBAL innodb_lock_wait_timeout = 3;
+# Every insert still waits for the graph rows locked by the callback of
+# another insert, and under Valgrind one callback can run longer than 3s,
+# so give the waits more time there (PS-12140).
+--let $lock_wait_timeout = 3
+if ($VALGRIND_TEST) {
+  --let $lock_wait_timeout = 120
+}
+--disable_query_log
+--eval SET GLOBAL innodb_lock_wait_timeout = $lock_wait_timeout
+--enable_query_log
 
 CREATE TABLE t (id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
                 v VECTOR(4) NOT NULL,

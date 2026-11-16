@@ -8535,6 +8535,13 @@ bool Item_field::send(Protocol *protocol, String *) {
     belongs to the SELECT part in the INSERT .. SELECT .. ON DUPLICATE KEY
     UPDATE statement.
 
+    The table being inserted into is the base table that the insert target
+    resolves to. When the target is a view, the table reference of the
+    statement is the view, which has no table of its own, so comparing with
+    it would move the columns of the insert table, and VALUES() that reads
+    the row being inserted, into the SELECT as well. With a temporary table,
+    the SELECT would then copy them before any row is inserted.
+
   @retval nullptr       if an error occurred
   @retval ref           if all conditions are met
   @retval this field    otherwise
@@ -8544,9 +8551,11 @@ Item *Item_field::update_value_transformer(uchar *select_arg) {
   Query_block *select = pointer_cast<Query_block *>(select_arg);
   assert(fixed);
 
-  assert((m_table_ref == select->context.table_list) ==
-         (field->table == select->context.table_list->table));
-  if (field->table != select->context.table_list->table &&
+  const Table_ref *const insert_table_leaf =
+      select->parent_lex->insert_table_leaf;
+  assert((m_table_ref == insert_table_leaf) ==
+         (field->table == insert_table_leaf->table));
+  if (field->table != insert_table_leaf->table &&
       type() != Item::TRIGGER_FIELD_ITEM) {
     Item **tmp = select->add_hidden_item(this);
     return new Item_ref(&select->context, tmp, db_name, table_name, field_name);

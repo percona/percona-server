@@ -836,3 +836,63 @@ a	b
 101	z
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# PS-11940: VALUES() and columns of the insert table in ON DUPLICATE KEY
+# UPDATE of an INSERT ... SELECT into a view were copied by the SELECT
+# before the row was inserted
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(100));
+INSERT INTO t1 VALUES (1, 'x'), (2, 'y'), (101, 'z'), (102, 'w');
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a > 0;
+# The SELECT reads the insert target, so it uses a temporary table.
+# Rows 101 and 102 must get the inserted values, z2 and w2.
+INSERT INTO v1 (a, b)
+SELECT a, CONCAT(b, '2') FROM v1 WHERE a > 100 LIMIT 10
+ON DUPLICATE KEY UPDATE b = VALUES(b);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	x
+2	y
+101	z2
+102	w2
+# A column of the insert table must be read from the row that is
+# updated, also when the SELECT uses a temporary table.
+CREATE TABLE t2 (a INT, b VARCHAR(100));
+INSERT INTO t2 VALUES (1, 'p'), (2, 'q');
+INSERT INTO v1 (a, b)
+SELECT SQL_BUFFER_RESULT a, b FROM t2
+ON DUPLICATE KEY UPDATE b = CONCAT(v1.b, '+', VALUES(b), '+', t2.b);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	x+p+p
+2	y+q+q
+101	z2
+102	w2
+INSERT INTO v1 (a, b)
+SELECT SQL_BUFFER_RESULT a, b FROM t2
+ON DUPLICATE KEY UPDATE a = v1.a + 10;
+SELECT * FROM t1 ORDER BY a;
+a	b
+11	x+p+p
+12	y+q+q
+101	z2
+102	w2
+# The same statement as a prepared statement, executed twice.
+PREPARE s FROM "INSERT INTO v1 (a, b)
+  SELECT SQL_BUFFER_RESULT a + 10, b FROM t2
+  ON DUPLICATE KEY UPDATE b = CONCAT(v1.b, '-', t2.b)";
+EXECUTE s;
+EXECUTE s;
+DEALLOCATE PREPARE s;
+SELECT * FROM t1 ORDER BY a;
+a	b
+11	x+p+p-p-p
+12	y+q+q-q-q
+101	z2
+102	w2
+DROP VIEW v1;
+DROP TABLE t1, t2;

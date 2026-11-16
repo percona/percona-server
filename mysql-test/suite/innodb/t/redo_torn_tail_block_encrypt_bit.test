@@ -1,0 +1,85 @@
+--source include/not_valgrind.inc
+
+--echo #
+--echo # A redo log block that was being written when the server lost power
+--echo # contains arbitrary bytes.  If the encryption bit in its header
+--echo # happens to be set, recovery must treat the block as the torn end of
+--echo # the log, as it does for a block with a bad checksum, and not fail
+--echo # with a decryption error because no keyring is configured.
+--echo #
+--echo # The blocks destroyed hold only redo of a transaction that was not
+--echo # committed: everything acknowledged before is checkpointed, and no
+--echo # page on disk carries an lsn from them.  All of it is checked after
+--echo # recovery.  The block holding the checkpoint lsn is left alone: the
+--echo # torn tail begins with the block after it.
+--echo #
+
+let MYSQLD_DATADIR=`select @@datadir`;
+
+# The Innodb_redo_log_*_lsn status variables are refreshed only now and
+# then; the log_lsn_* metrics are read from the log system directly.
+SET GLOBAL innodb_monitor_enable = module_log;
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENGINE=InnoDB
+  STATS_PERSISTENT=0;
+INSERT INTO t1 VALUES (1, repeat('#', 12)), (2, repeat('+', 12)),
+                      (3, repeat('/', 12)), (4, repeat('-', 12));
+
+--echo # Every page written from now on until the kill must have an lsn
+--echo # below the redo about to be destroyed, or it would be "in the
+--echo # future" after recovery.  Have the page cleaner write everything
+--echo # and wait until no dirty page is left and a checkpoint covers all of
+--echo # them; then forbid it to write anything, so that whatever is dirtied
+--echo # afterwards stays in the buffer pool, and take the checkpoint lsn.
+--echo # (The table has no persistent statistics: their background update
+--echo # would write to mysql.ibd behind the test's back.)
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 0;
+let $wait_condition =
+  SELECT variable_value = 0 FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_buffer_pool_pages_dirty';
+--source include/wait_condition.inc
+--source suite/innodb/include/log_read_current_lsn.inc
+let $wait_condition =
+  SELECT COUNT >= $current_lsn FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME = 'log_lsn_last_checkpoint';
+--source include/wait_condition.inc
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+--source suite/innodb/include/log_read_checkpoint_lsn.inc
+--echo # The first block to destroy is the one after the checkpoint block.
+let FIRST_LSN = `SELECT $checkpoint_lsn - $checkpoint_lsn % 512 + 512`;
+
+--echo # Redo after the checkpoint that nobody was told is durable: an
+--echo # uncommitted insert, long enough to reach past the checkpoint block.
+--echo # Wait until it was written to the log files.
+connect (con1, localhost, root,, test);
+BEGIN;
+INSERT INTO t1 VALUES (99, repeat('?', 3000));
+
+connection default;
+--source suite/innodb/include/log_read_current_lsn.inc
+let LAST_LSN = $current_lsn;
+let $wait_condition =
+  SELECT COUNT >= $current_lsn FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME = 'log_lsn_last_flush';
+--source include/wait_condition.inc
+--let $assert_text = the redo of the insert reaches past the checkpoint block
+--let $assert_cond = $current_lsn - 1 >= $FIRST_LSN
+--source include/assert.inc
+
+--source include/kill_mysqld.inc
+disconnect con1;
+
+--echo # Destroy the blocks from the one after the checkpoint block to the
+--echo # last one written.
+--source suite/innodb/include/destroy_redo_blocks.inc
+
+--source include/start_mysqld.inc
+
+CHECK TABLE t1;
+--echo # Everything committed before the kill, and nothing else.
+SELECT f1, f2 FROM t1 ORDER BY f1;
+
+DROP TABLE t1;

@@ -999,6 +999,10 @@ build_deb(){
 
     dpkg-buildpackage -rfakeroot -uc -us -b
 
+    for ddeb in $WORKDIR/*.ddeb; do
+        [ -e "${ddeb}" ] || continue
+        mv -v "${ddeb}" "${ddeb%.ddeb}.deb"
+    done
     cd ${WORKDIR}
     mkdir -p $CURDIR/deb
     mkdir -p $WORKDIR/deb

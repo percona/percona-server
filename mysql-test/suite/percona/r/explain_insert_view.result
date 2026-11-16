@@ -1,0 +1,49 @@
+#
+# EXPLAIN FORMAT=TREE and the iterator-based EXPLAIN FORMAT=JSON of an
+# INSERT or REPLACE into a view failed with "Internal error: Failed to
+# print query plan"
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(100));
+CREATE TABLE t2 (a INT, b VARCHAR(100));
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE a > 0;
+EXPLAIN FORMAT=TREE INSERT INTO v1 (a, b) VALUES (1, 'x');
+EXPLAIN
+-> Insert into t1
+    -> Rows fetched before execution
+
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`a`,`test`.`t1`.`b`) values (1,'x')
+EXPLAIN FORMAT=TREE INSERT INTO v1 (a, b) SELECT a, b FROM t2;
+EXPLAIN
+-> Insert into t1
+    -> Table scan on t2  (rows=1)
+
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`a`,`test`.`t1`.`b`) /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
+EXPLAIN FORMAT=TREE INSERT INTO v1 (a, b) SELECT a, b FROM t2
+ON DUPLICATE KEY UPDATE b = t2.b;
+EXPLAIN
+-> Insert into t1
+    -> Table scan on t2  (rows=1)
+
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`a`,`test`.`t1`.`b`) /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` on duplicate key update `test`.`t1`.`b` = `test`.`t2`.`b`
+EXPLAIN FORMAT=TREE REPLACE INTO v1 (a, b) SELECT a, b FROM t2;
+EXPLAIN
+-> Replace into t1
+    -> Table scan on t2  (rows=1)
+
+Warnings:
+Note	1003	replace into `test`.`t1` (`test`.`t1`.`a`,`test`.`t1`.`b`) /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
+# The table of the DML node is the base table of the view.
+SET @saved_explain_json_format_version = @@explain_json_format_version;
+SET explain_json_format_version = 2;
+EXPLAIN FORMAT=JSON INTO @plan INSERT INTO v1 (a, b) SELECT a, b FROM t2;
+SELECT JSON_EXTRACT(@plan, '$.query_plan.operation') AS operation,
+JSON_EXTRACT(@plan, '$.query_plan.table_name') AS table_name,
+JSON_EXTRACT(@plan, '$.query_plan.schema_name') AS schema_name;
+operation	table_name	schema_name
+"Insert into t1"	"t1"	"test"
+SET explain_json_format_version = @saved_explain_json_format_version;
+DROP VIEW v1;
+DROP TABLE t1, t2;

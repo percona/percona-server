@@ -22,6 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <memory>
+#include <string>
+#include <utility>
 
 #define RAPIDJSON_HAS_STDSTRING 1
 
@@ -30,10 +32,14 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
+#include <components/keyrings/keyring_kms/backend/kms.h>
 #include <components/keyrings/keyring_kms/keyring_kms.h>
 
 #include <components/keyrings/common/config/config_reader.h> /* Config_reader */
 #include <include/mysql/components/component_implementation.h>
+#include <mysql/components/services/log_builtins.h> /* LogComponentErr */
+#include "mysql/my_loglevel.h"                      /* ERROR_LEVEL */
+#include "mysqld_error.h"                           /* Errors */
 
 using keyring_common::config::Config_reader;
 using keyring_kms::g_config_pod;
@@ -68,7 +74,9 @@ static const std::string config_options[] = {
     "kms_key",           "auth_key", "secret_access_key", "endpoint",
     "session_token"};
 
-static void log_config_error(const std::string &message) {
+namespace {
+
+void log_config_error(const std::string &message) {
   const std::string full_message = "Configuration error: " + message;
   LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, full_message.c_str());
 }
@@ -84,8 +92,8 @@ static void log_config_error(const std::string &message) {
     @retval false Success, the option is a string or absent
     @retval true  Failure, the option is not a string
 */
-static bool get_optional_string(Config_reader &config_reader,
-                                const std::string &name, std::string &value) {
+bool get_optional_string(Config_reader &config_reader, const std::string &name,
+                         std::string &value) {
   if (config_reader.has_element(name)) return false;  // absent
   if (config_reader.is_string(name)) {
     log_config_error("'" + name + "' must be a string");
@@ -93,6 +101,8 @@ static bool get_optional_string(Config_reader &config_reader,
   }
   return config_reader.get_element<std::string>(name, value);
 }
+
+}  // namespace
 
 bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod) {
   std::unique_ptr<Config_pod> config_pod_tmp = std::make_unique<Config_pod>();

@@ -24,9 +24,11 @@
 #include <chrono>
 #include <fstream>
 #include <memory>
+#include <string>
 #include <thread>
 
 #include "backend.h"
+#include "kms.h"
 
 #include <components/keyrings/common/data_file/reader.h>
 #include <components/keyrings/common/data_file/writer.h>

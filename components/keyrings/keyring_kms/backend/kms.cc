@@ -31,6 +31,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
@@ -56,7 +57,6 @@
 
 #include <boost/algorithm/hex.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
-#include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/trim.hpp>
 
@@ -466,6 +466,18 @@ int Http_client::upload_callback(char *ptr, size_t size, size_t nmemb,
   return len;
 }
 
+namespace {
+/* Whether text starts with prefix, ignoring ASCII case. */
+bool starts_with_nocase(std::string_view text, std::string_view prefix) {
+  return text.size() >= prefix.size() &&
+         std::equal(prefix.begin(), prefix.end(), text.begin(),
+                    [](char lhs, char rhs) {
+                      return std::tolower(static_cast<unsigned char>(lhs)) ==
+                             std::tolower(static_cast<unsigned char>(rhs));
+                    });
+}
+}  // namespace
+
 bool parse_kms_endpoint(std::string const &url, Kms_endpoint &endpoint,
                         std::string &error) {
   static constexpr std::string_view http_prefix{"http://"};
@@ -473,10 +485,10 @@ bool parse_kms_endpoint(std::string const &url, Kms_endpoint &endpoint,
 
   Kms_endpoint parsed;
   std::string_view rest{url};
-  if (boost::algorithm::istarts_with(rest, https_prefix)) {
+  if (starts_with_nocase(rest, https_prefix)) {
     parsed.protocol = Http_request::HTTPS;
     rest.remove_prefix(https_prefix.size());
-  } else if (boost::algorithm::istarts_with(rest, http_prefix)) {
+  } else if (starts_with_nocase(rest, http_prefix)) {
     parsed.protocol = Http_request::HTTP;
     rest.remove_prefix(http_prefix.size());
   } else {
@@ -489,10 +501,10 @@ bool parse_kms_endpoint(std::string const &url, Kms_endpoint &endpoint,
     error = "it has no host";
     return true;
   }
-  for (const char c : rest) {
-    if (c == '/' || c == '?' || c == '#' || c == '@' || c == '\\' ||
-        std::isspace(static_cast<unsigned char>(c)) ||
-        std::iscntrl(static_cast<unsigned char>(c))) {
+  for (const char ch : rest) {
+    if (ch == '/' || ch == '?' || ch == '#' || ch == '@' || ch == '\\' ||
+        std::isspace(static_cast<unsigned char>(ch)) != 0 ||
+        std::iscntrl(static_cast<unsigned char>(ch)) != 0) {
       error = "it may hold only a scheme, a host and a port";
       return true;
     }
@@ -538,8 +550,8 @@ bool parse_kms_endpoint(std::string const &url, Kms_endpoint &endpoint,
   if (has_port) {
     const bool digits_only =
         !port.empty() && port.size() <= 5 &&
-        std::all_of(port.begin(), port.end(), [](char c) {
-          return std::isdigit(static_cast<unsigned char>(c)) != 0;
+        std::all_of(port.begin(), port.end(), [](char digit) {
+          return std::isdigit(static_cast<unsigned char>(digit)) != 0;
         });
     const unsigned long port_number =
         digits_only ? std::stoul(std::string(port)) : 0;
@@ -707,7 +719,7 @@ Http_response Kms_client::do_request(std::string const &amzTarget,
 
   Http_request req(Http_request::POST,
                    default_endpoint ? Http_request::HTTPS : endpoint.protocol,
-                   host.c_str(), "/");
+                   host, "/");
   req.add_header("Content-Length", std::to_string(payload.size()));
   req.add_header("Content-Type", "application/x-amz-json-1.1");
   req.add_header("X-Amz-Target", amzTarget);

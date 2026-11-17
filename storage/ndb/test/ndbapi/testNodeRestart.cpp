@@ -10319,6 +10319,323 @@ int runSlowCompleteNF(NDBT_Context *ctx, NDBT_Step *step) {
   return result;
 }
 
+int runTcTakeoverReopenOlderGciBehindNewerGci(NDBT_Context *ctx,
+                                              NDBT_Step *step) {
+  /**
+  Reproducer for Bug#36907359.
+  The test starts a transaction on a non-master TC, lets it reach commit in
+  an old GCI X without completing, and then crashes that TC node. Before the
+  crash is handled, the test starts a real transaction on the master TC in a
+  newer GCI Y and keeps Y open. TC takeover must then roll forward the old
+  transaction in X while the master TC is still tracking newer GCI Y.
+
+    Flow in the test:
+      1. 8129 is set on the victim TC.
+         It delays COMPLETE for the victim transaction in old GCI X, then
+         crashes the victim and leaves that transaction for takeover.
+      2. 8130 is set on the master TC.
+         Before the victim crashes, the test starts a real transaction pinned
+         to TC instance(1) of the the master. That transaction commits in later
+         GCI Y.  The complete010Lab() hook delays its COMPLETE, so GCI Y remains
+         in the master TC GCI list. 8130 also delays GCP_NOMORETRANS during node
+         failure handling, so X is not reopened before takeover.
+      3. During takeover, the master rolls forward the victim's old transaction
+         in GCI X. That goes through completeTransAtTakeOverDoOne() and then
+         commitGciHandling(X).
+  */
+  NdbRestarter restarter;
+
+  if (restarter.waitClusterStarted(30) != 0) {
+    g_err << "Cluster is not started" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (restarter.getNumDbNodes() < 2) {
+    g_err << "Need at least two data nodes" << endl;
+    return NDBT_SKIPPED;
+  }
+
+  const int master = restarter.getMasterNodeId();
+  const int victim = restarter.getRandomNotMasterNodeId(rand());
+
+  g_err << "Master TC node " << master << ", victim TC node " << victim << endl;
+
+  // NRT_NoStart_Restart: restart the victim after the 8129 crash, but leave
+  // it in nostart so TC takeover runs while the victim is still down.
+  const int restartOnError[] = {DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1};
+  if (restarter.dumpStateOneNode(victim, restartOnError, 2) != 0) {
+    return NDBT_FAILED;
+  }
+
+  // Delay complete010Lab() once for the master transaction in newer GCI Y,
+  // so Y stays in the TC GCI list.
+  if (restarter.insertErrorInNode(master, 8130) != 0) {
+    return NDBT_FAILED;
+  }
+  if (restarter.insertErrorInNode(victim, 8129) != 0) {
+    return NDBT_FAILED;
+  }
+
+  Ndb *ndb = GETNDB(step);
+  HugoOperations victimOps(*ctx->getTab());
+  if (victimOps.startTransaction(ndb, victim, 0) != NDBT_OK) {
+    return NDBT_FAILED;
+  }
+  if (victimOps.pkUpdateRecord(ndb, 1, 1) != NDBT_OK) {
+    return NDBT_FAILED;
+  }
+  if (victimOps.execute_NoCommit(ndb) != NDBT_OK) {
+    return NDBT_FAILED;
+  }
+
+  NdbTransaction *victimTrans = victimOps.getTransaction();
+  victimTrans->executeAsynchPrepare(Commit, callback, nullptr, AbortOnError);
+  ndb->sendPreparedTransactions(1);
+  g_err << "Victim async commit sent" << endl;
+
+  // Victim is now blocked committing in GCI X and will fail in ~6s.
+  // Let the victim reach the 8129-blocked commit path before creating GCI Y.
+  NdbSleep_MilliSleep(2000);
+
+  HugoOperations masterOps(*ctx->getTab());
+  // In multi TC configs, DBTC instance 1 performs takeover. Keep GCI Y open
+  // there.
+  if (masterOps.startTransaction(ndb, master, 1) != NDBT_OK) {
+    restarter.insertErrorInNode(master, 0);
+    return NDBT_FAILED;
+  }
+  if (masterOps.pkUpdateRecord(ndb, 2, 1) != NDBT_OK) {
+    restarter.insertErrorInNode(master, 0);
+    return NDBT_FAILED;
+  }
+  if (masterOps.execute_NoCommit(ndb) != NDBT_OK) {
+    restarter.insertErrorInNode(master, 0);
+    return NDBT_FAILED;
+  }
+  // NDBT created tables are READ_PRIMARY, so the test will not block waiting
+  // for commit ack. READ_BACKUP tables may block here waiting for the ack
+  if (masterOps.execute_Commit(ndb) != 0) {
+    masterOps.closeTransaction(ndb);
+    restarter.insertErrorInNode(master, 0);
+    return NDBT_FAILED;
+  }
+  masterOps.closeTransaction(ndb);
+
+  if (checkOneNodeDead(victim, 30) != 0) {
+    g_err << "Victim did not leave STARTED state" << endl;
+    restarter.insertErrorInNode(master, 0);
+    return NDBT_FAILED;
+  }
+
+  if (checkOneNodeDead(master, 5) == 0) {
+    g_err << "Master crashed" << endl;
+    abort();
+  }
+
+  g_err << "Master survived takeover; restarting victim" << endl;
+  if (restarter.insertErrorInNode(master, 0) != 0) {
+    return NDBT_FAILED;
+  }
+  if (restarter.waitNodesNoStart(&victim, 1, 30) != 0) {
+    g_err << "Victim did not reach nostart after failure" << endl;
+    return NDBT_FAILED;
+  }
+  if (restarter.startNodes(&victim, 1) != 0 ||
+      restarter.waitNodesStarted(&victim, 1, 120) != 0) {
+    g_err << "Victim did not restart after failure" << endl;
+    return NDBT_FAILED;
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int runGciWatcher(NDBT_Context *ctx, NDBT_Step *step) {
+  /* Setup Event + subscribe, updating ClusterGci property
+   * until test stopped
+   */
+  Ndb *pNdb = GETNDB(step);
+  pNdb->setDatabaseName("sys");
+  const NdbDictionary::Table *systab_0 =
+      pNdb->getDictionary()->getTable("SYSTAB_0");
+  if (systab_0 == nullptr) {
+    g_err << "Failed to get SYSTAB_0 table"
+          << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (createEvent(pNdb, *systab_0, false, false) != NDBT_OK) {
+    g_err << "Failed to create event" << endl;
+    return NDBT_FAILED;
+  }
+
+  Uint32 result = NDBT_OK;
+  NdbEventOperation *eventOp = createEventOperation(pNdb, *systab_0);
+
+  if (eventOp != nullptr) {
+    while (!ctx->isTestStopped()) {
+      pNdb->pollEvents(1000);
+      const Uint64 epoch = pNdb->getLatestGCI();
+      g_err << "Latest epoch is " << (epoch >> 32) << "/"
+            << (epoch & 0xffffffff) << endl;
+      ctx->setProperty("ClusterGci", epoch >> 32);
+    }
+
+    pNdb->dropEventOperation(eventOp);
+  } else {
+    g_err << "Failed to create event operation." << endl;
+    result = NDBT_FAILED;
+  }
+  dropEvent(pNdb, *systab_0);
+
+  return result;
+}
+
+bool waitGCPSaveStalled(NDBT_Context *ctx, Uint32 stallSecs = 5,
+                        Uint32 maxWaitSecs = 30) {
+  Uint32 prevGci = ctx->getProperty("ClusterGci", Uint32(0));
+  Uint32 sameSecs = 0;
+  require(prevGci != 0);
+  while (maxWaitSecs-- && sameSecs < stallSecs) {
+    NdbSleep_SecSleep(1);
+    Uint32 currGci = ctx->getProperty("ClusterGci", Uint32(0));
+    if (currGci == prevGci) {
+      if (++sameSecs == stallSecs) {
+        return true;
+      }
+    } else {
+      sameSecs = 0;
+    }
+    prevGci = currGci;
+  }
+
+  g_err << "waitGCPSaveStalled : GCP Save not stalled" << endl;
+  return false;
+}
+
+bool waitGCPSaveResumed(NDBT_Context *ctx, Uint32 maxWaitSecs = 30) {
+  Uint32 prevGci = ctx->getProperty("ClusterGci", Uint32(0));
+  require(prevGci != 0);
+  while (maxWaitSecs--) {
+    NdbSleep_SecSleep(1);
+    Uint32 currGci = ctx->getProperty("ClusterGci", Uint32(0));
+    if (currGci != prevGci) {
+      return true;
+    }
+  }
+
+  g_err << "waitGCPSaveResumed : GCP Save stuck at gci " << prevGci << endl;
+  return false;
+}
+
+int runPkUpdatesUntilStopRequested(NDBT_Context *ctx, NDBT_Step *step) {
+  int result = NDBT_OK;
+  int records = ctx->getNumRecords();
+  Ndb *pNdb = GETNDB(step);
+  const Uint32 totalSteps = step->getStepTypeCount();
+  const Uint32 stepNo = step->getStepTypeNo();
+
+  HugoTransactions hugoTrans(*ctx->getTab());
+  /* Avoid multiple threads interfering with each other */
+  hugoTrans.setThrInfo(totalSteps, stepNo);
+  /* Avoid hugoTrans internal retries causing delays */
+  hugoTrans.setRetryMax(1);
+
+  g_err << "PkUpdatesUntilStopRequested Step " << stepNo << "/" << totalSteps
+        << " starting." << endl;
+
+  while (!ctx->isTestStopped() &&
+         ctx->getProperty("UPDATE_STOP_REQUESTED", Uint32(0)) == 0) {
+    int batch = 100;
+
+    if (hugoTrans.pkUpdateRecords(pNdb, records, batch) == 0) continue;
+
+    NdbError error = hugoTrans.getNdbError();
+    if (error.code == 0 || error.status == NdbError::TemporaryError) {
+      NdbSleep_MilliSleep(50);
+      continue;
+    }
+    g_err << "Failing with error " << error;
+    return NDBT_FAILED;
+  }
+  g_err << "PkUpdatesUntilStopRequested Step " << stepNo << "/" << totalSteps
+        << " finished." << endl;
+  return result;
+}
+
+int runGCPSaveAndFileChange(NDBT_Context *ctx, NDBT_Step *step) {
+  NdbRestarter restarter;
+
+  const int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+  g_err << "Victim is node " << victim << endl;
+
+  g_err << "Waiting for non zero GCI" << endl;
+  Uint32 startGci = 0;
+  while ((startGci = ctx->getProperty("ClusterGci", Uint32(0))) == 0 &&
+         !ctx->isTestStopped()) {
+    NdbSleep_SecSleep(1);
+  }
+  if (ctx->isTestStopped()) {
+    return NDBT_FAILED;
+  }
+  g_err << "Have Gci " << startGci << endl;
+
+  g_err << "Injecting error 5113" << endl;
+  if (restarter.insertErrorInNode(victim, 5113) != NDBT_OK) {
+    g_err << "Failed to inject error in node" << endl;
+    return NDBT_FAILED;
+  }
+
+  int result = NDBT_FAILED;
+  do {
+    g_err << "Error injected, giving time for GCP stop" << endl;
+
+    if (!waitGCPSaveStalled(ctx)) {
+      g_err << "GCP Save did not stall" << endl;
+      break;
+    }
+
+    g_err << "Give a little more time for updates to accumulate" << endl;
+    NdbSleep_SecSleep(10);
+
+    g_err << "Requesting updates to stop" << endl;
+    ctx->setProperty("UPDATE_STOP_REQUESTED", Uint32(1));
+
+    g_err << "Giving time for updates to stop" << endl;
+    {
+      Uint32 noOfRunningSteps = 0;
+      Uint32 expectedSteps = 2;  // me + epochWatcher
+      do {
+        noOfRunningSteps = ctx->getNoOfRunningSteps();
+        g_err << "Running steps " << noOfRunningSteps << endl;
+        NdbSleep_SecSleep(1);
+      } while (noOfRunningSteps > expectedSteps);
+    }
+
+    g_err << "Clearing error injection" << endl;
+    if (restarter.insertErrorInNode(victim, 0) != NDBT_OK) {
+      g_err << "Failed to clear error in node" << endl;
+      break;
+    }
+
+    g_err << "Error cleared, checking that GCI resumes" << endl;
+    if (!waitGCPSaveResumed(ctx)) {
+      g_err << "Failed waiting for GCP Save to resume" << endl;
+      ctx->stopTest();
+      break;
+    }
+    result = NDBT_OK;
+    g_err << "Done" << endl;
+
+  } while (false);
+
+  /* Clear error insertion */
+  restarter.insertErrorInNode(victim, 0);
+
+  ctx->stopTest();
+  return result;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad",
          "Test that one node at a time can be stopped and then restarted "
@@ -11150,7 +11467,20 @@ TESTCASE("PreparedUpdatesNF",
   STEP(runSlowCompleteNF);
   FINALIZER(runClearTable);
 }
-
+TESTCASE("TcTakeoverReopenOlderGciBehindNewerGci",
+         "TC takeover rolls forward old GCI X while newer GCI Y is still "
+         "open on the master TC") {
+  INITIALIZER(runLoadTable);
+  STEP(runTcTakeoverReopenOlderGciBehindNewerGci);
+}
+TESTCASE("GCPSaveAndFileChange",
+         "Check resilience of GCP_SAVE mechanism wrt redo log file changes") {
+  INITIALIZER(runLoadTable);
+  STEP(runGciWatcher);
+  STEPS(runPkUpdatesUntilStopRequested, 20);
+  STEP(runGCPSaveAndFileChange);
+  FINALIZER(runClearTable);
+}
 NDBT_TESTSUITE_END(testNodeRestart)
 
 int main(int argc, const char **argv) {

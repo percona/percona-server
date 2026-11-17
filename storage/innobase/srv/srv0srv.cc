@@ -262,6 +262,8 @@ char *srv_log_group_home_dir = nullptr;
 /** Enable or disable Encrypt of REDO tablespace. */
 bool srv_redo_log_encrypt = false;
 
+bool srv_recovered_redo_block_was_encrypted = false;
+
 ulong srv_log_n_files = 100; /* Deprecated (used only for deprecated sysvar). */
 
 ulonglong srv_log_file_size; /* Deprecated (used only for deprecated sysvar). */

@@ -2,6 +2,8 @@
 --echo # WL#9451 -- Backup Lock
 --echo #
 
+--disable_warnings
+
 CREATE TABLE t1 (a INT);
 
 --enable_connect_log
@@ -200,3 +202,4 @@ DROP DATABASE db1;
 
 --connection default
 --disable_connect_log
+--enable_warnings

@@ -228,7 +228,7 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --enable_query_log
 --echo
 --let $persisted_after_set= `SELECT COUNT(*) FROM performance_schema.persisted_variables`
---let $assert_text= Expect $total_persistent_vars persisted variables in the table.
+--let $assert_text= Expect persisted_after_set >= total_persistent_vars-3 and persisted_after_set <= total_persistent_vars+1.
 --let $assert_cond= [SELECT ($persisted_after_set >= $total_persistent_vars-3 AND $persisted_after_set <= $total_persistent_vars+1) as count, count, 1] = 1
 --source include/assert.inc
 

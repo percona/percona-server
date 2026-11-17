@@ -190,9 +190,6 @@ static int cmp_rec_and_tuple_prune(part_column_list_val *val,
                                    uint32 n_vals_in_rec, bool is_left_endpoint,
                                    bool include_endpoint);
 
-static void set_field_ptr(Field **ptr, const uchar *new_buf,
-                          const uchar *old_buf);
-
 static uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
                                               bool left_endpoint,
                                               bool include_endpoint);
@@ -5274,34 +5271,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 err:
   *new_part_info = nullptr;
   return true;
-}
-
-/*
-  Prepare for calling val_int on partition function by setting fields to
-  point to the record where the values of the PF-fields are stored.
-
-  SYNOPSIS
-    set_field_ptr()
-    ptr                 Array of fields to change ptr
-    new_buf             New record pointer
-    old_buf             Old record pointer
-
-  DESCRIPTION
-    Set ptr in field objects of field array to refer to new_buf record
-    instead of previously old_buf. Used before calling val_int and after
-    it is used to restore pointers to table->record[0].
-    This routine is placed outside of partition code since it can be useful
-    also for other programs.
-*/
-
-static void set_field_ptr(Field **ptr, const uchar *new_buf,
-                          const uchar *old_buf) {
-  const ptrdiff_t diff = (new_buf - old_buf);
-  DBUG_TRACE;
-
-  do {
-    (*ptr)->move_field_offset(diff);
-  } while (*(++ptr));
 }
 
 /**

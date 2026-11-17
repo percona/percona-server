@@ -54,6 +54,12 @@ leak:/usr/*/cc1plus
 leak:/lib/*libbfd-*-system.so
 leak:/usr/bin/*ld.bfd
 leak:/usr/lib/*collect2
+# Newer GCC packages install collect2 under /usr/libexec/gcc/, which the
+# pattern above does not match.
+leak:/usr/libexec/gcc/*/collect2
+# GNU findutils, used by tests in pipelines such as "find ... | xargs ...".
+leak:/usr/bin/find
+leak:/usr/bin/xargs
 
 # Ubuntu 25.10 and newer ship the Rust (uutils) reimplementation of
 # coreutils, installed under /usr/lib/cargo/bin/coreutils/ rather than

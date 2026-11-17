@@ -48,6 +48,5 @@ id	value	value2	value3
 20	20	20	20
 select * from t1 force index(value) where value=12;
 kill query @id;
-ERROR 70100: Query execution was interrupted
 drop procedure if exists update_t1;
 drop table if exists t1;

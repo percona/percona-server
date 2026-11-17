@@ -22842,6 +22842,40 @@ static void test_server_telemetry_traces_prepared() {
   printf("Test 7 successfully completed\n");
 }
 
+static void test_bug39603354() {
+  myheader("test_bug39603354");
+
+  // Server id followed by a truncated multi-byte length-encoded string header.
+  uchar packet[5]{};
+  constexpr uchar prefixes[]{252, 253, 254};
+  for (const uchar prefix : prefixes) {
+    packet[4] = prefix;
+    const int rc =
+        simple_command(mysql, COM_REGISTER_SLAVE, packet, sizeof(packet), 0);
+    DIE_UNLESS(rc != 0);
+    DIE_UNLESS(mysql_errno(mysql) == ER_MALFORMED_PACKET);
+  }
+
+  // The declared host length must not be truncated to its low 32 bits.
+  uchar oversized_length_packet[26]{};
+  uchar *pos = oversized_length_packet;
+  int4store(pos, 1);
+  pos += 4;
+  *pos++ = 254;
+  int8store(pos, (UINT64_C(1) << 32) + 1);
+  pos += 8;
+  *pos++ = 'h';  // Host after truncating the declared length to 1.
+  *pos++ = 0;    // Empty user.
+  *pos++ = 0;    // Empty password.
+  pos += 10;     // Port, recovery rank, and source id.
+  DIE_UNLESS(pos == oversized_length_packet + sizeof(oversized_length_packet));
+
+  const int rc =
+      simple_command(mysql, COM_REGISTER_SLAVE, oversized_length_packet,
+                     sizeof(oversized_length_packet), 0);
+  DIE_UNLESS(rc != 0);
+}
+
 static void test_wl13128() {
   DBUG_TRACE;
   myheader("test_wl13128");
@@ -23826,6 +23860,42 @@ static void test_bug36686351() {
   mysql_stmt_close(stmt);
 }
 
+/* Verify the legacy and update-aware C API version strings. */
+static void test_version_with_update_client_api() {
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  const char *server_version_with_update;
+  std::string compatibility_version;
+  std::string full_version;
+
+  myheader("test_version_with_update_client_api");
+
+  myquery(mysql_query(mysql, "SELECT VERSION(), VERSION_WITH_UPDATE()"));
+  DIE_UNLESS(result = mysql_store_result(mysql));
+  DIE_UNLESS(row = mysql_fetch_row(result));
+  DIE_UNLESS(row[0] != nullptr);
+  DIE_UNLESS(row[1] != nullptr);
+  compatibility_version = row[0];
+  full_version = row[1];
+  mysql_free_result(result);
+
+  /* Server APIs must reflect their corresponding SQL version strings. */
+  DIE_UNLESS(
+      strcmp(mysql_get_server_info(mysql), compatibility_version.c_str()) == 0);
+  DIE_UNLESS(server_version_with_update =
+                 mysql_get_server_info_with_version_update(mysql));
+  DIE_UNLESS(strcmp(server_version_with_update, full_version.c_str()) == 0);
+  DIE_UNLESS(server_version_with_update ==
+             mysql_get_server_info_with_version_update(mysql));
+  DIE_UNLESS(mysql_get_server_version(mysql) == MYSQL_VERSION_ID);
+
+  /* Client APIs use the build-time version metadata. */
+  DIE_UNLESS(strcmp(mysql_get_client_info(), MYSQL_SERVER_VERSION) == 0);
+  DIE_UNLESS(strcmp(mysql_get_client_info_with_version_update(),
+                    MYSQL_SERVER_VERSION_WITH_UPDATE) == 0);
+  DIE_UNLESS(mysql_get_client_version() == MYSQL_VERSION_ID);
+}
+
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
     {"client_query", client_query},
@@ -24121,6 +24191,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl13075", test_wl13075},
     {"test_bug33535746", test_bug33535746},
     {"test_server_telemetry_traces", test_server_telemetry_traces},
+    {"test_bug39603354", test_bug39603354},
     {"test_wl13128", test_wl13128},
     {"test_bug25584097", test_bug25584097},
     {"test_34556764", test_34556764},
@@ -24142,6 +24213,8 @@ static struct my_tests_st my_tests[] = {
     {"test_bug36891894", test_bug36891894},
     {"test_bug37202066", test_bug37202066},
     {"test_bug36686351", test_bug36686351},
+    {"test_version_with_update_client_api",
+     test_version_with_update_client_api},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

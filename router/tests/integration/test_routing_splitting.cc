@@ -1720,15 +1720,15 @@ TEST_P(SplittingConnectionTest,
     auto last_executed_gtid_res = executed_gtid(cli);
     ASSERT_NO_ERROR(last_executed_gtid_res);
     EXPECT_NE(last_known_gtid, *last_executed_gtid_res);
-    last_known_gtid = *last_executed_gtid_res;
   }
   ASSERT_NO_ERROR(cli.query("ROLLBACK"));  // no need to commit.
 
-  {
-    auto last_executed_gtid_res = executed_gtid(cli);
-    ASSERT_NO_ERROR(last_executed_gtid_res);
-    EXPECT_EQ(last_known_gtid, *last_executed_gtid_res);
-  }
+  // the ROLLBACK must not commit anything.
+  //
+  // Don't compare @@gtid_executed here: the router's metadata-cache updates
+  // its last_check_in in the metadata (every 10th refresh) which adds a GTID
+  // to the cluster independent of this session.
+  EXPECT_THAT(last_gtid(cli), IsEmpty());  // no new gtid.
 
   // switches the read-only server and waits for the implicitly committed trx.
   {

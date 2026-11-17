@@ -392,10 +392,8 @@ static const char *helpTextTlsInfo =
 "-\n"
 "TLS INFO  Print cluster TLS information\n\n"
 "TLS INFO           Report whether the current connection is using TLS,\n"
-"                   display a list of all TLS certificates currently\n"
-"                   known to the management node, and report the\n"
-"                   management node's counts of total connections,\n"
-"                   connections upgraded to TLS, and authorization failures"
+"                   display the server's list of current TLS connections,\n"
+"                   trust store, and TLS connection statistics"
 ".\n";
 static const char* helpTextShutdown =
 "---------------------------------------------------------------------------\n"
@@ -1967,6 +1965,32 @@ void CommandInterpreter::executeShowTlsInfo(const char *) {
     ndbout_c("  Certificate name:    %s", c->cert_name);
     ndbout_c("  Certificate serial:  %s", c->cert_serial);
     ndbout_c("  Certificate expires: %s", c->cert_expires);
+    ndbout_c(" ");
+    c = c->next;
+  }
+  ndb_mgm_cert_table_free(&info);
+
+  r = ndb_mgm_list_trusted_certs(m_mgmsrv, &info);
+  if (r < 0) {
+    ndbout_c(" failed. ");
+    return;
+  }
+  ndbout_c(" ");
+  ndbout_c("Server reports %d trusted CA certificate%s.\n", r,
+           r == 1 ? "" : "s");
+  c = info;
+  while (c) {
+    BaseString flags;
+    BaseString lastUse = CertSubject::timestamp(c->last_use, "%c");
+    if (c->flags & NDB_MGM_CA_IN_CERT_CHAIN) flags.append("IN_CERT_CHAIN ");
+    if (c->flags & NDB_MGM_CA_IN_TRUST_STORE) flags.append("IN_TRUST_STORE ");
+    if (c->flags & NDB_MGM_CA_IS_ROOT) flags.append("IS_ROOT ");
+    ndbout_c("  Certificate name:    %s", c->cert_name);
+    ndbout_c("  Certificate serial:  %s", c->cert_serial);
+    ndbout_c("  Certificate expires: %s", c->cert_expires);
+    ndbout_c("  Certificate flags:   %s", flags.c_str());
+    ndbout_c("  Auth use count:      %d", c->use_count);
+    ndbout_c("  Auth last use:       %s", lastUse.c_str());
     ndbout_c(" ");
     c = c->next;
   }

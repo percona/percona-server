@@ -2705,7 +2705,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   /* Safe because there is always a trailing \0 at the end of the packet */
   char *passwd = strend(user) + 1;
   size_t user_len = passwd - user - 1;
-  char *db = passwd;
+  char *db;
   char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];  // buffer to store user in utf8
   uint dummy_errors;
@@ -2724,7 +2724,14 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   */
   const size_t passwd_len = (uchar)(*passwd++);
 
-  db += passwd_len + 1;
+  /* The authentication response must be followed by the database name. */
+  DBUG_EXECUTE_IF("change_user_auth_response_too_short",
+                  end = passwd + passwd_len;);
+  if (passwd_len >= static_cast<size_t>(end - passwd)) {
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+    return true;
+  }
+  db = passwd + passwd_len;
   /*
     Database name is always NUL-terminated, so in case of empty database
     the packet must contain at least the trailing '\0'.
@@ -2734,11 +2741,18 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
     return true;
   }
 
-  size_t db_len = strlen(db);
+  DBUG_EXECUTE_IF("change_user_db_not_terminated", end = db + strlen(db););
 
-  char *ptr = db + db_len + 1;
+  char *db_end = (char *)memchr(db, '\0', end - db);
+  if (db_end == nullptr) {
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+    return true;
+  }
+  size_t db_len = db_end - db;
 
-  if (ptr + 1 < end) {
+  char *ptr = db_end + 1;
+
+  if (end - ptr >= 2) {
     if (mpvio->charset_adapter->init_client_charset(uint2korr(ptr)))
       return true;
     // skip over the charset's 2 bytes
@@ -2781,16 +2795,25 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   const char *client_plugin;
   if (protocol->has_client_capability(CLIENT_PLUGIN_AUTH)) {
     client_plugin = ptr;
-    /*
-      ptr needs to be updated to point to correct position so that
-      connection attributes are read properly.
-    */
-    ptr = ptr + strlen(client_plugin) + 1;
-
     if (client_plugin >= end) {
       my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
       return true;
     }
+
+    DBUG_EXECUTE_IF("change_user_plugin_not_terminated",
+                    end = ptr + strlen(ptr););
+
+    const char *plugin_end =
+        (const char *)memchr(client_plugin, '\0', end - client_plugin);
+    if (plugin_end == nullptr) {
+      my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+      return true;
+    }
+    /*
+      ptr needs to be updated to point to correct position so that
+      connection attributes are read properly.
+    */
+    ptr = const_cast<char *>(plugin_end) + 1;
   } else
     client_plugin = Cached_authentication_plugins::get_plugin_name(
         PLUGIN_MYSQL_NATIVE_PASSWORD);

@@ -917,10 +917,9 @@ int ha_innopart::open(const char *name, int mode [[maybe_unused]],
                     table->s->table_name.str);
       }
 
-      /* Allow an open because a proper DISCARD should have set
-      all the flags and index root page numbers to FIL_NULL that
-      should prevent any DML from running but it should allow DDL
-      operations. */
+      /* Allow opening a discarded table so DDL such as IMPORT can run. DML
+      checks the discarded state and does not access the unavailable
+      tablespace. */
       no_tablespace = false;
 
     } else if (ib_table->ibd_file_missing) {
@@ -2830,6 +2829,7 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
 
       dd::Properties &p = dd_index->se_private_data();
       p.set(dd_index_key_strings[DD_INDEX_ROOT], index->page);
+      p.set(dd_index_key_strings[DD_INDEX_TRX_ID], index->trx_id);
     }
   }
 

@@ -3656,7 +3656,7 @@ static lsn_t recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
 
     dberr_t err = log_data_blocks_read(file_handle, source_offset, len, buf);
 
-    if (err == DB_UNSUPPORTED) {
+    if (err == DB_IO_DECRYPT_FAIL) {
       /* The log block may be encrypted, read and update the log_sys */
       err = log_encryption_read(log);
       if (err != DB_SUCCESS) {
@@ -3669,6 +3669,7 @@ static lsn_t recv_read_log_seg(log_t &log, byte *buf, lsn_t start_lsn,
         case DB_SUCCESS:
           break;
 
+        case DB_IO_DECRYPT_FAIL:
         case DB_UNSUPPORTED:
           ib::error(ER_IB_MSG_CANT_DECRYPT_REDO_LOG, ulonglong{source_offset},
                     file_handle.file_path().c_str());

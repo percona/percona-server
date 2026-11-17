@@ -56,7 +56,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define INNODB_VERSION_BUGFIX MYSQL_VERSION_PATCH
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 11
+#define PERCONA_INNODB_VERSION 13
 #endif
 
 /* The following is the InnoDB version as shown in
@@ -285,7 +285,7 @@ constexpr size_t UNIV_WORD_SIZE = SIZEOF_LONG;
 
 /** The following alignment is used in memory allocations in memory heap
 management to ensure correct alignment for doubles etc. */
-constexpr uint32_t UNIV_MEM_ALIGNMENT = 8;
+constexpr size_t UNIV_MEM_ALIGNMENT = 8;
 
 /*
                         DATABASE VERSION CONTROL

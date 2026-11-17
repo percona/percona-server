@@ -1,0 +1,3 @@
+include/assert.inc [VERSION() ends with the --version-suffix value]
+include/assert.inc [VERSION() does not contain the -debug build suffix]
+include/assert.inc [The debug system variable exists]

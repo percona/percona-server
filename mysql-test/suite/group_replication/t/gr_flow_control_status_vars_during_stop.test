@@ -1,0 +1,86 @@
+################################################################################
+# Verify that the group_replication_flow_control_% status variables can be
+# read while STOP GROUP_REPLICATION is ongoing.
+#
+# The status variables access the applier module, which STOP
+# GROUP_REPLICATION destroys. While START/STOP GROUP_REPLICATION holds the
+# plugin_running_lock the status variables must not wait for it nor access
+# the applier module, they must return empty values.
+#
+# 1. Bootstrap a group on server1 and wait until the flow control stats are
+#    known.
+# 2. Asynchronously execute STOP GROUP_REPLICATION and hold it after it
+#    acquired the plugin_running_lock.
+# 3. Read the status variables while STOP GROUP_REPLICATION is ongoing.
+#    They must return immediately with empty values.
+# 4. Resume STOP GROUP_REPLICATION.
+# 5. Clean up.
+################################################################################
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap a group on server1 and wait until the flow
+--echo #    control stats are known.
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $wait_condition= SELECT VARIABLE_VALUE = '(0/1)' FROM performance_schema.global_status WHERE VARIABLE_NAME = 'group_replication_flow_control_threshold_nodes'
+--source include/wait_condition.inc
+
+SHOW GLOBAL STATUS LIKE 'group_replication_flow_control%';
+
+
+--echo
+--echo ############################################################
+--echo # 2. Asynchronously execute STOP GROUP_REPLICATION and hold it
+--echo #    after it acquired the plugin_running_lock.
+SET @@GLOBAL.DEBUG='+d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--send STOP GROUP_REPLICATION
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.reached_plugin_gr_stop_after_holding_plugin_running_lock";
+SET @@GLOBAL.DEBUG='-d,gr_plugin_gr_stop_after_holding_plugin_running_lock';
+
+
+--echo
+--echo ############################################################
+--echo # 3. Read the status variables while STOP GROUP_REPLICATION is
+--echo #    ongoing. They must return immediately with empty values.
+SHOW GLOBAL STATUS LIKE 'group_replication_flow_control%';
+SHOW SESSION STATUS LIKE 'group_replication_flow_control%';
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'group_replication_flow_control%' ORDER BY VARIABLE_NAME;
+
+
+--echo
+--echo ############################################################
+--echo # 4. Resume STOP GROUP_REPLICATION.
+SET DEBUG_SYNC= "now SIGNAL signal.resume_plugin_gr_stop_after_holding_plugin_running_lock";
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--reap
+
+--let $rpl_connection_name= server1
+--source include/connection.inc
+--let $group_replication_member_state= OFFLINE
+--source include/gr_wait_for_member_state.inc
+
+SHOW GLOBAL STATUS LIKE 'group_replication_flow_control%';
+
+
+--echo
+--echo ############################################################
+--echo # 5. Clean up.
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.read_only= 0;
+--source include/group_replication_end.inc

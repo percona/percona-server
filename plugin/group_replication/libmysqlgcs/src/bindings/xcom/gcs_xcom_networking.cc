@@ -420,7 +420,7 @@ static bool sock_descriptor_to_sockaddr(int fd, struct sockaddr_storage *sa) {
 /**
   This function is a frontend function to inet_ntop.
   */
-static bool sock_descriptor_to_string(int fd, std::string &out) {
+bool sock_descriptor_to_string(int fd, std::string &out) {
   struct sockaddr_storage sa;
   char saddr[INET6_ADDRSTRLEN];
 
@@ -429,8 +429,9 @@ static bool sock_descriptor_to_string(int fd, std::string &out) {
 
   // try IPv4
   if (sa.ss_family == AF_INET) {
-    if (inet_ntop(AF_INET, &(((struct sockaddr_in *)&sa)->sin_addr), saddr,
-                  INET_ADDRSTRLEN)) {
+    auto inaddr = &(((struct sockaddr_in *)&sa)->sin_addr);
+    if (inet_ntop(AF_INET, inaddr, saddr,
+                  static_cast<socklen_t>(sizeof(saddr)))) {
       out = saddr;
       return false;
     }
@@ -438,8 +439,9 @@ static bool sock_descriptor_to_string(int fd, std::string &out) {
 
   // try IPv6
   if (sa.ss_family == AF_INET6) {
-    if (inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)&sa)->sin6_addr), saddr,
-                  INET6_ADDRSTRLEN)) {
+    auto inaddr = &(((struct sockaddr_in6 *)&sa)->sin6_addr);
+    if (inet_ntop(AF_INET6, inaddr, saddr,
+                  static_cast<socklen_t>(sizeof(saddr)))) {
       out = saddr;
       return false;
     }

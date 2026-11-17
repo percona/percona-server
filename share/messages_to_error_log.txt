@@ -7377,7 +7377,7 @@ ER_IB_MSG_613
 ER_IB_MSG_614
   eng "%s"
 
-ER_IB_MSG_615
+OBSOLETE_ER_IB_MSG_615
   eng "%s"
 
 ER_IB_MSG_616
@@ -12773,7 +12773,7 @@ ER_IB_LONG_ROLLBACK
   eng "Still rolling back transaction %llu; %llu undo records rolled back out of %llu total (%lu%% complete)."
 
 ER_INVALID_FILE_FORMAT
-  eng "Invalid format of file '%s'."
+  eng "Invalid format of file '%s'. The file will be recreated."
 
 ER_LOG_SANITIZATION
   eng "Relay log sanitization: %s"
@@ -12837,6 +12837,17 @@ ER_TEMPTABLE_ENGINE_ERROR
 
 ER_AUTH_INITIAL_PLUGIN_OVERRIDE
   eng "Plugin '%s' from authentication policy cannot be used for initial handshake, using '%s' default instead"
+
+# In 9.7+ versions, the incorrect placement of
+# ER_SIMPLE_ERROR_LOG_COMPONENT_STATUS caused ER_SERVER_VERSION_INFO to be
+# assigned the error number 015150, resulting in inconsistent numbering
+# across versions. So, explicitly using start-error-number directive to
+# correct this mismatch. This establishes a consistent starting point for
+# ER_SERVER_VERSION_INFO and subsequent 8.4 error messages, ensuring that
+# the same messages retain the same error numbers across versions.
+start-error-number 15150
+ER_SERVER_VERSION_INFO
+  eng "Server version with update: '%s'"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

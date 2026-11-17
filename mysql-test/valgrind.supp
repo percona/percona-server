@@ -960,6 +960,23 @@
    fun:ENGINE_new
 }
 
+# OpenSSL 3 loads its error strings into an internal hash table once, at
+# library initialization. With newer OpenSSL versions an entry of this table
+# is reported as definitely lost at exit, e.g. by the mysql client on Ubuntu
+# resolute. MySQL never holds a pointer to this memory.
+{
+   OpenSSL 3 error string table entry allocated at library init
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:OPENSSL_LH_insert
+   ...
+   fun:ERR_load_strings_const
+   ...
+   fun:OPENSSL_init_crypto
+}
+
 {
   OpenSSL still reachable.
   Memcheck:Leak

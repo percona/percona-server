@@ -320,10 +320,10 @@ XA END 'a';
 XA PREPARE 'a';
 --source include/rpl/sync_to_replica.inc
 
---source include/rpl/connection_replica.inc
---let $xa_prepared_count = 1
---source include/wait_for_xa_prepared_count.inc
-XA ROLLBACK 'a';
+--let $expected_prepared_xa_count = 1
+--source common/xa_crash_safe/assert_xa_recover.inc
+--let $xa_rollback_xid = 'a'
+--source include/rpl/xa_rollback_detached.inc
 --source include/rpl/save_binlog_file_position.inc
 
 --source include/rpl/connection_source.inc
@@ -347,9 +347,10 @@ INSERT INTO t VALUES (3);
 XA END 'a';
 XA PREPARE 'a';
 --source include/rpl/sync_to_replica.inc
---let $xa_prepared_count = 1
---source include/wait_for_xa_prepared_count.inc
-XA ROLLBACK 'a';
+--let $expected_prepared_xa_count = 1
+--source common/xa_crash_safe/assert_xa_recover.inc
+--let $xa_rollback_xid = 'a'
+--source include/rpl/xa_rollback_detached.inc
 --source include/rpl/save_binlog_file_position.inc
 
 --source include/rpl/connection_source.inc

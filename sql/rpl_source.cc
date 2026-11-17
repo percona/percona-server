@@ -127,20 +127,26 @@ resource_blocker::Resource &get_dump_thread_resource() {
 
 extern TYPELIB binlog_checksum_typelib;
 
-#define get_object(p, obj, msg)                  \
-  {                                              \
-    uint len;                                    \
-    if (p >= p_end) {                            \
-      my_error(ER_MALFORMED_PACKET, MYF(0));     \
-      return 1;                                  \
-    }                                            \
-    len = net_field_length_ll(&p);               \
-    if (p + len > p_end || len >= sizeof(obj)) { \
-      errmsg = msg;                              \
-      goto err;                                  \
-    }                                            \
-    strmake(obj, (char *)p, len);                \
-    p += len;                                    \
+#define get_object(p, obj, msg)                                         \
+  {                                                                     \
+    if (p >= p_end) {                                                   \
+      my_error(ER_MALFORMED_PACKET, MYF(0));                            \
+      return 1;                                                         \
+    }                                                                   \
+    /* net_field_length_ll() assumes a complete length field. */        \
+    const size_t length_size = net_field_length_size(p);                \
+    if (length_size > static_cast<size_t>(p_end - p)) {                 \
+      my_error(ER_MALFORMED_PACKET, MYF(0));                            \
+      return 1;                                                         \
+    }                                                                   \
+    const uint64_t len = net_field_length_ll(&p);                       \
+    if (len > static_cast<uint64_t>(p_end - p) || len >= sizeof(obj)) { \
+      errmsg = msg;                                                     \
+      goto err;                                                         \
+    }                                                                   \
+    const size_t object_length = static_cast<size_t>(len);              \
+    strmake(obj, (char *)p, object_length);                             \
+    p += object_length;                                                 \
   }
 
 // returns true if user successfully acquired a resource and false otherwise.

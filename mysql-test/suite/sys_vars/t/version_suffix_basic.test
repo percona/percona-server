@@ -16,27 +16,45 @@ SET @@GLOBAL.version_suffix=1;
 
 # save the start value
 SET @saved_version_suffix = @@global.version_suffix;
+SET @startup_version = @@global.version;
+SET @startup_version_with_update = @@global.version_with_update;
+
+# check the startup values, before version_suffix is changed
+--source suite/sys_vars/inc/version_with_update_check.inc
 
 SET GLOBAL version_suffix = DEFAULT;
 
 SET GLOBAL version_suffix = '';
 SET @version_base = @@global.version;
+SET @version_with_update_base = @@global.version_with_update;
 SELECT @@global.version_suffix;
+--source suite/sys_vars/inc/version_suffix_check.inc
+
+--let $assert_text= Startup @@version is the base version followed by the startup @@version_suffix
+--let $assert_cond= STRCMP(@startup_version, CONCAT(@version_base, @saved_version_suffix)) = 0
+--source include/assert.inc
+
+--let $assert_text= Startup @@version_with_update is the base version followed by the startup @@version_suffix
+--let $assert_cond= STRCMP(@startup_version_with_update, CONCAT(@version_with_update_base, @saved_version_suffix)) = 0
+--source include/assert.inc
 
 SET GLOBAL version_suffix = '-my_version';
 SELECT @@global.version_suffix;
 --let $assert_text= Strings should be equal
 --let $assert_cond= STRCMP(@@global.version, CONCAT(@version_base, @@global.version_suffix)) = 0
 --source include/assert.inc
+--source suite/sys_vars/inc/version_suffix_check.inc
 
 SET GLOBAL version_suffix = '-my_version2';
 SELECT @@global.version_suffix;
 --let $assert_text= Strings should be equal
 --let $assert_cond= STRCMP(@@global.version, CONCAT(@version_base, @@global.version_suffix)) = 0
 --source include/assert.inc
+--source suite/sys_vars/inc/version_suffix_check.inc
 
 # restore the start value
 SET GLOBAL version_suffix = @saved_version_suffix;
+--source suite/sys_vars/inc/version_suffix_check.inc
 
 SELECT COUNT(@@GLOBAL.version_suffix);
 --echo 1 Expected
@@ -101,6 +119,7 @@ SELECT version_suffix = @@SESSION.version_suffix;
 SET GLOBAL version_suffix = NULL;
 SHOW GLOBAL VARIABLES LIKE 'a';
 SELECT @@GLOBAL.version_suffix;
+--source suite/sys_vars/inc/version_suffix_check.inc
 
 SELECT COUNT(@@GLOBAL.version_suffix);
 --echo 0 Expected

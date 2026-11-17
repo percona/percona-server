@@ -4,7 +4,8 @@
 # flush them later.
 
 # Intimate the developer to include "have_debug.inc in the actual test
-let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
+# PS-12000: not VERSION(), --version-suffix replaces its "-debug" suffix.
+let $have_debug = `SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'debug'`;
 if (!$have_debug)
 {
   --die This script requires 'have_debug'

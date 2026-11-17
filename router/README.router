@@ -1,18 +1,46 @@
 Copyright (c) 2015, 2026, Oracle and/or its affiliates.
 
-This is a release of MySQL Router, a building block for high
-availability solutions based on MySQL InnoDB clusters.
+MySQL Router
+============
+
+MySQL Router is a building block for high availability solutions based on
+MySQL InnoDB clusters.
+
+MySQL Router packages for this MySQL release line are discontinued. Build
+and/or use the latest MySQL Router release instead:
+
+  https://github.com/mysql/mysql-server/tree/trunk/router
 
 License information can be found in the LICENSE.router file.
 
-This distribution may include materials developed by third parties.
-For license and attribution notices for these materials,
-please refer to the LICENSE.router file.
+This distribution may include materials developed by third parties. For license
+and attribution notices for these materials, please refer to the LICENSE.router
+file.
 
-For further information on MySQL Router or additional documentation, visit
-  https://dev.mysql.com/doc/mysql-router/8.2/en/
+MySQL Router Releases
+=====================
 
-For additional downloads and the source of MySQL, visit
-  http://dev.mysql.com/downloads/
+MySQL Router has one release using the latest version number, but remains
+compatible with all supported MySQL Server versions.
+
+When a major version line advances, MySQL Router follows the new major version
+while continuing to support the then-current Innovation and LTS releases of
+MySQL Server.
+
+  https://dev.mysql.com/doc/refman/en/mysql-releases.html
+
+Documentation
+=============
+
+For MySQL Router documentation, visit:
+
+  https://dev.mysql.com/doc/mysql-router/en/
+
+Downloads and Source
+====================
+
+For additional downloads and the source of MySQL, visit:
+
+  https://dev.mysql.com/downloads/
 
 MySQL Router is brought to you by the MySQL team at Oracle.

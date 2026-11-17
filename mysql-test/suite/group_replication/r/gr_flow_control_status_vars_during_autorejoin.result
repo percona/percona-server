@@ -1,0 +1,84 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Start a group with three members.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("This member could not reach a majority of the members for more than 10 seconds. The member will now leave the group as instructed by the group_replication_unreachable_majority_timeout option.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+call mtr.add_suppression("Timeout while waiting for a view change event during the auto-rejoin procedure");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
+SET SESSION sql_log_bin= 1;
+include/gr_autorejoin_monitoring.inc
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_rejoin_short_retry';
+SET @@GLOBAL.DEBUG= '+d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.DEBUG= '+d,group_replication_stop_before_rejoin';
+SET @saved_exit_state_action= @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action= READ_ONLY;
+SET @@GLOBAL.group_replication_autorejoin_tries= 1;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+############################################################
+# 2. Provoke a majority loss on server1 so that it starts an
+#    auto-rejoin attempt.
+[connection server1]
+include/gr_provoke_majority_loss.inc
+# Kill and restart
+# Kill and restart
+SET DEBUG_SYNC= "now WAIT_FOR signal.autorejoin_entering_loop";
+SET DEBUG_SYNC= "now SIGNAL signal.autorejoin_enter_loop";
+SET DEBUG_SYNC= "now WAIT_FOR signal.autorejoin_waiting";
+
+############################################################
+# 3. Hold the applier thread while the auto-rejoin attempt
+#    terminates it.
+SET @@GLOBAL.DEBUG= '+d,applier_thd_timeout';
+SET DEBUG_SYNC= "now SIGNAL signal.autorejoin_continue";
+
+############################################################
+# 4. Read the status variables. They must return immediately
+#    with empty values.
+SHOW GLOBAL STATUS LIKE 'group_replication_flow_control%';
+Variable_name	Value
+group_replication_flow_control_active	
+group_replication_flow_control_threshold_nodes	
+group_replication_flow_control_throttle_quota	0
+SELECT VARIABLE_NAME, VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'group_replication_flow_control%' ORDER BY VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+group_replication_flow_control_active	
+group_replication_flow_control_threshold_nodes	
+group_replication_flow_control_throttle_quota	0
+
+############################################################
+# 5. Resume the applier thread. The auto-rejoin attempt fails
+#    and the member goes to ERROR state.
+SET @@GLOBAL.DEBUG= '-d,applier_thd_timeout';
+SET DEBUG_SYNC= "now SIGNAL signal.applier_continue";
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 6. Clean up.
+include/stop_group_replication.inc
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= @debug_saved;
+SET @@GLOBAL.group_replication_autorejoin_tries= default;
+SET @@GLOBAL.group_replication_exit_state_action= @saved_exit_state_action;
+SET @@GLOBAL.super_read_only= 0;
+SET @@GLOBAL.read_only= 0;
+include/gr_end_autorejoin_monitoring.inc
+include/group_replication_end.inc

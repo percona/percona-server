@@ -36,6 +36,7 @@
 using ::testing::AnyOf;
 using ::testing::Contains;
 using ::testing::Not;
+using ::testing::StartsWith;
 
 class TlsServerContextTest : public ::testing::Test {
  public:
@@ -63,6 +64,11 @@ TEST_F(TlsServerContextTest, CiphersMandatory) {
   EXPECT_THAT(r, AnyOf(Contains("ECDHE-ECDSA-AES128-GCM-SHA256"),
                        Contains("ECDHE-ECDSA-AES256-GCM-SHA384"),
                        Contains("ECDHE-RSA-AES128-GCM-SHA256")));
+}
+
+TEST_F(TlsServerContextTest, DefaultCiphersExcludeDhe) {
+  EXPECT_THAT(TlsServerContext::default_ciphers(),
+              Not(Contains(StartsWith("DHE-"))));
 }
 
 class CiphersAcceptable : public TlsServerContextTest,
@@ -100,6 +106,7 @@ static const std::string acceptable_ciphers_test_data[] = {
 #endif
     // TLSv1.2
     {"ECDHE-RSA-AES256-GCM-SHA384"},
+    // DHE ciphers remain available when explicitly configured.
     {"DHE-RSA-AES128-GCM-SHA256"},
     {"DHE-RSA-AES256-GCM-SHA384"},
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)

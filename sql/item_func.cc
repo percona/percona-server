@@ -6081,7 +6081,7 @@ bool Item_func_set_user_var::resolve_type(THD *thd) {
 // static
 user_var_entry *user_var_entry::create(THD *thd, const Name_string &name,
                                        const CHARSET_INFO *cs) {
-  if (check_column_name(name)) {
+  if (name.length() > NAME_LEN || check_column_name(name)) {
     my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
     return nullptr;
   }
@@ -8616,6 +8616,13 @@ bool Item_func_version::do_itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
+bool Item_func_version_with_update::do_itemize(Parse_context *pc, Item **res) {
+  if (skip_itemize(res)) return false;
+  if (super::do_itemize(pc, res)) return true;
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  return false;
+}
+
 /**
   Check if schema and table are hidden by NDB engine.
 
@@ -9855,8 +9862,21 @@ longlong Item_func_internal_tablespace_data_free::val_int() {
 }
 
 Item_func_version::Item_func_version(const POS &pos)
-    : Item_static_string_func(pos, NAME_STRING("version()"), server_version,
-                              strlen(server_version), system_charset_info,
+    : Item_func_version(pos, get_server_version(current_thd, false)) {}
+
+Item_func_version::Item_func_version(const POS &pos, const LEX_CSTRING &version)
+    : Item_static_string_func(pos, NAME_STRING("version()"), version.str,
+                              version.length, system_charset_info,
+                              DERIVATION_SYSCONST) {}
+
+Item_func_version_with_update::Item_func_version_with_update(const POS &pos)
+    : Item_func_version_with_update(pos,
+                                    get_server_version(current_thd, true)) {}
+
+Item_func_version_with_update::Item_func_version_with_update(
+    const POS &pos, const LEX_CSTRING &version)
+    : Item_static_string_func(pos, NAME_STRING("version_with_update()"),
+                              version.str, version.length, system_charset_info,
                               DERIVATION_SYSCONST) {}
 
 /*

@@ -1,0 +1,338 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating global configuration file for keyring component: component_keyring_kms
+# Creating local configuration file for keyring component: component_keyring_kms
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+CALL mtr.add_suppression("component_keyring_kms reported: .Configuration error: ");
+CALL mtr.add_suppression("The component is not initialized properly. Error: Failed to initialize or reinitialize keyring");
+CALL mtr.add_suppression("component_keyring_kms reported: .'endpoint' value .* uses plain HTTP");
+#
+# Without the new options there is no Endpoint status row
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+#
+# An empty endpoint means the default AWS endpoint
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+#
+# A custom endpoint is shown as configured
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid:8443/
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	http://127.0.0.1:4566
+# A plain HTTP endpoint is accepted with a warning
+SELECT PRIO, DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%uses plain HTTP%' ORDER BY LOGGED DESC LIMIT 1;
+PRIO	DATA
+Warning	Component component_keyring_kms reported: ''endpoint' value 'http://127.0.0.1:4566' uses plain HTTP: keys are sent to it unencrypted. Use it only for testing.'
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	http://[::1]:4566
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	HTTPS://KMS.example.invalid
+#
+# A session token is accepted and never shown
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+SELECT COUNT(*) FROM performance_schema.keyring_component_status
+WHERE STATUS_VALUE LIKE '%mtr-session-token%';
+COUNT(*)
+0
+#
+# Invalid values are rejected and the loaded keyring is kept
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'kms.example.invalid' is invalid: it must start with http:// or https://'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'ftp://kms.example.invalid' is invalid: it must start with http:// or https://'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://' is invalid: it has no host'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https:///' is invalid: it has no host'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://kms.example.invalid/path' is invalid: it may hold only a scheme, a host and a port'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://kms.example.invalid?a=b' is invalid: it may hold only a scheme, a host and a port'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://user@kms.example.invalid' is invalid: it may hold only a scheme, a host and a port'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://kms example.invalid' is invalid: it may hold only a scheme, a host and a port'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://:443' is invalid: it has no host'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://kms.example.invalid:' is invalid: it has an invalid port'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://kms.example.invalid:0' is invalid: it has an invalid port'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://kms.example.invalid:65536' is invalid: it has an invalid port'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://kms.example.invalid:44a' is invalid: it has an invalid port'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://[::1' is invalid: it has an invalid IPv6 address'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://[]' is invalid: it has an invalid IPv6 address'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://[::1]4566' is invalid: it has an invalid IPv6 address'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' value 'https://kms[1].example.invalid' is invalid: it has an invalid host'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'endpoint' must be a string'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+ERROR HY000: Keyring reload failed. Please check error log for more details.
+SELECT DATA FROM performance_schema.error_log
+WHERE DATA LIKE '%component_keyring_kms reported: ''Configuration error:%'
+    ORDER BY LOGGED DESC LIMIT 1;
+DATA
+Component component_keyring_kms reported: 'Configuration error: 'session_token' must be a string'
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+Endpoint	https://kms.example.invalid
+#
+# Dropping the options restores the default endpoint
+# Creating local configuration file for keyring component: component_keyring_kms
+ALTER INSTANCE RELOAD KEYRING;
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+WHERE STATUS_KEY IN ('Component_status', 'Endpoint');
+STATUS_KEY	STATUS_VALUE
+Component_status	Active
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local configuration file for keyring component: component_keyring_kms
+# Removing global configuration file for keyring component: component_keyring_kms
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

@@ -1,0 +1,41 @@
+#
+# Index statistics are written into the TABLE_SHARE by one session while
+# another session costs a skip scan from them. ha_rocksdb::info() updates
+# the rec_per_key elements for HA_STATUS_VARIABLE too, that is for every
+# query and for every used partition, and it used to store
+# REC_PER_KEY_UNKNOWN for partitions without rows. A concurrent reader
+# could then see a value change between has_records_per_key() and
+# records_per_key(). On debug builds this aborted in cost_skip_scan()
+# ("keys_per_group >= 0") or in guess_rec_per_key()
+# ("!key->has_records_per_key(used_keyparts - 1)"). PS-11840 (originally
+# reported as PS-10150; also PS-7820, PS-7796), found again by pstress.
+# Expected: the queries and ANALYZE TABLE run concurrently without a crash.
+#
+CREATE TABLE t (ip_col INT, ipkey INT, PRIMARY KEY (ipkey, ip_col), INDEX i0 (ipkey))
+ENGINE=ROCKSDB
+PARTITION BY RANGE (ip_col) (
+PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (1000),
+PARTITION p2 VALUES LESS THAN (5000),
+PARTITION p3 VALUES LESS THAN MAXVALUE);
+INSERT INTO t VALUES (150,1),(160,2),(170,3),(2000,4),(2100,5),(2200,6),(2300,7);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+CREATE PROCEDURE run_selects(n INT)
+BEGIN
+DECLARE i INT DEFAULT 0;
+WHILE i < n DO
+SELECT COUNT(*) INTO @c FROM t WHERE ip_col = i MOD 3000;
+SET i = i + 1;
+END WHILE;
+END|
+CALL run_selects(20000);
+CALL run_selects(20000);
+CALL run_selects(20000);
+CALL run_selects(20000);
+SELECT COUNT(*) FROM t;
+COUNT(*)
+7
+DROP PROCEDURE run_selects;
+DROP TABLE t;

@@ -1,0 +1,77 @@
+#
+# The partitions of a partitioned MyRocks table report the rows they
+# found, and Partition_base::info() adjusts the sum once: at least one
+# row for the optimizer (MyRocks counts are not exact), the count found
+# for SHOW TABLE STATUS, INFORMATION_SCHEMA and ANALYZE TABLE. Each
+# partition without rows used to count as one row, so a table with four
+# empty partitions reported TABLE_ROWS 4 and Cardinality 4. InnoDB
+# (ha_innopart) reports 0.
+#
+SET SESSION information_schema_stats_expiry = 0;
+CREATE TABLE tp (a INT PRIMARY KEY, b INT, KEY kb (b)) ENGINE=ROCKSDB
+PARTITION BY HASH (a) PARTITIONS 4;
+# 1. No rows.
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp';
+TABLE_ROWS
+0
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp' ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p0	0
+p1	0
+p2	0
+p3	0
+ANALYZE TABLE tp;
+Table	Op	Msg_type	Msg_text
+test.tp	analyze	status	OK
+SELECT INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp' ORDER BY INDEX_NAME;
+INDEX_NAME	CARDINALITY
+kb	0
+PRIMARY	0
+# The optimizer gets at least one row.
+EXPLAIN SELECT * FROM tp;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tp	p0,p1,p2,p3	index	NULL	kb	5	NULL	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tp`.`a` AS `a`,`test`.`tp`.`b` AS `b` from `test`.`tp`
+# ANALYZE TABLE stores TABLE_ROWS 0 too. INFORMATION_SCHEMA shows the
+# stored value if information_schema_stats_expiry is not 0, as by
+# default (the test suite runs with 0).
+SET SESSION information_schema_stats_expiry = 86400;
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp';
+TABLE_ROWS
+0
+SET SESSION information_schema_stats_expiry = 0;
+# 2. One row, in one of the four partitions. The count is 2, not 1:
+#    Partition_base::info() reports at least 2 rows for a table that has
+#    rows and no exact count (a rule it inherited from ha_partition).
+INSERT INTO tp VALUES (1, 1);
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+ANALYZE TABLE tp;
+Table	Op	Msg_type	Msg_text
+test.tp	analyze	status	OK
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp';
+TABLE_ROWS
+2
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp' ORDER BY PARTITION_NAME;
+PARTITION_NAME	TABLE_ROWS
+p0	0
+p1	1
+p2	0
+p3	0
+SELECT INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp' ORDER BY INDEX_NAME;
+INDEX_NAME	CARDINALITY
+kb	2
+PRIMARY	2
+EXPLAIN SELECT * FROM tp;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tp	p0,p1,p2,p3	index	NULL	kb	5	NULL	2	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tp`.`a` AS `a`,`test`.`tp`.`b` AS `b` from `test`.`tp`
+DROP TABLE tp;

@@ -1,0 +1,72 @@
+CREATE TABLE t1 (pk INT PRIMARY KEY, hi INT, lo INT, KEY khi (hi), KEY klo (lo))
+ENGINE=ROCKSDB;
+INSERT INTO t1
+WITH RECURSIVE s(n) AS (SELECT 0 UNION ALL SELECT n + 1 FROM s WHERE n < 999)
+SELECT n, n, n % 10 FROM s;
+SET GLOBAL rocksdb_force_flush_memtable_now = 1;
+SET @save_use_scan = @@global.rocksdb_table_stats_use_table_scan;
+SET @save_max_rows = @@global.rocksdb_table_stats_max_num_rows_scanned;
+SET GLOBAL rocksdb_table_stats_use_table_scan = ON;
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = 100;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+# Row cap 100: index cardinality never exceeds the row count
+SELECT index_name, cardinality <= 1000 AS within_row_count
+FROM information_schema.statistics
+WHERE table_schema = 'test' AND table_name = 't1'
+    ORDER BY index_name, seq_in_index;
+INDEX_NAME	within_row_count
+khi	1
+klo	1
+PRIMARY	1
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = 500;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+# Row cap 500: index cardinality never exceeds the row count
+SELECT index_name, cardinality <= 1000 AS within_row_count
+FROM information_schema.statistics
+WHERE table_schema = 'test' AND table_name = 't1'
+    ORDER BY index_name, seq_in_index;
+INDEX_NAME	within_row_count
+khi	1
+klo	1
+PRIMARY	1
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = 900;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t1;
+# Row cap 900: index cardinality never exceeds the row count
+SELECT index_name, cardinality <= 1000 AS within_row_count
+FROM information_schema.statistics
+WHERE table_schema = 'test' AND table_name = 't1'
+    ORDER BY index_name, seq_in_index;
+INDEX_NAME	within_row_count
+khi	1
+klo	1
+PRIMARY	1
+SET GLOBAL rocksdb_table_stats_use_table_scan = @save_use_scan;
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = @save_max_rows;
+DROP TABLE t1;

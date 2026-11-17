@@ -8,7 +8,7 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 show indexes in t;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
-t	0	PRIMARY	1	i	A	NULL	NULL	NULL		SE_SPECIFIC			YES	NULL
+t	0	PRIMARY	1	i	A	0	NULL	NULL		SE_SPECIFIC			YES	NULL
 select table_name, table_rows from information_schema.tables where table_schema = database() and table_name = "t";
 TABLE_NAME	TABLE_ROWS
 t	0

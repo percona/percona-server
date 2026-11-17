@@ -8,11 +8,14 @@ CREATE TABLE t0 (id int PRIMARY KEY, a int, INDEX ix_a (a))  engine=rocksdb;
 insert into t0 values (0, 0),(1, 1),(2, 2),(3, 3),(4, 4),
 (5, 4),(6, 4),(7, 4),(8, 4),(9, 4);
 
-# Assert no cardinality data exists before ANALYZE TABLE is done
-SELECT cardinality FROM information_schema.statistics where table_name="t0" and
-column_name="id";
-SELECT cardinality FROM information_schema.statistics where table_name="t0" and
-column_name="a";
+# Before ANALYZE TABLE is done there are no index statistics, as the rows are
+# in the memtable. The cardinality is not NULL all the same: MyRocks then
+# reports the estimates the optimizer makes for a key without statistics. Its
+# value depends on the approximate number of rows in the memtable.
+SELECT cardinality IS NOT NULL FROM information_schema.statistics
+where table_name="t0" and column_name="id";
+SELECT cardinality IS NOT NULL FROM information_schema.statistics
+where table_name="t0" and column_name="a";
 
 # Flush the table and re-run the test as statistics is calculated a bit
 # differently for memtable and SST files

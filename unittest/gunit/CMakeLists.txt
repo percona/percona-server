@@ -272,6 +272,7 @@ SET(SERVER_TESTS
   opt_range
   opt_ref
   opt_trace
+  partition_base
   persisted_variables
   protocol_classic
   regexp_engine
@@ -384,6 +385,8 @@ IF(TARGET merge_small_tests-t)
 ENDIF()
 
 LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
+# Partition_base is part of mysqld only, not of a server library.
+LIST(APPEND ALL_LARGE_TESTS ../../sql/partitioning/partition_base.cc)
 
 MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
   ADD_TEST merge_large_tests
@@ -432,6 +435,9 @@ FOREACH(test ${SERVER_TESTS})
   SET(SRC_FILES ${test}-t.cc)
   IF(test MATCHES "table_cache")
     LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
+  ENDIF()
+  IF(test MATCHES "partition_base")
+    LIST(APPEND SRC_FILES ../../sql/partitioning/partition_base.cc)
   ENDIF()
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
     ENABLE_EXPORTS

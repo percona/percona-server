@@ -31,12 +31,42 @@
 
 #include "storage/innobase/include/mach0data.h"
 #include "storage/innobase/include/univ.i"
+#include "storage/innobase/include/ut0counter.h"
 #include "storage/innobase/include/ut0crc32.h"
 #include "storage/innobase/include/ut0rnd.h"
 
 #include "extra/xxhash/my_xxhash.h"
 
 namespace innodb_ut0rnd_unittest {
+
+/* Exercise the production path with reproducible samples, independent of the
+host timer's availability, frequency, or virtualization. */
+TEST(ut0counter, fixed_stride_bucket_distribution) {
+  for (size_t stride = 1; stride <= 64; ++stride) {
+    for (size_t modulus = 2; modulus <= 1024; modulus *= 2) {
+      for (size_t start : {1U, 31U, 63U, 127U}) {
+        SCOPED_TRACE(::testing::Message() << "stride=" << stride << " modulus="
+                                          << modulus << " start=" << start);
+        std::array<size_t, 1024> counts{};
+        /* The low log2(modulus)+6 input bits determine the bucket. Over
+        this sample period every bucket must receive the same count. */
+        for (size_t i = 0; i < modulus * 64; ++i) {
+          ++counts[counter_indexer_t<>::get_rnd_index(start + i * stride) %
+                   modulus];
+        }
+        for (size_t bucket = 0; bucket < modulus; ++bucket) {
+          EXPECT_EQ(counts[bucket], 64U) << "bucket=" << bucket;
+        }
+      }
+    }
+  }
+}
+
+#ifndef _WIN32
+TEST(ut0counter, zero_timer_uses_thread_hash) {
+  EXPECT_EQ(counter_indexer_t<>::get_rnd_index(0), ut::this_thread_hash);
+}
+#endif
 
 namespace old_impl {
 

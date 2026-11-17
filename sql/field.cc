@@ -161,6 +161,7 @@ bool length_prevents_inplace(const Field &from, const Create_field &to) {
        "to.max_display_width_in_bytes():%zu",
        &from, to.field, to.field ? to.field->row_pack_length() : (uint)-1,
        to.max_display_width_in_bytes()));
+  size_t threshold_size = 256;
 
   if (to.pack_length() < from.pack_length()) {
     DBUG_PRINT(
@@ -170,7 +171,13 @@ bool length_prevents_inplace(const Field &from, const Create_field &to) {
     return true;
   }
 
-  if (to.max_display_width_in_bytes() >= 256 && from.row_pack_length() < 256) {
+  if (to.column_format() == COLUMN_FORMAT_TYPE_COMPRESSED &&
+      from.column_format() == COLUMN_FORMAT_TYPE_COMPRESSED) {
+    threshold_size -= INNOBASE_ZIP_COLUMN_HEADER_LENGTH;
+  }
+
+  if (to.max_display_width_in_bytes() >= threshold_size &&
+      from.row_pack_length() < threshold_size) {
     DBUG_PRINT("inplace",
                ("row_pack_length increases past the 256 threshold, from %u to "
                 "%zu, -> true for '%s'",
@@ -179,6 +186,7 @@ bool length_prevents_inplace(const Field &from, const Create_field &to) {
     DBUG_PRINT("inplace",
                ("from:%p, to.field:%p, to.field->row_pack_length():%u", &from,
                 to.field, to.field ? to.field->row_pack_length() : (uint)-1));
+    DBUG_PRINT("inplace", ("threshold_size:%zu", threshold_size));
     return true;
   }
   DBUG_PRINT("inplace", ("-> false"));

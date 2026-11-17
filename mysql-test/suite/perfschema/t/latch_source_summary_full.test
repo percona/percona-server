@@ -1,0 +1,32 @@
+#
+# PS-11822: waits whose key does not fit in events_waits_summary_by_source
+# are counted in the events_waits_summary_by_source.lost row of
+# SHOW ENGINE PERFORMANCE_SCHEMA STATUS.
+#
+
+SHOW GLOBAL VARIABLES LIKE 'performance_schema_max_latch_source_summaries';
+
+UPDATE performance_schema.setup_instruments SET ENABLED = 'YES', TIMED = 'YES'
+  WHERE NAME LIKE 'wait/synch/mutex/sql/%';
+SET GLOBAL performance_schema_latch_source_summary = SOURCE;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+SELECT COUNT(*) FROM t1;
+--disable_result_log
+SHOW STATUS LIKE 'Threads_connected';
+--enable_result_log
+DROP TABLE t1;
+
+SET GLOBAL performance_schema_latch_source_summary = OFF;
+
+SELECT COUNT(*) BETWEEN 1 AND 2 AS FITS
+  FROM performance_schema.events_waits_summary_by_source;
+--source ../include/latch_source_counters.inc
+--disable_query_log
+eval SELECT $latch_source_lost > 0 AS LOST;
+--enable_query_log
+
+TRUNCATE TABLE performance_schema.events_waits_summary_by_source;
+--source ../include/latch_source_counters.inc
+--echo lost: $latch_source_lost, holds_lost: $latch_source_holds_lost

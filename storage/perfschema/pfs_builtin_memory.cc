@@ -108,6 +108,8 @@ PFS_builtin_memory_class builtin_memory_setup_actor;
 PFS_builtin_memory_class builtin_memory_setup_object;
 
 PFS_builtin_memory_class builtin_memory_digest;
+/* Percona */
+PFS_builtin_memory_class builtin_memory_latch_source;
 PFS_builtin_memory_class builtin_memory_digest_tokens;
 PFS_builtin_memory_class builtin_memory_digest_sample_sqltext;
 
@@ -365,6 +367,10 @@ init_all_builtin_memory_class()
   init_builtin_memory_class(&builtin_memory_digest,
                             TABLE_DOC("events_statements_summary_by_digest"));
 
+  /* Percona */
+  init_builtin_memory_class(&builtin_memory_latch_source,
+                            TABLE_DOC("events_waits_summary_by_source"));
+
   init_builtin_memory_class(&builtin_memory_digest_tokens,
                             COL_DOC("events_statements_summary_by_digest", "digest_text"));
 
@@ -489,6 +495,8 @@ static PFS_builtin_memory_class* all_builtin_memory[] = {
 
   &builtin_memory_digest,
   &builtin_memory_digest_tokens,
+  /* Percona */
+  &builtin_memory_latch_source,
 
   &builtin_memory_stages_history_long,
   &builtin_memory_statements_history_long,

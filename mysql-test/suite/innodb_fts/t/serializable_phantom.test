@@ -1,0 +1,80 @@
+--echo #
+--echo # A FULLTEXT locking read (SERIALIZABLE, FOR SHARE, FOR UPDATE) must not
+--echo # allow phantoms: a concurrent transaction may not insert a document that
+--echo # matches the predicate until the reader commits.
+--echo #
+
+CREATE TABLE doc (id INT PRIMARY KEY, body TEXT, FULLTEXT(body)) ENGINE=InnoDB;
+INSERT INTO doc VALUES (1, 'banana split'), (2, 'apple pie');
+
+connect (reader, localhost, root,, test);
+connect (writer, localhost, root,, test);
+
+--echo #
+--echo # SERIALIZABLE: plain MATCH ... AGAINST is a locking read.
+--echo #
+connection reader;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id;
+
+connection writer;
+SET SESSION innodb_lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO doc VALUES (3, 'apple crumble');
+
+connection reader;
+--echo # Re-read must be identical to the first read.
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id;
+COMMIT;
+
+connection writer;
+INSERT INTO doc VALUES (3, 'apple crumble');
+
+--echo #
+--echo # REPEATABLE READ with FOR SHARE is a locking read as well.
+--echo #
+connection reader;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id FOR SHARE;
+
+connection writer;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO doc VALUES (4, 'apple strudel');
+
+connection reader;
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id FOR SHARE;
+COMMIT;
+
+connection writer;
+INSERT INTO doc VALUES (4, 'apple strudel');
+
+--echo #
+--echo # A non-locking read (autocommit SELECT, or REPEATABLE READ without
+--echo # FOR SHARE) takes no table lock and does not block writers.
+--echo #
+connection reader;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id;
+
+connection writer;
+INSERT INTO doc VALUES (5, 'apple tart');
+
+connection reader;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+START TRANSACTION;
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id;
+
+connection writer;
+INSERT INTO doc VALUES (6, 'apple juice');
+
+connection reader;
+COMMIT;
+
+connection default;
+disconnect reader;
+disconnect writer;
+
+SELECT id FROM doc WHERE MATCH(body) AGAINST('apple') ORDER BY id;
+DROP TABLE doc;

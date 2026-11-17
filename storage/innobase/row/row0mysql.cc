@@ -1689,6 +1689,11 @@ run_again:
 @param[in,out]  prebuilt        table handle
 @return error code or DB_SUCCESS */
 dberr_t row_lock_table(row_prebuilt_t *prebuilt) {
+  return row_lock_table(
+      prebuilt, static_cast<enum lock_mode>(prebuilt->select_lock_type));
+}
+
+dberr_t row_lock_table(row_prebuilt_t *prebuilt, lock_mode mode) {
   trx_t *trx = prebuilt->trx;
   que_thr_t *thr;
   dberr_t err;
@@ -1716,9 +1721,7 @@ run_again:
 
   trx_start_if_not_started_xa(trx, false, UT_LOCATION_HERE);
 
-  err =
-      lock_table(0, prebuilt->table,
-                 static_cast<enum lock_mode>(prebuilt->select_lock_type), thr);
+  err = lock_table(0, prebuilt->table, mode, thr);
 
   trx->error_state = err;
 

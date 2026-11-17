@@ -1,0 +1,76 @@
+--echo #
+--echo # A committed document must survive a crash even if its FTS_DOC_ID was
+--echo # assigned before a cache SYNC that recorded a larger synced_doc_id and
+--echo # the document was committed only after that SYNC.
+--echo #
+
+--source include/not_valgrind.inc
+
+CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT(body)) ENGINE=InnoDB;
+INSERT INTO t VALUES (1, 'alpha one');
+
+# con1 assigns the next FTS_DOC_ID to its row but does not commit yet.
+connect (con1, localhost, root,, test);
+BEGIN;
+INSERT INTO t VALUES (2, 'alpha two');
+
+connection default;
+INSERT INTO t VALUES (3, 'alpha three');
+# Documents that the SYNC below will write, and recovery will find in the
+# range it re-checks: one with no indexed text at all, one whose first
+# token in collation order is a stopword, one made of stopwords only.
+INSERT INTO t VALUES (4, NULL), (5, 'about zebra'), (6, 'the about');
+
+# Push the cache over innodb_ft_cache_size so that it is SYNCed to the
+# auxiliary tables while con1's document is still uncommitted.
+SET SESSION cte_max_recursion_depth = 100000;
+INSERT INTO t
+  SELECT 1000 + n, CONCAT('alpha ', REPEAT(CONCAT('w', n, 'q'), 8), ' ',
+                          REPEAT(CONCAT('x', n, 'q'), 8), ' ',
+                          REPEAT(CONCAT('y', n, 'q'), 8), ' ',
+                          REPEAT(CONCAT('z', n, 'q'), 8))
+  FROM (WITH RECURSIVE s(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM s WHERE n < 3000)
+        SELECT n FROM s) q;
+
+SET GLOBAL innodb_ft_aux_table = 'test/t';
+let $wait_condition =
+  SELECT COUNT(*) > 0 FROM information_schema.INNODB_FT_INDEX_TABLE WHERE WORD = 'three';
+--source include/wait_condition.inc
+
+connection con1;
+COMMIT;
+disconnect con1;
+
+connection default;
+SELECT id FROM t WHERE MATCH(body) AGAINST('alpha') AND id < 100 ORDER BY id;
+
+--source include/kill_and_restart_mysqld.inc
+
+--echo # All three small documents must still be found after recovery.
+SELECT id FROM t WHERE MATCH(body) AGAINST('alpha') AND id < 100 ORDER BY id;
+SELECT id FROM t WHERE MATCH(body) AGAINST('zebra');
+SELECT COUNT(*) = (SELECT COUNT(*) FROM t WHERE MATCH(body) AGAINST('alpha'))
+  AS all_indexed FROM t WHERE body LIKE '%alpha%';
+
+--echo # Recovery must re-add only the document that was missing.  A SYNC of
+--echo # the recovered cache must not fail with a duplicate key in the
+--echo # auxiliary tables (that would be reported in the error log), and the
+--echo # documents must still be found after a clean restart.
+SET GLOBAL innodb_optimize_fulltext_only = ON;
+OPTIMIZE TABLE t;
+SET GLOBAL innodb_optimize_fulltext_only = OFF;
+SET GLOBAL innodb_ft_aux_table = 'test/t';
+SELECT COUNT(*) FROM information_schema.INNODB_FT_INDEX_TABLE WHERE WORD = 'two';
+--echo # The documents that were already in the auxiliary tables must not have
+--echo # been added a second time.
+SELECT WORD, DOC_COUNT, DOC_ID FROM information_schema.INNODB_FT_INDEX_TABLE
+  WHERE WORD = 'zebra';
+
+--source include/restart_mysqld.inc
+
+SELECT id FROM t WHERE MATCH(body) AGAINST('alpha') AND id < 100 ORDER BY id;
+SELECT id FROM t WHERE MATCH(body) AGAINST('zebra');
+SELECT COUNT(*) = (SELECT COUNT(*) FROM t WHERE MATCH(body) AGAINST('alpha'))
+  AS all_indexed FROM t WHERE body LIKE '%alpha%';
+
+DROP TABLE t;

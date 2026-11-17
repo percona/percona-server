@@ -456,6 +456,12 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
 
   err = validate_first_page(space_id, nullptr, false);
 
+  /* Space id read from the header of the first page. It is SPACE_UNKNOWN if
+  the page could not be read or if the two copies of the space id in the
+  page header do not match. */
+  const space_id_t header_space_id = m_space_id;
+  const dberr_t first_page_err = err;
+
   switch (err) {
     case DB_SUCCESS:
     case DB_TABLESPACE_EXISTS:
@@ -484,12 +490,31 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
 
       err = find_space_id();
       if (err != DB_SUCCESS || m_space_id == 0) {
-        ib::error(ER_IB_MSG_396)
+        /* find_space_id() needs at least one page with a valid checksum.
+        A new tablespace may have no such page on disk: page 0 may be torn
+        by a crash during its write, while the other pages have not been
+        flushed yet. A valid copy of page 0 may still be in the doublewrite
+        buffer. Use the space id known from the redo log if the header of the
+        first page carries the same space id, and try to restore the page. */
+        if (first_page_err != DB_CORRUPTION || header_space_id != space_id ||
+            space_id == 0 || space_id == SPACE_UNKNOWN) {
+          ib::error(ER_IB_MSG_396)
+              << "Datafile '" << m_filepath
+              << "' is"
+                 " corrupted. Cannot determine the space ID from"
+                 " the first 64 pages.";
+          return (err);
+        }
+
+        ib::warn(ER_IB_MSG_396)
             << "Datafile '" << m_filepath
-            << "' is"
-               " corrupted. Cannot determine the space ID from"
-               " the first 64 pages.";
-        return (err);
+            << "': cannot determine the space ID from the first 64 pages."
+               " Using space ID "
+            << space_id
+            << " found in the redo log and in the header of the first"
+               " page to restore the first page from the doublewrite buffer.";
+
+        m_space_id = space_id;
       }
 
       err = restore_from_doublewrite(0);

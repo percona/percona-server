@@ -1,0 +1,126 @@
+#
+# Case 1 (INVARIANT): a statement with no internal tmp table must report
+# Tmp_tables: 0 and both size figures 0.
+#
+[log_start.inc] percona_slow_query_log.tts_no_tmp_table
+[log_stop.inc] percona_slow_query_log.tts_no_tmp_table
+Case 1 passed
+#
+# Case 2 (ACCURACY): MEMORY engine, 200-row materialised derived table.
+# The tmp table holds 200 rows of 105 bytes, so the reported size should
+# be at least 200 * 105 and not wildly above it.  Nothing goes to disk,
+# so Tmp_disk_table_sizes must be 0.
+#
+[log_start.inc] percona_slow_query_log.tts_memory_derived_200
+[log_stop.inc] percona_slow_query_log.tts_memory_derived_200
+Case 2 passed
+#
+# Case 3 (ACCURACY): same shape, 2000 rows instead of 200.  Ten times the
+# data must be reflected in the reported size.
+#
+[log_start.inc] percona_slow_query_log.tts_memory_derived_2000
+[log_stop.inc] percona_slow_query_log.tts_memory_derived_2000
+Case 3 passed
+#
+# Case 4 (ACCURACY): same 2000 rows, but a narrow tmp table (one INT
+# column instead of INT + CHAR(100)).  It must report fewer bytes than
+# case 3.
+#
+[log_start.inc] percona_slow_query_log.tts_memory_derived_2000_narrow
+[log_stop.inc] percona_slow_query_log.tts_memory_derived_2000_narrow
+Case 4 passed
+#
+# Case 5 (ACCURACY): two materialised derived tables of 200 rows each in
+# one statement.  The figure is a sum over all tmp tables, so it must be
+# close to twice the case 2 figure rather than equal to it.
+#
+[log_start.inc] percona_slow_query_log.tts_memory_two_tmp_tables
+[log_stop.inc] percona_slow_query_log.tts_memory_two_tmp_tables
+Case 5 passed
+#
+# Case 6 (INVARIANT): TempTable engine, 2000-row materialised derived
+# table.  A non-empty tmp table must report a non-zero size, and an
+# in-memory one must report no disk bytes.
+#
+[log_start.inc] percona_slow_query_log.tts_temptable_derived_2000
+[log_stop.inc] percona_slow_query_log.tts_temptable_derived_2000
+Case 6 passed
+#
+# Case 7 (ACCURACY): two statements that build the *same* 20-row tmp
+# table, one from a 20-row source and one by de-duplicating 2000 rows
+# down to 20.  The resulting tmp table is identical, so the reported
+# sizes must be close.  A large gap means the figure counts cumulative
+# allocations rather than the size of the tmp table.
+#
+[log_start.inc] percona_slow_query_log.tts_temptable_distinct_20_of_20
+[log_stop.inc] percona_slow_query_log.tts_temptable_distinct_20_of_20
+[log_start.inc] percona_slow_query_log.tts_temptable_distinct_20_of_2000
+[log_stop.inc] percona_slow_query_log.tts_temptable_distinct_20_of_2000
+Case 7 passed
+#
+# Case 8 (ACCURACY): force the in-memory tmp table to overflow to InnoDB
+# on disk.  2000 rows of 105 bytes end up on disk, so the reported disk
+# size should be in that ballpark rather than near the 16K in-memory
+# limit, and the total must exceed it by the memory the table held
+# before it spilled.
+#
+Warnings:
+Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+[log_start.inc] percona_slow_query_log.tts_disk_spill_2000
+[log_stop.inc] percona_slow_query_log.tts_disk_spill_2000
+Case 8 passed
+#
+# Case 9 (INVARIANT): an on-disk tmp table occupies whole InnoDB pages,
+# so the disk figure must be a multiple of innodb_page_size.
+#
+Case 9 passed
+#
+# Case 10 (INVARIANT): the counters are per statement.  Repeating case 1
+# right after the heavy cases above must report zeroes again.
+#
+[log_start.inc] percona_slow_query_log.tts_no_carry_over
+[log_stop.inc] percona_slow_query_log.tts_no_carry_over
+Case 10 passed
+#
+# Case 11 (INVARIANT): a window function frame buffer is an internal tmp
+# table too.  If it is counted in Tmp_tables it must contribute bytes.
+#
+[log_start.inc] percona_slow_query_log.tts_window_frame_buffer
+[log_stop.inc] percona_slow_query_log.tts_window_frame_buffer
+Case 11 passed
+#
+# Case 12 (INVARIANT): a CTE referenced twice is materialised, and the
+# materialisation must be accounted for.
+#
+[log_start.inc] percona_slow_query_log.tts_cte_materialized
+[log_stop.inc] percona_slow_query_log.tts_cte_materialized
+Case 12 passed
+#
+# Case 13 (ACCURACY): ORDER BY over a UNION ALL.  The union result is
+# materialised into a tmp table and then sorted, and this plan empties
+# the tmp table through TABLE::empty_result_table() before it is
+# dropped.  Emptying it releases everything it held, so a figure taken
+# only at drop time would report an almost empty table for a statement
+# that materialised 4000 rows.
+#
+[log_start.inc] percona_slow_query_log.tts_union_order_memory
+[log_stop.inc] percona_slow_query_log.tts_union_order_memory
+Case 13 passed
+#
+# Case 14 (ACCURACY): the same shape forced on to disk.  This is the
+# query shape from PS-10854, which reported a single InnoDB page while
+# the session temporary tablespace grew by tens of megabytes: the plan
+# truncates the B-tree back to an empty root before the table is
+# dropped, although the tablespace keeps every extent the table made it
+# allocate.
+#
+Warnings:
+Warning	48040	Tmp_table_size is set below 1MiB. The TEMPTABLE engine requires at least 1MiB table size, and will use that value instead. Please increase the limit to silence this warning.
+[log_start.inc] percona_slow_query_log.tts_union_order_disk
+[log_stop.inc] percona_slow_query_log.tts_union_order_disk
+Case 14 passed
+#
+# Per-case byte counts were written to
+# <builddir>/mysql-test/var/tmp/tmp_table_sizes_report.tsv
+# Comment out the --remove_file below to keep them for inspection.
+#

@@ -400,6 +400,60 @@ ulint *rec_get_offsets(const rec_t *rec, const dict_index_t *index,
   return (offsets);
 }
 
+ulint *rec_get_offsets_with_comp(const rec_t *rec, const dict_index_t *index,
+                                 bool compact, ulint *offsets, ulint n_fields,
+                                 ut::Location location, mem_heap_t **heap) {
+  ulint n;
+
+  ut_ad(rec);
+  ut_ad(index);
+  ut_ad(heap);
+
+  if (compact) {
+    switch (UNIV_EXPECT(rec_get_status(rec), REC_STATUS_ORDINARY)) {
+      case REC_STATUS_ORDINARY:
+        n = dict_index_get_n_fields(index);
+        break;
+      case REC_STATUS_NODE_PTR:
+        /* Node pointer records consist of the uniquely identifying fields of
+        the record followed by a child page number field. */
+        n = dict_index_get_n_unique_in_tree_nonleaf(index) + 1;
+        break;
+      case REC_STATUS_INFIMUM:
+      case REC_STATUS_SUPREMUM:
+        /* infimum or supremum record */
+        n = 1;
+        break;
+      default:
+        ut_error;
+    }
+  } else {
+    n = rec_get_n_fields_old(rec, index);
+  }
+
+  if (UNIV_UNLIKELY(n_fields < n)) {
+    n = n_fields;
+  }
+
+  /* The offsets header consists of the allocation size at
+  offsets[0] and the REC_OFFS_HEADER_SIZE bytes. */
+  ulint size = n + (1 + REC_OFFS_HEADER_SIZE);
+
+  if (UNIV_UNLIKELY(!offsets) ||
+      UNIV_UNLIKELY(rec_offs_get_n_alloc(offsets) < size)) {
+    if (UNIV_UNLIKELY(!*heap)) {
+      *heap = mem_heap_create(size * sizeof(ulint), location);
+    }
+    offsets = static_cast<ulint *>(mem_heap_alloc(*heap, size * sizeof(ulint)));
+
+    rec_offs_set_n_alloc(offsets, size);
+  }
+
+  rec_offs_set_n_fields(offsets, n);
+  rec_init_offsets(rec, index, offsets);
+  return (offsets);
+}
+
 /** The following function determines the offsets to each field
  in the record.  It can reuse a previously allocated array. */
 void rec_get_offsets_reverse(

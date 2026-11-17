@@ -1,0 +1,92 @@
+--source include/not_valgrind.inc
+
+--echo #
+--echo # The TRX_SYS page (page 5 of the system tablespace) is read at startup
+--echo # to find the legacy doublewrite area, before crash recovery restores
+--echo # torn pages from the doublewrite files.  A torn TRX_SYS page must be
+--echo # restored from its doublewrite copy like any other page, not abort the
+--echo # startup.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Database page corruption on disk or a failed file read of page");
+call mtr.add_suppression("Database page corruption or a failed file read of page");
+--enable_query_log
+
+let MYSQLD_DATADIR=`select @@datadir`;
+let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENGINE=InnoDB
+  STATS_PERSISTENT=0;
+INSERT INTO t1 VALUES (1, repeat('#', 12)), (2, repeat('+', 12)),
+                      (3, repeat('/', 12)), (4, repeat('-', 12));
+
+--echo # Make the page cleaner write every dirty page, including the TRX_SYS
+--echo # page, through the doublewrite buffer; then forbid it to write
+--echo # anything else, so that no later batch reuses the doublewrite slots,
+--echo # and kill the server.
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 0;
+let $wait_condition =
+  SELECT variable_value = 0 FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_buffer_pool_pages_dirty';
+--source include/wait_condition.inc
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+
+--source include/kill_mysqld.inc
+
+--echo # Tear the TRX_SYS page: its second half is garbage.  The doublewrite
+--echo # buffer must hold the version of the page that was on disk; a batch
+--echo # written after the one that carried the page may have reused its
+--echo # slot, in which case that version is put back into a slot here.
+perl;
+use IO::Handle;
+use Fcntl qw(SEEK_SET);
+my $ps = $ENV{'INNODB_PAGE_SIZE'};
+my $fname = "$ENV{'MYSQLD_DATADIR'}/ibdata1";
+open(FILE, "+<", $fname) or die "cannot open $fname: $!";
+binmode FILE;
+seek(FILE, 5 * $ps, SEEK_SET);
+read(FILE, my $page, $ps) == $ps or die "short read of page 5";
+my $lsn = substr($page, 16, 8);
+# FIL_PAGE_LSN of the copies of page [0, 5] in the doublewrite files
+my ($have, $slot_file, $slot_off);
+for my $dblwr (glob("$ENV{'MYSQLD_DATADIR'}/#ib_${ps}_*.dblwr")) {
+  open(my $d, "<", $dblwr) or die "cannot open $dblwr: $!";
+  binmode $d;
+  my $size = -s $dblwr;
+  for (my $off = 0; $off + $ps <= $size; $off += $ps) {
+    seek($d, $off, SEEK_SET);
+    read($d, my $copy, $ps) == $ps or die "short read of $dblwr";
+    next unless unpack("N", substr($copy, 34, 4)) == 0
+            and unpack("N", substr($copy, 4, 4)) == 5;
+    $have = 1 if substr($copy, 16, 8) eq $lsn;
+    ($slot_file, $slot_off) = ($dblwr, $off) unless defined $slot_file;
+  }
+  close $d;
+}
+if (!$have) {
+  defined $slot_file or die "no copy of page 5 in the doublewrite files";
+  open(my $d, "+<", $slot_file) or die "cannot open $slot_file: $!";
+  binmode $d;
+  seek($d, $slot_off, SEEK_SET);
+  print $d $page;
+  close $d;
+}
+seek(FILE, 5 * $ps + $ps / 2, SEEK_SET);
+print FILE chr(0xff) x ($ps / 2);
+close FILE;
+EOF
+
+--source include/start_mysqld.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= Recovered page \\[page id: space=0, page number=5\\] from the doublewrite buffer;
+--source include/search_pattern.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+DROP TABLE t1;

@@ -11154,6 +11154,9 @@ ER_VECTOR_INDEX_WRONG_VALUE
 ER_DUPLICATE_INDEX_CONSTRUCTION_PARAMETER
   eng "Duplicate index construction parameter: %.20s."
 
+ER_VECTOR_FUNCTIONAL_INDEX
+  eng "Vector functional index is not supported."
+
 start-error-number 7100
 
 #

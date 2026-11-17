@@ -957,9 +957,7 @@ then
     if [ -f /sys/kernel/mm/transparent_hugepage/enabled ]; then
       CONTENT_THP=$(cat /sys/kernel/mm/transparent_hugepage/enabled)
       STATUS_THP=0
-      set +e
       STATUS_THP=$(echo $CONTENT_THP | grep -cv "\[${thp_setting}\]")
-      set -e
     fi
     if [ $STATUS_THP -eq 0 ]; then
       log_notice "Transparent huge pages are already set to: ${thp_setting}."

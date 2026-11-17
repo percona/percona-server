@@ -24,6 +24,7 @@
 #include "sql/rpl_context.h"
 
 #include <stddef.h>
+#include <string>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -134,6 +135,29 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
 
     if (!res) notify_ctx_change_listener();
   }
+  return res;
+}
+
+bool Session_consistency_gtids_ctx::notify_after_consistent_snapshot(
+    [[maybe_unused]] const THD *thd, const std::string &snapshot_gtids) {
+  DBUG_TRACE;
+  assert(thd);
+  bool res = false;
+
+  if (m_listener == nullptr ||
+      m_curr_session_track_gtids != SESSION_TRACK_GTIDS_ALL_GTIDS)
+    return res;
+
+  /*
+    START TRANSACTION implicitly commits the previous transaction, which may
+    have collected a gtid_executed newer than the snapshot. Report only the
+    snapshot.
+  */
+  m_gtid_set->clear();
+  if (!snapshot_gtids.empty())
+    res = m_gtid_set->add_gtid_text(snapshot_gtids.c_str()) != RETURN_STATUS_OK;
+
+  if (!res) notify_ctx_change_listener();
   return res;
 }
 

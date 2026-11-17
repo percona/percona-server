@@ -5154,7 +5154,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     } else if (key->type == KEYTYPE_VECTOR) {
       errmsg = "Vector index on virtual generated column";
       functional_index_error_handler.force_error_code(
-          ER_INDEX_MUST_HAVE_COMPATIBLE_COLUMN);
+          ER_VECTOR_FUNCTIONAL_INDEX);
     }
 
     if (errmsg) {

@@ -899,3 +899,12 @@ VECTOR KEY ( v2 ) TYPE hnsw ( M = abc ),
 VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 )
 );
 ERROR HY000: Illegal index construction parameter value: abc.
+#
+# PS-12106: functional VECTOR KEY raises a two-argument error message
+#           without arguments; crash in my_error().
+#
+CREATE TABLE t (
+id BIGINT UNSIGNED PRIMARY KEY,
+VECTOR KEY ((to_vector('[1,2,3]'))) USING hnsw
+);
+ERROR HY000: Vector functional index is not supported.

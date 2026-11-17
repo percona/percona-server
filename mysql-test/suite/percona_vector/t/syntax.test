@@ -765,3 +765,13 @@ CREATE TABLE t (
   VECTOR KEY ( v2 ) TYPE hnsw ( M = abc ),
   VECTOR KEY ( v1 ) TYPE hnsw ( M = 8 )
 );
+
+--echo #
+--echo # PS-12106: functional VECTOR KEY raises a two-argument error message
+--echo #           without arguments; crash in my_error().
+--echo #
+--error ER_VECTOR_FUNCTIONAL_INDEX
+CREATE TABLE t (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  VECTOR KEY ((to_vector('[1,2,3]'))) USING hnsw
+);

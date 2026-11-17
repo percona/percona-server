@@ -221,7 +221,6 @@ my $exe_ndbmtd_counter = 0;
 my $tmpdir_path_updated= 0;
 my $source_dist        = 0;
 my $shutdown_report    = 0;
-my $valgrind_reports   = 0;
 my $shutdown_report_text = '';
 
 my @valgrind_args;
@@ -1599,7 +1598,7 @@ sub run_worker ($) {
         # Look for leaks here, even if we aldready have $shutdown_report.
         # shutdown_exit_reports() will report some unknown failure.
         # valgrind_exit_reports() will look specifically for ASAN/LSAN stuff.
-        $valgrind_reports = valgrind_exit_reports();
+        $valgrind_report_text = valgrind_exit_reports();
       }
 
       if ($shutdown_report || $valgrind_report_text) {
@@ -8420,6 +8419,10 @@ sub valgrind_exit_reports() {
 
       # Various UBSAN runtime errors
       $found_report = 1 if $line =~ /.*runtime error: .*/;
+
+      # ASAN errors other than leaks. The ERROR line has no "==<pid>== "
+      # prefix, so the SUMMARY pattern above does not match it.
+      $found_report = 1 if $line =~ /^==\d+==ERROR: AddressSanitizer: /;
 
       # TSAN errors
       $found_report = 1 if $line =~ /^WARNING: ThreadSanitizer: .*/;

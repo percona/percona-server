@@ -8258,6 +8258,7 @@ static bool add_vector_keys(Key_use_array *keyuse_array, JOIN *join,
 
   TABLE *const table = column->table;
   Table_ref *const tl = table->pos_in_table_list;
+  if (tl->query_block != join->query_block) return false;
   if (!(usable_tables & tl->map())) return false;
 
   for (uint idx = 0; idx < table->s->keys; ++idx) {

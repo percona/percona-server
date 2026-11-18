@@ -501,4 +501,44 @@ SELECT * FROM v3 LIMIT 2;
 DROP VIEW v1, v2, v3;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Server 9.7: NULL dereference in add_vector_keys() for ORDER BY
+--echo # DISTANCE(outer_table.vector_col, ...) in a subquery
+--echo #
+CREATE TABLE t1 (
+  id BIGINT UNSIGNED PRIMARY KEY,
+  v vector(3) NOT NULL,
+  VECTOR INDEX vi(v) USING hnsw
+);
+CREATE TABLE t2 ( id BIGINT UNSIGNED PRIMARY KEY );
+
+INSERT INTO t1 VALUES ( 1, to_vector('[1, 2, 3]') );
+INSERT INTO t2 VALUES ( 1 );
+
+EXPLAIN
+SELECT (
+  SELECT t2.id FROM t2 t2 ORDER BY distance ( t1.v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 1
+) FROM t1 t1;
+SELECT (
+  SELECT t2.id FROM t2 t2 ORDER BY distance ( t1.v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 1
+) FROM t1 t1;
+
+EXPLAIN
+SELECT 1 FROM t1 WHERE (
+  SELECT t2.id FROM t2 t2 ORDER BY distance ( t1.v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 1
+);
+SELECT 1 FROM t1 WHERE (
+  SELECT t2.id FROM t2 t2 ORDER BY distance ( t1.v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 1
+);
+
+EXPLAIN
+SELECT * FROM t1, LATERAL (
+  SELECT t2.id FROM t2 t2 ORDER BY distance ( v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 10
+) t2a;
+SELECT * FROM t1, LATERAL (
+  SELECT t2.id FROM t2 t2 ORDER BY distance ( v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 10
+) t2a;
+
+DROP TABLE t1, t2;
+
 DROP PROCEDURE populate_vector_table;

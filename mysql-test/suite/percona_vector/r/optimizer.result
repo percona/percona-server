@@ -792,4 +792,67 @@ id	u	v
 5	6	0x1FF2213E0F11D13E8894283F
 DROP VIEW v1, v2, v3;
 DROP TABLE t1, t2;
+#
+# Server 9.7: NULL dereference in add_vector_keys() for ORDER BY
+# DISTANCE(outer_table.vector_col, ...) in a subquery
+#
+CREATE TABLE t1 (
+id BIGINT UNSIGNED PRIMARY KEY,
+v vector(3) NOT NULL,
+VECTOR INDEX vi(v) USING hnsw
+);
+CREATE TABLE t2 ( id BIGINT UNSIGNED PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1, to_vector('[1, 2, 3]') );
+INSERT INTO t2 VALUES ( 1 );
+EXPLAIN
+SELECT (
+SELECT t2.id FROM t2 t2 ORDER BY distance ( t1.v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 1
+) FROM t1 t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	index	NULL	PRIMARY	8	NULL	1	100.00	Using index; Using temporary; Using filesort
+Warnings:
+Note	1276	Field or reference 'test.t1.v' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t2`.`id` from `test`.`t2` order by distance(`test`.`t1`.`v`,to_vector('[1,2,3]'),'euclidean') limit 1) AS `(
+SELECT t2.id FROM t2 t2 ORDER BY distance ( t1.v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 1
+)` from `test`.`t1`
+SELECT (
+SELECT t2.id FROM t2 t2 ORDER BY distance ( t1.v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 1
+) FROM t1 t1;
+(
+SELECT t2.id FROM t2 t2 ORDER BY distance ( t1.v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 1
+)
+1
+EXPLAIN
+SELECT 1 FROM t1 WHERE (
+SELECT t2.id FROM t2 t2 ORDER BY distance ( t1.v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 1
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	index	NULL	PRIMARY	8	NULL	1	100.00	Using index; Using temporary; Using filesort
+Warnings:
+Note	1276	Field or reference 'test.t1.v' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (0 <> (/* select#2 */ select `test`.`t2`.`id` from `test`.`t2` order by distance(`test`.`t1`.`v`,to_vector('[1,2,3]'),'euclidean') limit 1))
+SELECT 1 FROM t1 WHERE (
+SELECT t2.id FROM t2 t2 ORDER BY distance ( t1.v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 1
+);
+1
+1
+EXPLAIN
+SELECT * FROM t1, LATERAL (
+SELECT t2.id FROM t2 t2 ORDER BY distance ( v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 10
+) t2a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Rematerialize (<derived2>)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT DERIVED	t2	NULL	index	NULL	PRIMARY	8	NULL	1	100.00	Using index; Using temporary; Using filesort
+Warnings:
+Note	1276	Field or reference 'test.t1.v' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`v` AS `v`,`t2a`.`id` AS `id` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t2`.`id` AS `id` from `test`.`t2` order by distance(`test`.`t1`.`v`,to_vector('[1,2,3]'),'euclidean') limit 10) `t2a`
+SELECT * FROM t1, LATERAL (
+SELECT t2.id FROM t2 t2 ORDER BY distance ( v, to_vector('[1,2,3]'), 'euclidean' ) LIMIT 10
+) t2a;
+id	v	id
+1	0x0000803F0000004000004040	1
+DROP TABLE t1, t2;
 DROP PROCEDURE populate_vector_table;

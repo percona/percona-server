@@ -1253,10 +1253,18 @@ class Rdb_field_encoder {
 
   bool maybe_null() const { return m_null_mask != 0; }
 
-  bool uses_variable_len_encoding() const {
+  /*
+    Whether the field is a Field_blob, whose record image holds the length
+    and a pointer to the data rather than the data itself.
+  */
+  bool is_blob() const {
     return (m_field_type == MYSQL_TYPE_BLOB ||
-            m_field_type == MYSQL_TYPE_VARCHAR ||
-            m_field_type == MYSQL_TYPE_JSON);
+            m_field_type == MYSQL_TYPE_JSON ||
+            m_field_type == MYSQL_TYPE_VECTOR);
+  }
+
+  bool uses_variable_len_encoding() const {
+    return (is_blob() || m_field_type == MYSQL_TYPE_VARCHAR);
   }
 };
 

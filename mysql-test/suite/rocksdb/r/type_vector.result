@@ -1,0 +1,140 @@
+#
+# PS-12125: Wrong VECTOR values returned from ROCKSDB tables.
+#
+# A VECTOR column in a ROCKSDB table must keep each row's own value.
+#
+# Field_vector is a Field_blob, so its record image holds the length
+# and a pointer to the server's buffer, not the data. MyRocks recognized
+# blob columns by type, though, and knew only MYSQL_TYPE_BLOB and
+# MYSQL_TYPE_JSON. A VECTOR column was stored as a fixed-size field:
+# its length and the pointer, not the data. Every row then read
+# whatever that buffer held at the time, the last vector written or,
+# once the buffer was freed, garbage.
+#
+# Rows inserted directly into a ROCKSDB table.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, STRING_TO_VECTOR('[5,6,7,8]')), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+# The data must survive a server restart.
+# restart
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+DROP TABLE t1;
+# Rows copied into a ROCKSDB table by ALTER TABLE.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, STRING_TO_VECTOR('[5,6,7,8]')), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+ALTER TABLE t1 ENGINE=ROCKSDB;
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+DROP TABLE t1;
+# UPDATE of a vector value, and DELETE followed by an INSERT.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, STRING_TO_VECTOR('[5,6,7,8]')), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+UPDATE t1 SET v = STRING_TO_VECTOR('[21,22,23,24]') WHERE id = 2;
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	[2.10000e+01,2.20000e+01,2.30000e+01,2.40000e+01]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+DELETE FROM t1 WHERE id = 1;
+INSERT INTO t1 VALUES (4, STRING_TO_VECTOR('[13,14,15,16]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+id	VECTOR_TO_STRING(v)
+2	[2.10000e+01,2.20000e+01,2.30000e+01,2.40000e+01]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+4	[1.30000e+01,1.40000e+01,1.50000e+01,1.60000e+01]
+DROP TABLE t1;
+# A nullable VECTOR column.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4)) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, NULL), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	NULL
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+UPDATE t1 SET v = NULL WHERE id = 1;
+UPDATE t1 SET v = STRING_TO_VECTOR('[5,6,7,8]') WHERE id = 2;
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+id	VECTOR_TO_STRING(v)
+1	NULL
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+DROP TABLE t1;
+# Two VECTOR columns and a LONGBLOB in one row. Reading only the
+# columns after a VECTOR column makes MyRocks skip over its value.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v1 VECTOR(4) NOT NULL, b LONGBLOB, v2 VECTOR(2) NOT NULL, i INT) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]'), 'first', STRING_TO_VECTOR('[-1,-2]'), 10), (2, STRING_TO_VECTOR('[5,6,7,8]'), REPEAT('x', 1000), STRING_TO_VECTOR('[-3,-4]'), 20), (3, STRING_TO_VECTOR('[9,10,11,12]'), NULL, STRING_TO_VECTOR('[-5,-6]'), 30);
+SELECT id, VECTOR_TO_STRING(v1), LEFT(b, 10), LENGTH(b), VECTOR_TO_STRING(v2), i FROM t1 ORDER BY id;
+id	VECTOR_TO_STRING(v1)	LEFT(b, 10)	LENGTH(b)	VECTOR_TO_STRING(v2)	i
+1	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]	first	5	[-1.00000e+00,-2.00000e+00]	10
+2	[5.00000e+00,6.00000e+00,7.00000e+00,8.00000e+00]	xxxxxxxxxx	1000	[-3.00000e+00,-4.00000e+00]	20
+3	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]	NULL	NULL	[-5.00000e+00,-6.00000e+00]	30
+SELECT id, LENGTH(b), VECTOR_TO_STRING(v2), i FROM t1 ORDER BY id;
+id	LENGTH(b)	VECTOR_TO_STRING(v2)	i
+1	5	[-1.00000e+00,-2.00000e+00]	10
+2	1000	[-3.00000e+00,-4.00000e+00]	20
+3	NULL	[-5.00000e+00,-6.00000e+00]	30
+SELECT id, i FROM t1 ORDER BY id;
+id	i
+1	10
+2	20
+3	30
+DROP TABLE t1;
+# A VECTOR column added by INSTANT ADD COLUMN.
+SET @saved_instant_ddl = @@global.rocksdb_enable_instant_ddl_for_append_column;
+SET GLOBAL rocksdb_enable_instant_ddl_for_append_column = ON;
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, i INT) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 10), (2, 20);
+ALTER TABLE t1 ADD COLUMN v VECTOR(4), ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES (3, 30, STRING_TO_VECTOR('[9,10,11,12]'));
+UPDATE t1 SET v = STRING_TO_VECTOR('[1,2,3,4]') WHERE id = 1;
+SELECT id, i, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+id	i	VECTOR_TO_STRING(v)
+1	10	[1.00000e+00,2.00000e+00,3.00000e+00,4.00000e+00]
+2	20	NULL
+3	30	[9.00000e+00,1.00000e+01,1.10000e+01,1.20000e+01]
+DROP TABLE t1;
+SET GLOBAL rocksdb_enable_instant_ddl_for_append_column = @saved_instant_ddl;
+# Vectors larger than a few bytes, and the trip back to InnoDB.
+SET @saved_group_concat_max_len = @@session.group_concat_max_len;
+SET @saved_cte_max_recursion_depth = @@session.cte_max_recursion_depth;
+SET SESSION group_concat_max_len = 65536;
+SET SESSION cte_max_recursion_depth = 1024;
+CREATE TABLE t_ref (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(1024) NOT NULL) ENGINE=InnoDB;
+INSERT INTO t_ref
+WITH RECURSIVE seq (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 1024)
+SELECT r.id, STRING_TO_VECTOR(CONCAT('[', GROUP_CONCAT(seq.n * r.id ORDER BY seq.n), ']'))
+FROM seq, (SELECT 1 AS id UNION ALL SELECT 2 UNION ALL SELECT 3) AS r
+GROUP BY r.id;
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(1024) NOT NULL) ENGINE=ROCKSDB;
+INSERT INTO t1 SELECT * FROM t_ref;
+SELECT t1.id, VECTOR_DIM(t1.v), VECTOR_TO_STRING(t1.v) = VECTOR_TO_STRING(t_ref.v) AS same FROM t1 JOIN t_ref USING (id) ORDER BY id;
+id	VECTOR_DIM(t1.v)	same
+1	1024	1
+2	1024	1
+3	1024	1
+ALTER TABLE t1 ENGINE=InnoDB;
+SELECT t1.id, VECTOR_DIM(t1.v), VECTOR_TO_STRING(t1.v) = VECTOR_TO_STRING(t_ref.v) AS same FROM t1 JOIN t_ref USING (id) ORDER BY id;
+id	VECTOR_DIM(t1.v)	same
+1	1024	1
+2	1024	1
+3	1024	1
+DROP TABLE t1, t_ref;
+SET SESSION group_concat_max_len = @saved_group_concat_max_len;
+SET SESSION cte_max_recursion_depth = @saved_cte_max_recursion_depth;
+# VECTOR columns can't be key parts, and MyRocks doesn't support
+# VECTOR indexes, so MyRocks never has to pack them into keys.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, KEY (v)) ENGINE=ROCKSDB;
+ERROR HY000: Non-scalar (e.g., vector) column 'v' cannot be used as key.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, VECTOR KEY vk (v) TYPE hnsw (M = 8)) ENGINE=ROCKSDB;
+ERROR HY000: The used table type doesn't support vector indexes

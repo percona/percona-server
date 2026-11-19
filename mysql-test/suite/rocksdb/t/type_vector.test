@@ -1,0 +1,102 @@
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # PS-12125: Wrong VECTOR values returned from ROCKSDB tables.
+--echo #
+--echo # A VECTOR column in a ROCKSDB table must keep each row's own value.
+--echo #
+--echo # Field_vector is a Field_blob, so its record image holds the length
+--echo # and a pointer to the server's buffer, not the data. MyRocks recognized
+--echo # blob columns by type, though, and knew only MYSQL_TYPE_BLOB and
+--echo # MYSQL_TYPE_JSON. A VECTOR column was stored as a fixed-size field:
+--echo # its length and the pointer, not the data. Every row then read
+--echo # whatever that buffer held at the time, the last vector written or,
+--echo # once the buffer was freed, garbage.
+--echo #
+
+--echo # Rows inserted directly into a ROCKSDB table.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, STRING_TO_VECTOR('[5,6,7,8]')), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+--echo # The data must survive a server restart.
+--source include/restart_mysqld.inc
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+DROP TABLE t1;
+
+--echo # Rows copied into a ROCKSDB table by ALTER TABLE.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, STRING_TO_VECTOR('[5,6,7,8]')), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+ALTER TABLE t1 ENGINE=ROCKSDB;
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+DROP TABLE t1;
+
+--echo # UPDATE of a vector value, and DELETE followed by an INSERT.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, STRING_TO_VECTOR('[5,6,7,8]')), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+UPDATE t1 SET v = STRING_TO_VECTOR('[21,22,23,24]') WHERE id = 2;
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+DELETE FROM t1 WHERE id = 1;
+INSERT INTO t1 VALUES (4, STRING_TO_VECTOR('[13,14,15,16]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+DROP TABLE t1;
+
+--echo # A nullable VECTOR column.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4)) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]')), (2, NULL), (3, STRING_TO_VECTOR('[9,10,11,12]'));
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+UPDATE t1 SET v = NULL WHERE id = 1;
+UPDATE t1 SET v = STRING_TO_VECTOR('[5,6,7,8]') WHERE id = 2;
+SELECT id, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+DROP TABLE t1;
+
+--echo # Two VECTOR columns and a LONGBLOB in one row. Reading only the
+--echo # columns after a VECTOR column makes MyRocks skip over its value.
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v1 VECTOR(4) NOT NULL, b LONGBLOB, v2 VECTOR(2) NOT NULL, i INT) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, STRING_TO_VECTOR('[1,2,3,4]'), 'first', STRING_TO_VECTOR('[-1,-2]'), 10), (2, STRING_TO_VECTOR('[5,6,7,8]'), REPEAT('x', 1000), STRING_TO_VECTOR('[-3,-4]'), 20), (3, STRING_TO_VECTOR('[9,10,11,12]'), NULL, STRING_TO_VECTOR('[-5,-6]'), 30);
+SELECT id, VECTOR_TO_STRING(v1), LEFT(b, 10), LENGTH(b), VECTOR_TO_STRING(v2), i FROM t1 ORDER BY id;
+SELECT id, LENGTH(b), VECTOR_TO_STRING(v2), i FROM t1 ORDER BY id;
+SELECT id, i FROM t1 ORDER BY id;
+DROP TABLE t1;
+
+--echo # A VECTOR column added by INSTANT ADD COLUMN.
+SET @saved_instant_ddl = @@global.rocksdb_enable_instant_ddl_for_append_column;
+SET GLOBAL rocksdb_enable_instant_ddl_for_append_column = ON;
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, i INT) ENGINE=ROCKSDB;
+INSERT INTO t1 VALUES (1, 10), (2, 20);
+ALTER TABLE t1 ADD COLUMN v VECTOR(4), ALGORITHM=INSTANT;
+INSERT INTO t1 VALUES (3, 30, STRING_TO_VECTOR('[9,10,11,12]'));
+UPDATE t1 SET v = STRING_TO_VECTOR('[1,2,3,4]') WHERE id = 1;
+SELECT id, i, VECTOR_TO_STRING(v) FROM t1 ORDER BY id;
+DROP TABLE t1;
+SET GLOBAL rocksdb_enable_instant_ddl_for_append_column = @saved_instant_ddl;
+
+--echo # Vectors larger than a few bytes, and the trip back to InnoDB.
+SET @saved_group_concat_max_len = @@session.group_concat_max_len;
+SET @saved_cte_max_recursion_depth = @@session.cte_max_recursion_depth;
+SET SESSION group_concat_max_len = 65536;
+SET SESSION cte_max_recursion_depth = 1024;
+
+CREATE TABLE t_ref (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(1024) NOT NULL) ENGINE=InnoDB;
+INSERT INTO t_ref
+  WITH RECURSIVE seq (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 1024)
+  SELECT r.id, STRING_TO_VECTOR(CONCAT('[', GROUP_CONCAT(seq.n * r.id ORDER BY seq.n), ']'))
+  FROM seq, (SELECT 1 AS id UNION ALL SELECT 2 UNION ALL SELECT 3) AS r
+  GROUP BY r.id;
+
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(1024) NOT NULL) ENGINE=ROCKSDB;
+INSERT INTO t1 SELECT * FROM t_ref;
+SELECT t1.id, VECTOR_DIM(t1.v), VECTOR_TO_STRING(t1.v) = VECTOR_TO_STRING(t_ref.v) AS same FROM t1 JOIN t_ref USING (id) ORDER BY id;
+
+ALTER TABLE t1 ENGINE=InnoDB;
+SELECT t1.id, VECTOR_DIM(t1.v), VECTOR_TO_STRING(t1.v) = VECTOR_TO_STRING(t_ref.v) AS same FROM t1 JOIN t_ref USING (id) ORDER BY id;
+
+DROP TABLE t1, t_ref;
+SET SESSION group_concat_max_len = @saved_group_concat_max_len;
+SET SESSION cte_max_recursion_depth = @saved_cte_max_recursion_depth;
+
+--echo # VECTOR columns can't be key parts, and MyRocks doesn't support
+--echo # VECTOR indexes, so MyRocks never has to pack them into keys.
+--error ER_NON_SCALAR_USED_AS_KEY
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, KEY (v)) ENGINE=ROCKSDB;
+--error ER_TABLE_CANT_HANDLE_INDEX
+CREATE TABLE t1 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL, VECTOR KEY vk (v) TYPE hnsw (M = 8)) ENGINE=ROCKSDB;

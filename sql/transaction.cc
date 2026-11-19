@@ -192,9 +192,15 @@ bool trans_begin(THD *thd, uint flags) {
   /* ha_start_consistent_snapshot() relies on OPTION_BEGIN flag set. */
   if (flags & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT) {
     if (tst) tst->add_trx_state(thd, TX_WITH_SNAPSHOT);
+    thd->consistent_snapshot_ignored = false;
     res = ha_start_consistent_snapshot(thd);
 
-    if (!res) {
+    /*
+      Report the snapshot gtid_executed (session_track_gtids), unless a
+      storage engine ignored the snapshot request: there is no consistent
+      snapshot to report then.
+    */
+    if (!res && !thd->consistent_snapshot_ignored) {
       const std::string *snapshot_gtids =
           binlog_get_snapshot_gtid_executed(thd);
       if (snapshot_gtids != nullptr)

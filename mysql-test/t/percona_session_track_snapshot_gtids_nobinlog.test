@@ -1,0 +1,14 @@
+#
+# With session_track_gtids = ALL_GTIDS, START TRANSACTION WITH CONSISTENT
+# SNAPSHOT returns the GTID set of the binary log snapshot in its OK packet.
+# With the binary log disabled there is no such snapshot: no entry.
+#
+--source include/not_log_bin.inc
+
+SET SESSION session_track_gtids = 'ALL_GTIDS';
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+SHOW STATUS LIKE 'Binlog_snapshot_gtid_executed';
+COMMIT;
+SET SESSION session_track_gtids = 'OFF';

@@ -1,0 +1,10 @@
+SET SESSION session_track_gtids = 'ALL_GTIDS';
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- T_R_____
+
+SHOW STATUS LIKE 'Binlog_snapshot_gtid_executed';
+Variable_name	Value
+Binlog_snapshot_gtid_executed	
+COMMIT;
+SET SESSION session_track_gtids = 'OFF';

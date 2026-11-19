@@ -293,6 +293,17 @@ bool thd_is_dd_update_stmt(const THD *thd);
 
 my_thread_id thd_thread_id(const THD *thd);
 
+/**
+  Marks that a storage engine ignored the WITH CONSISTENT SNAPSHOT clause of
+  the START TRANSACTION statement being executed, e.g. because of the
+  isolation level or because the donor session of FROM SESSION has no
+  snapshot to clone. The snapshot GTID set is then not reported to the client
+  in the session state tracker.
+
+  @param thd  Thread handle.
+*/
+void thd_set_consistent_snapshot_ignored(THD *thd);
+
 /** Gets page fragmentation statistics. Assigns zeros to stats if thd is
 NULL.
 @param[in]  thd   the calling thread

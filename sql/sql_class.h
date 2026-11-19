@@ -2932,6 +2932,14 @@ class THD : public MDL_context_owner,
   */
   int thd_tx_priority;
 
+  /**
+    Set by a storage engine that ignored the WITH CONSISTENT SNAPSHOT clause
+    of the START TRANSACTION statement being executed, see
+    thd_set_consistent_snapshot_ignored(). Reset by trans_begin() before the
+    snapshot is started.
+  */
+  bool consistent_snapshot_ignored{false};
+
   enum_check_fields check_for_truncated_fields;
   ha_rows updated_row_count{0};
   ha_rows sent_row_count_2{0}; /* for userstat */

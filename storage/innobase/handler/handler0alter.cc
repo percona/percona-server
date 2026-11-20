@@ -1512,12 +1512,22 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     online = false;
   }
 
-  /* The branches above set the LOCK=NONE reason whatever was requested.
-  For ALGORITHM=INSTANT the refusal above is the one the statement hit. */
-  if (vec_refuses_instant && ha_alter_info->alter_info->requested_algorithm ==
-                                 Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
-    ha_alter_info->unsupported_reason = innobase_get_err_msg(
-        ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_INSTANT);
+  /* The branches above set the LOCK=NONE reason whatever was requested,
+  which is the wrong one to report for ALGORITHM=INSTANT:
+
+  - If the table already has a vector index, INSTANT was refused for that
+    (vec_refuses_instant), so report it.
+  - Otherwise, if the ALTER adds the first vector index, INSTANT was
+    refused because InnoDB cannot add any index instantly. Clear the
+    reason, so the server reports its generic error, as it does for an
+    ordinary ADD INDEX. */
+  if (is_instant_requested) {
+    if (vec_refuses_instant) {
+      ha_alter_info->unsupported_reason = innobase_get_err_msg(
+          ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_VECTOR_INSTANT);
+    } else if (innobase_vector_exist(altered_table)) {
+      ha_alter_info->unsupported_reason = nullptr;
+    }
   }
 
   return online ? HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE

@@ -484,9 +484,10 @@ static dberr_t vec_runtime_load(vec_t *vec, dict_table_t *aux, THD *thd) {
   /* Aligned: HNSW's lock stripes, and thus the whole object, are
   alignas(64), while new_withkey only guarantees malloc alignment.
   Freed with ut::aligned_delete to match. */
+  const Vec_prepare prep = vec_prepare_for(vec->metric);
   vec->hnsw = ut::aligned_new_withkey<Vec_hnsw>(
       UT_NEW_THIS_FILE_PSI_KEY, alignof(Vec_hnsw), vec->dims, vec->dist, vec->m,
-      vec->ef_construction);
+      vec->ef_construction, Vec_hnsw::kDefaultSeed, prep.fn, prep.extra_bytes);
 
   mem_heap_t *heap = mem_heap_create(256, UT_LOCATION_HERE);
   vec_aux_read_t meta;
@@ -906,9 +907,11 @@ struct Vec_build {
             dict_index_t *index_)
       : dims(dims_), metric(metric_), index(index_) {
     /* Over-aligned, like vec_t::hnsw: see vec_runtime_load(). */
+    const Vec_prepare prep = vec_prepare_for(metric_);
     graph = ut::aligned_new_withkey<Vec_build_hnsw>(
         UT_NEW_THIS_FILE_PSI_KEY, alignof(Vec_build_hnsw), dims_, dist_, m_,
-        ef_construction_);
+        ef_construction_, Vec_build_hnsw::kDefaultSeed, prep.fn,
+        prep.extra_bytes);
   }
 
   ~Vec_build() {

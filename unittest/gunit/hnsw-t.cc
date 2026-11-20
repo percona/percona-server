@@ -16,6 +16,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -30,6 +31,8 @@
 #include "vector-common/hnsw.h"
 
 namespace hnsw_unittest {
+
+using dist_fn_t = double (*)(const char *, const char *, uint32_t);
 
 class HnswTest : public ::testing::Test {
  protected:
@@ -299,6 +302,262 @@ TEST_F(HnswTest, BruteForceRecall) {
 
   const double avg_recall = recall_sum / static_cast<double>(kNumQueries);
   EXPECT_GE(avg_recall, kMinAvgRecall) << "avg recall@10=" << avg_recall;
+}
+
+/* A vector prepare hook (vec_prepare_func_t) changes how a vector is stored
+and how a distance is taken, not what the graph is: cosine with the squared
+norm cached after each vector must give exactly the graph, and so the search
+results, that plain cosine gives. Covers every path that touches a vector:
+insert (the new node's own distances), k_nn_search and the streaming search
+(the query), including exact duplicates, which sit at distance exactly 0. */
+static double plain_cosine(const char *a_raw, const char *b_raw,
+                           uint32_t dims) {
+  const float *a = reinterpret_cast<const float *>(a_raw);
+  const float *b = reinterpret_cast<const float *>(b_raw);
+  double ab = 0, na = 0, nb = 0;
+  for (uint32_t i = 0; i < dims; i++) {
+    ab += static_cast<double>(a[i]) * b[i];
+    na += static_cast<double>(a[i]) * a[i];
+    nb += static_cast<double>(b[i]) * b[i];
+  }
+  const double denom = std::sqrt(na * nb);
+  if (denom == 0.0) return std::numeric_limits<double>::infinity();
+  return std::clamp(1.0 - ab / denom, 0.0, 2.0);
+}
+
+static double stored_norm2(const char *v, uint32_t dims) {
+  double n;
+  memcpy(&n, v + dims * sizeof(float), sizeof(n));
+  return n;
+}
+
+static double prepared_cosine(const char *a_raw, const char *b_raw,
+                              uint32_t dims) {
+  const float *a = reinterpret_cast<const float *>(a_raw);
+  const float *b = reinterpret_cast<const float *>(b_raw);
+  double ab = 0;
+  for (uint32_t i = 0; i < dims; i++) ab += static_cast<double>(a[i]) * b[i];
+  const double denom =
+      std::sqrt(stored_norm2(a_raw, dims) * stored_norm2(b_raw, dims));
+  if (denom == 0.0) return std::numeric_limits<double>::infinity();
+  return std::clamp(1.0 - ab / denom, 0.0, 2.0);
+}
+
+static void prepare_cosine(const char *src, char *dst, uint32_t dims) {
+  memcpy(dst, src, dims * sizeof(float));
+  const float *v = reinterpret_cast<const float *>(src);
+  double n = 0;
+  for (uint32_t i = 0; i < dims; i++) n += static_cast<double>(v[i]) * v[i];
+  memcpy(dst + dims * sizeof(float), &n, sizeof(n));
+}
+
+TEST_F(HnswTest, PreparedVectorsGiveTheSameGraph) {
+  constexpr size_t kDimsP = 24;
+  constexpr size_t kMP = 6;
+  constexpr size_t kNumPoints = 600;
+
+  TestHnsw plain(kDimsP, plain_cosine, kMP, kEfConstruction);
+  TestHnsw prepared(kDimsP, prepared_cosine, kMP, kEfConstruction,
+                    TestHnsw::kDefaultSeed, prepare_cosine, sizeof(double));
+
+  uint64_t state = 7;
+  auto points = make_pseudo_random_points(kNumPoints, kDimsP, &state);
+  // Exact duplicates, which HNSW handles specially (distance exactly 0).
+  for (size_t i = 0; i < 40; i++) points.push_back(points[i % 5]);
+  for (size_t i = 0; i < points.size(); ++i) {
+    ASSERT_EQ(plain.insert(i + 1, i, as_bytes(points[i])),
+              TestHnsw::HNSW_SUCCESS);
+    ASSERT_EQ(prepared.insert(i + 1, i, as_bytes(points[i])),
+              TestHnsw::HNSW_SUCCESS);
+  }
+  ASSERT_EQ(plain.size(), prepared.size());
+
+  auto queries = make_pseudo_random_points(30, kDimsP, &state);
+  queries.push_back(points[2]);  // a stored vector, and one with duplicates
+  for (size_t q = 0; q < queries.size(); ++q) {
+    const auto [rc1, r1] = plain.k_nn_search(as_bytes(queries[q]), 10, 40);
+    const auto [rc2, r2] = prepared.k_nn_search(as_bytes(queries[q]), 10, 40);
+    ASSERT_EQ(rc1, TestHnsw::HNSW_SUCCESS);
+    ASSERT_EQ(rc2, TestHnsw::HNSW_SUCCESS);
+    ASSERT_EQ(r1.size(), r2.size()) << "q=" << q;
+    for (size_t i = 0; i < r1.size(); ++i) {
+      EXPECT_EQ(r1[i].id, r2[i].id) << "q=" << q << " i=" << i;
+    }
+
+    // The streaming search prepares the query in its own context.
+    TestHnsw::NNSearchContext c1, c2;
+    ASSERT_EQ(plain.nn_search_start(&c1, as_bytes(queries[q]), 8, 40),
+              TestHnsw::HNSW_SUCCESS);
+    ASSERT_EQ(prepared.nn_search_start(&c2, as_bytes(queries[q]), 8, 40),
+              TestHnsw::HNSW_SUCCESS);
+    for (int i = 0; i < 8; ++i) {
+      const auto n1 = plain.nn_search_next(&c1);
+      const auto n2 = prepared.nn_search_next(&c2);
+      ASSERT_EQ(n1.first, n2.first) << "q=" << q << " i=" << i;
+      if (n1.first != TestHnsw::HNSW_SUCCESS) break;
+      EXPECT_EQ(n1.second.base_pk, n2.second.base_pk)
+          << "q=" << q << " i=" << i;
+    }
+  }
+}
+
+/* FNV-1a over everything a persisted graph consists of (ids, layers, vectors'
+first float, neighbor slots), in the walk's order. */
+template <typename Index>
+static uint64_t graph_fingerprint(Index &index) {
+  uint64_t h = 1469598103934665603ULL;
+  auto mix = [&h](uint64_t v) {
+    for (int i = 0; i < 8; i++) {
+      h ^= (v >> (8 * i)) & 0xff;
+      h *= 1099511628211ULL;
+    }
+  };
+  index.for_each_node_sorted([&](uint64_t id, uint64_t base_pk, const char *,
+                                 uint8_t layer,
+                                 typename Index::NeighborIdRange nbrs) {
+    mix(id);
+    mix(base_pk);
+    mix(layer);
+    for (uint64_t nid : nbrs) mix(nid);
+    return HNSW_SUCCESS;
+  });
+  mix(index.entry_point_id());
+  return h;
+}
+
+/* Prints the fingerprint of graphs built single-threaded from seeded data.
+It is not asserted against a constant: run the test binary of two source
+trees and compare the lines to see that a change leaves the graph the
+algorithm builds exactly as it was. */
+TEST_F(HnswTest, GraphFingerprint) {
+  uint64_t state = 99;
+  for (size_t M : {4, 8, 16}) {
+    for (size_t ef : {16, 64}) {
+      const auto plain_points = make_pseudo_random_points(500, 24, &state);
+      // Exact duplicates tie in distance, which is where the incremental
+      // pruning hands over to select_neighbors(): both pairs have to match
+      // across source trees.
+      auto dup_points = plain_points;
+      for (size_t i = 0; i < 30; i++) dup_points.push_back(plain_points[i % 4]);
+      unsigned long long fp[4];
+      int k = 0;
+      const std::vector<std::vector<float>> *const sets[] = {&plain_points,
+                                                              &dup_points};
+      for (const auto *points : sets) {
+        TestHnsw euclid(24, euclidean, M, ef);
+        TestHnsw cosine(24, plain_cosine, M, ef);
+        for (size_t i = 0; i < points->size(); ++i) {
+          euclid.insert(i + 1, i, as_bytes((*points)[i]));
+          cosine.insert(i + 1, i, as_bytes((*points)[i]));
+        }
+        fp[k++] = graph_fingerprint(euclid);
+        fp[k++] = graph_fingerprint(cosine);
+      }
+      std::printf(
+          "FINGERPRINT M=%zu ef=%zu nodup_euclidean=%016llx nodup_cosine=%016llx"
+          " dup_euclidean=%016llx dup_cosine=%016llx\n",
+          M, ef, fp[0], fp[1], fp[2], fp[3]);
+    }
+  }
+}
+
+/* Each neighbor slot caches the distance to its neighbor. Whatever the
+inserts did to a list - appended to it, pruned it, filled it from the new
+node's own selection - a cached distance is exactly the distance now, and in
+a graph built in memory every slot has one. */
+TEST_F(HnswTest, NeighborDistanceCacheIsExact) {
+  uint64_t state = 5;
+  for (size_t M : {2, 4, 8, 16}) {
+    auto points = make_pseudo_random_points(400, 16, &state);
+    for (size_t i = 0; i < 40; i++) points.push_back(points[i % 6]);
+
+    TestHnsw euclid(16, euclidean, M, 24);
+    TestHnsw cosine(16, plain_cosine, M, 24);
+    TestHnsw prepared(16, prepared_cosine, M, 24, TestHnsw::kDefaultSeed,
+                      prepare_cosine, sizeof(double));
+    for (size_t i = 0; i < points.size(); ++i) {
+      euclid.insert(i + 1, i, as_bytes(points[i]));
+      cosine.insert(i + 1, i, as_bytes(points[i]));
+      prepared.insert(i + 1, i, as_bytes(points[i]));
+    }
+    for (TestHnsw *index : {&euclid, &cosine, &prepared}) {
+      size_t unknown = 123;
+      EXPECT_EQ(0U, index->count_stale_neighbor_dists(&unknown)) << "M=" << M;
+      EXPECT_EQ(0U, unknown) << "M=" << M;
+    }
+  }
+}
+
+static std::atomic<uint64_t> g_distance_calls{0};
+static double counting_euclidean(const char *a, const char *b, uint32_t dims) {
+  g_distance_calls.fetch_add(1, std::memory_order_relaxed);
+  return euclidean(a, b, dims);
+}
+static double counting_cosine(const char *a, const char *b, uint32_t dims) {
+  g_distance_calls.fetch_add(1, std::memory_order_relaxed);
+  return plain_cosine(a, b, dims);
+}
+
+/* Pruning a full neighbor list from the previous pruning's flags
+(set_incremental_shrink_for_testing) builds the same graph as redoing the
+whole selection every time, for less work. Data with exact duplicates goes
+through select_neighbors() instead, with or without. */
+TEST_F(HnswTest, IncrementalShrinkMatchesFullRecompute) {
+  uint64_t state = 123;
+  for (bool with_duplicates : {false, true}) {
+    for (size_t M : {2, 3, 4, 8, 16}) {
+      for (size_t ef : {16, 64}) {
+        auto points = make_pseudo_random_points(500, 24, &state);
+        if (with_duplicates) {
+          for (size_t i = 0; i < 40; i++) points.push_back(points[i % 5]);
+        }
+        for (dist_fn_t fn : {counting_euclidean, counting_cosine}) {
+          uint64_t calls[2];
+          uint64_t fp[2];
+          for (int incremental = 0; incremental < 2; incremental++) {
+            TestHnsw index(24, fn, M, ef);
+            index.set_incremental_shrink_for_testing(incremental != 0);
+            g_distance_calls = 0;
+            for (size_t i = 0; i < points.size(); ++i) {
+              index.insert(i + 1, i, as_bytes(points[i]));
+            }
+            calls[incremental] = g_distance_calls;
+            fp[incremental] = graph_fingerprint(index);
+            size_t unknown = 0;
+            EXPECT_EQ(0U, index.count_stale_neighbor_dists(&unknown));
+          }
+          EXPECT_EQ(fp[0], fp[1])
+              << "M=" << M << " ef=" << ef << " dups=" << with_duplicates;
+          EXPECT_LE(calls[1], calls[0])
+              << "M=" << M << " ef=" << ef << " dups=" << with_duplicates;
+          if (!with_duplicates && M >= 8) {
+            EXPECT_LT(calls[1], calls[0] * 9 / 10)
+                << "M=" << M << " ef=" << ef << " calls full=" << calls[0]
+                << " incremental=" << calls[1];
+          }
+          std::printf(
+              "DISTANCE CALLS %s M=%zu ef=%zu dups=%d full=%llu incremental=%llu\n",
+              fn == counting_euclidean ? "euclidean" : "cosine", M, ef,
+              with_duplicates, static_cast<unsigned long long>(calls[0]),
+              static_cast<unsigned long long>(calls[1]));
+        }
+      }
+    }
+  }
+}
+
+/* The kernels the cache relies on are symmetric to the last bit. */
+TEST_F(HnswTest, DistanceKernelsAreSymmetric) {
+  uint64_t state = 17;
+  const auto points = make_pseudo_random_points(60, 24, &state);
+  for (size_t i = 0; i < points.size(); ++i) {
+    for (size_t j = 0; j < points.size(); ++j) {
+      EXPECT_EQ(euclidean(as_bytes(points[i]), as_bytes(points[j]), 24),
+                euclidean(as_bytes(points[j]), as_bytes(points[i]), 24));
+      EXPECT_EQ(plain_cosine(as_bytes(points[i]), as_bytes(points[j]), 24),
+                plain_cosine(as_bytes(points[j]), as_bytes(points[i]), 24));
+    }
+  }
 }
 
 TEST_F(HnswTest, SearchEfZeroStillReturnsK) {

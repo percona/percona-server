@@ -22,3 +22,24 @@ ALTER TABLE t ADD COLUMN c INT, ADD KEY kc (c), ALGORITHM=INSTANT;
 ALTER TABLE t ADD COLUMN c INT, ALGORITHM=INPLACE, LOCK=NONE;
 
 DROP TABLE t;
+
+--echo #
+--echo # PS-11590 follow-up: adding the first vector index with
+--echo # ALGORITHM=INSTANT is refused with the generic error, like any other
+--echo # ADD INDEX - no LOCK=NONE reason and no claim that the table already
+--echo # has a vector index.
+--echo #
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t2 ADD COLUMN c INT, ADD VECTOR KEY vk (v) TYPE hnsw (M = 8),
+  ALGORITHM=INSTANT;
+--echo # Same as an ordinary index.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t2 ADD KEY kid (id), ALGORITHM=INSTANT;
+--echo # LOCK=NONE still gets the LOCK=NONE reason.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE,
+  LOCK=NONE;
+DROP TABLE t2;

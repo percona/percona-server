@@ -472,6 +472,9 @@ class HNSW {
 
       // TODO: Think about possible optimizations of this.
       scratch_buffer.resize(get_Mmax(0));
+      // Distances parallel to scratch_buffer while a neighbor list is pruned.
+      std::vector<double> dist_scratch(get_Mmax(0));
+      std::vector<uint8_t> closer_scratch(get_Mmax(0));
 
       // HNSW entry point is always complete.
       assert(entry_point->state() == NODE_COMPLETE);
@@ -525,13 +528,18 @@ class HNSW {
         // concurrent insertions we can safely iterate over and modify
         // the new node's neighbors without any additional locking.
         Node **new_node_neighbors = new_node->neighbors_begin(*this, l);
-        const size_t n [[maybe_unused]] =
-            select_neighbors(q, nearest, Mmax, new_node_neighbors);
+        double *new_node_dists = new_node->neighbor_dists_begin(*this, l);
+        const size_t n [[maybe_unused]] = select_neighbors(
+            q, nearest, Mmax, new_node_neighbors, new_node_dists);
         assert(n == std::min(Mmax, nearest.size()));
 
         for (Node *const *it = new_node_neighbors;
              it != new_node->neighbors_end(*this, l) && *it != nullptr; ++it) {
           Node *neighbor = *it;
+          // Distance between the new node and this neighbor, which
+          // select_neighbors() already has. The kernels are symmetric, so it
+          // is also the distance from the neighbor to the new node.
+          const double new_dist = new_node_dists[it - new_node_neighbors];
           // search_layer() + select_neighbors() post conditions:
           // all neighbors of the newly inserted node are complete
           // and are present on the current layer.
@@ -548,6 +556,8 @@ class HNSW {
             }
             if (it2 != neighbor->neighbors_end(*this, l)) {
               *it2 = new_node;
+              neighbor->neighbor_dists_begin(*this, l)
+                  [it2 - neighbor->neighbors_begin(*this, l)] = new_dist;
             } else {
               // Copy existing neighbors to scratch buffer to avoid
               // holding the lock while performing expensive calculations
@@ -562,10 +572,17 @@ class HNSW {
               std::copy(neighbor->neighbors_begin(*this, l),
                         neighbor->neighbors_end(*this, l),
                         scratch_buffer.data());
+              std::copy_n(neighbor->neighbor_dists_begin(*this, l), Mmax,
+                          dist_scratch.data());
+              std::copy_n(neighbor->neighbor_closer_begin(*this, l), Mmax,
+                          closer_scratch.data());
               neighbor_lock.unlock();
 
-              std::vector<NodeDist> candidate_neighbors;
+              std::vector<ShrinkCandidate> candidate_neighbors;
               candidate_neighbors.reserve(Mmax + 1);
+              // The flags describe the list as it was; they say how the
+              // selection over it went only while all of it is still there.
+              bool flags_valid = m_incremental_shrink;
               for (size_t i = 0; i < Mmax; ++i) {
                 Node *nb = scratch_buffer[i];
                 assert(nb != nullptr);
@@ -584,13 +601,17 @@ class HNSW {
                 //    node itself, in the candidate list anyway.
                 // 3) They represent work done by concurrent insertions, which
                 //    we probably don't want to throw away.
-                if (nb_state == NODE_LOST || nb_state == NODE_FAILED) continue;
+                if (nb_state == NODE_LOST || nb_state == NODE_FAILED) {
+                  flags_valid = false;
+                  continue;
+                }
 
                 // Load the neighbor if it is not loaded yet; skip if missing.
                 if (nb_state == NODE_DUMMY) {
                   const HnswResult load_rc = load_node(persistor_ctx, nb);
                   if (load_rc == HNSW_NOT_FOUND) {
                     assert(nb->state() == NODE_LOST);
+                    flags_valid = false;
                     continue;
                   }
                   if (load_rc != HNSW_SUCCESS) {
@@ -619,14 +640,21 @@ class HNSW {
                   return HNSW_CORRUPTED;
                 }
 
-                candidate_neighbors.push_back({nb, dist(neighbor->vec(), nb)});
+                // The cached distance from this neighbor to nb, unless it
+                // was loaded from the persistor and has none yet.
+                double nb_dist = dist_scratch[i];
+                if (std::isnan(nb_dist)) nb_dist = dist(neighbor->vec(), nb);
+                if (closer_scratch[i] == kCloserUnknown) flags_valid = false;
+                candidate_neighbors.push_back(
+                    {nb, nb_dist, closer_scratch[i]});
               }
               candidate_neighbors.push_back(
-                  {new_node, dist(neighbor->vec(), new_node)});
+                  {new_node, new_dist, kCloserUnknown});
 
-              const size_t selected =
-                  select_neighbors(neighbor->vec(), candidate_neighbors, Mmax,
-                                   scratch_buffer.data());
+              const size_t selected = shrink_neighbors(
+                  candidate_neighbors, new_node, Mmax, flags_valid,
+                  scratch_buffer.data(), dist_scratch.data(),
+                  closer_scratch.data());
 
               assert(selected == std::min(Mmax, candidate_neighbors.size()));
 
@@ -636,11 +664,17 @@ class HNSW {
               // prefix.
               for (size_t i = selected; i < Mmax; ++i) {
                 scratch_buffer[i] = nullptr;
+                dist_scratch[i] = kUnknownDist;
+                closer_scratch[i] = kCloserUnknown;
               }
 
               neighbor_lock.lock();
               std::copy(scratch_buffer.data(), scratch_buffer.data() + Mmax,
                         neighbor->neighbors_begin(*this, l));
+              std::copy_n(dist_scratch.data(), Mmax,
+                          neighbor->neighbor_dists_begin(*this, l));
+              std::copy_n(closer_scratch.data(), Mmax,
+                          neighbor->neighbor_closer_begin(*this, l));
             }
           }
           updated_neighbors.insert(neighbor);
@@ -1702,10 +1736,24 @@ class HNSW {
       const NodeState s = m_state.load();
       assert(s == NODE_NEW || s == NODE_DUMMY);
 #endif
-      const size_t neighbors_size = all_neighbors_size(hnsw) * sizeof(Node *);
-      m_neighbors = static_cast<Node **>(allocator.allocate(neighbors_size));
-      if (m_neighbors == nullptr) return false;
+      // One block: the neighbor pointers, then one double per slot with the
+      // distance from this node to that neighbor (kUnknownDist when not
+      // known, e.g. for a node loaded from the persistor), then one byte per
+      // slot with its "closer" flag (see shrink_neighbors(); kCloserUnknown
+      // when not known).
+      const size_t slots = all_neighbors_size(hnsw);
+      const size_t neighbors_size = slots * sizeof(Node *);
+      void *mem = allocator.allocate(neighbors_size + slots * sizeof(double) +
+                                     slots * sizeof(uint8_t));
+      if (mem == nullptr) return false;
+      m_neighbors = static_cast<Node **>(mem);
       memset(m_neighbors, 0, neighbors_size);
+      m_neighbor_dists = reinterpret_cast<double *>(
+          static_cast<char *>(mem) + neighbors_size);
+      std::fill_n(m_neighbor_dists, slots, kUnknownDist);
+      m_neighbor_closer =
+          reinterpret_cast<uint8_t *>(m_neighbor_dists + slots);
+      memset(m_neighbor_closer, kCloserUnknown, slots);
       return true;
     }
 
@@ -1723,6 +1771,19 @@ class HNSW {
     }
     Node **neighbors_end(const HNSW &hnsw, uint8_t layer) const {
       return neighbors_begin(hnsw, layer) + hnsw.get_Mmax(layer);
+    }
+
+    // Distances to the neighbors, slot for slot parallel to neighbors_begin().
+    // Read and written under the node lock together with the pointers, so a
+    // slot's pointer and distance always belong together.
+    double *neighbor_dists_begin(const HNSW &hnsw, uint8_t layer) const {
+      assert(layer <= m_layer);
+      return m_neighbor_dists + (m_layer - layer) * hnsw.m_M;
+    }
+    // Closer flags, slot for slot parallel to neighbors_begin().
+    uint8_t *neighbor_closer_begin(const HNSW &hnsw, uint8_t layer) const {
+      assert(layer <= m_layer);
+      return m_neighbor_closer + (m_layer - layer) * hnsw.m_M;
     }
 
    private:
@@ -1756,6 +1817,13 @@ class HNSW {
       NeighborIdRange (0 = empty slot).
     */
     Node **m_neighbors;
+
+    /// Distance from this node to the neighbor in the same slot of
+    /// m_neighbors; see alloc_neighbors().
+    double *m_neighbor_dists;
+
+    /// "Closer" flag of the neighbor in the same slot; see alloc_neighbors().
+    uint8_t *m_neighbor_closer;
 
     explicit Node(uint64_t id, NodeState state) : m_id(id), m_state(state) {}
   };
@@ -1905,6 +1973,45 @@ class HNSW {
   /** Number of nodes the graph holds, complete or not. */
   size_t size() const { return m_nodes.size(); }
 
+  /**
+    For tests: with false, every pruning of a full neighbor list redoes the
+    whole selection instead of updating the previous one. The graph that
+    results is the same; only the number of distance calls differs.
+  */
+  void set_incremental_shrink_for_testing(bool on) {
+    m_incremental_shrink = on;
+  }
+
+  /**
+    Consistency check of the cached neighbor distances, for tests: counts
+    the neighbor slots of complete nodes whose cached distance differs from
+    the distance recomputed now (stale, must be 0), and, in @p unknown, those
+    that have none yet (allowed: nodes loaded from the persistor start
+    without). Not thread-safe against concurrent inserts.
+  */
+  size_t count_stale_neighbor_dists(size_t *unknown = nullptr) {
+    size_t stale = 0, unk = 0;
+    for (const auto &entry : m_nodes) {
+      Node *node = entry.second;
+      if (node->state() != NODE_COMPLETE) continue;
+      for (int l = node->layer(); l >= 0; --l) {
+        Node **nb = node->neighbors_begin(*this, l);
+        const double *cached = node->neighbor_dists_begin(*this, l);
+        for (size_t i = 0; i < get_Mmax(l); ++i) {
+          if (nb[i] == nullptr) continue;
+          if (std::isnan(cached[i])) {
+            ++unk;
+          } else if (nb[i]->state() == NODE_COMPLETE &&
+                     cached[i] != dist(node->vec(), nb[i])) {
+            ++stale;
+          }
+        }
+      }
+    }
+    if (unknown != nullptr) *unknown = unk;
+    return stale;
+  }
+
  private:
   NeighborIdRange neighbor_ids(const Node *node) const {
     return NeighborIdRange{node->all_neighbors_begin(*this),
@@ -1946,6 +2053,8 @@ class HNSW {
   const size_t m_dimensions;
   vec_dist_func_t *const m_dist_func;
   vec_prepare_func_t *const m_prepare;
+  /// See set_incremental_shrink_for_testing().
+  bool m_incremental_shrink{true};
   /// Bytes of a stored vector: the dims floats plus what m_prepare appends.
   const size_t m_vec_bytes;
   const size_t m_M;
@@ -2411,6 +2520,17 @@ class HNSW {
     0.72 with 3 and 0.93 with 1.
   */
   static constexpr size_t kMaxDupNeighbors = 3;
+
+  /// Marks a neighbor slot whose distance is not cached.
+  static constexpr double kUnknownDist =
+      std::numeric_limits<double>::quiet_NaN();
+
+  /// Per neighbor slot, the outcome of the last neighbor selection over the
+  /// list the slot is in: picked by the heuristic ("closer" to the list's
+  /// owner than to every neighbor picked before it) or not.
+  static constexpr uint8_t kCloserUnknown = 0;
+  static constexpr uint8_t kCloserYes = 1;
+  static constexpr uint8_t kCloserNo = 2;
   static_assert(kMaxDupNeighbors >= 1);
 
   /**
@@ -2442,6 +2562,8 @@ class HNSW {
     @param out  Output buffer of at least max_neighbors Node* slots;
                 selected neighbors are written to out[0 .. return_value).
                 Together with r_size/return value corresponds to R in the paper.
+    @param out_dists  Optional, same size: out_dists[i] is the distance of
+                out[i] to the base element (the candidates' distance).
 
     @note Pre condition: all nodes in the candidates set are complete or in the
     linking state. Post condition: all nodes in the output buffer are complete
@@ -2451,14 +2573,15 @@ class HNSW {
   */
   template <typename NodeDistRange>
   size_t select_neighbors(const char * /* q */, const NodeDistRange &candidates,
-                          size_t max_neighbors, Node **out) {
+                          size_t max_neighbors, Node **out,
+                          double *out_dists = nullptr) {
     size_t r_size = 0;
     // W in the paper.
     std::priority_queue<NodeDist, std::vector<NodeDist>, NodeDistMinCmp>
         work_queue;
     // Discarded candidates in nearest-first order (leftover duplicates of q
     // first, then in the order of pops from W).
-    std::vector<Node *> discarded;  // Wd from the paper.
+    std::vector<NodeDist> discarded;  // Wd from the paper.
     /*
       Duplicates of q. W would yield them in the nearest-first order before
       all other candidates anyway, so keep them out of W and handle them up
@@ -2468,7 +2591,7 @@ class HNSW {
       distance clamps its result to [0, 2]), so checking for exact 0 is
       enough.
     */
-    std::vector<Node *> dups;
+    std::vector<NodeDist> dups;
 
     for (const NodeDist &entry : candidates) {
       // Candidates must be complete or linking. Since linking candidates
@@ -2484,7 +2607,7 @@ class HNSW {
              entry_state == NODE_FAILED);
 #endif
       if (entry.distance == 0) {
-        dups.push_back(entry.node);
+        dups.push_back(entry);
       } else {
         work_queue.push(entry);
       }
@@ -2502,7 +2625,10 @@ class HNSW {
     assert(max_neighbors >= 2);
     const size_t dup_selected =
         std::min({dups.size(), kMaxDupNeighbors, max_neighbors - 1});
-    std::copy_n(dups.begin(), dup_selected, out);
+    for (size_t i = 0; i < dup_selected; ++i) {
+      out[i] = dups[i].node;
+      if (out_dists != nullptr) out_dists[i] = dups[i].distance;
+    }
     r_size = dup_selected;
     discarded.insert(discarded.end(), dups.begin() + dup_selected, dups.end());
 
@@ -2525,17 +2651,149 @@ class HNSW {
         }
       }
       if (!discard) {
+        if (out_dists != nullptr) out_dists[r_size] = e.distance;
         out[r_size++] = e.node;
       } else {
-        discarded.push_back(e.node);
+        discarded.push_back(e);
       }
     }
 
     for (size_t i = 0; i < discarded.size() && r_size < max_neighbors; ++i) {
-      out[r_size++] = discarded[i];
+      if (out_dists != nullptr) out_dists[r_size] = discarded[i].distance;
+      out[r_size++] = discarded[i].node;
     }
 
     return r_size;
+  }
+
+  /// A neighbor list entry while the list is pruned: the neighbor, its
+  /// distance to the list's owner and its closer flag from the last pruning.
+  struct ShrinkCandidate {
+    Node *node;
+    double distance;
+    uint8_t closer;
+  };
+
+  /**
+    Prune a full neighbor list of a node after @p new_node was added to it:
+    @p cands is the list plus the new node, and the result is what
+    select_neighbors() gives for them with the same @p max_neighbors, so
+    normally that is the list without one element. Same output arguments as
+    select_neighbors(), plus out_closer[i], the closer flag of out[i]; slots
+    from the return value up to max_neighbors are cleared.
+
+    The expensive part of select_neighbors() is deciding for every candidate,
+    nearest first, whether it is closer to the owner than to each neighbor
+    picked before it: a distance call per pair. Almost all of that decision
+    is the same as the last time the list was pruned. With @p flags_valid
+    (every old entry has its flag from that time, and none has gone) a
+    candidate that was picked before is checked only against the entries
+    picked since, i.e. the new node, and one that was not picked is checked
+    again only if an earlier pick was lost to the new node. That costs
+    about max_neighbors distance calls instead of about their square.
+
+    Candidates are ordered by distance here, so that the flags mean the same
+    on every pruning. Wherever that order is not fully determined by the
+    distances (candidates at equal distance, which are copies of one vector)
+    or the choice needs select_neighbors()'s handling of exact duplicates of
+    the owner, select_neighbors() itself is used, as it was before the flags
+    existed, and the flags are forgotten.
+  */
+  size_t shrink_neighbors(std::vector<ShrinkCandidate> &cands, Node *new_node,
+                          size_t max_neighbors, bool flags_valid, Node **out,
+                          double *out_dists, uint8_t *out_closer) {
+    // The order select_neighbors() would see the candidates in.
+    const std::vector<ShrinkCandidate> original = cands;
+
+    std::sort(cands.begin(), cands.end(),
+              [](const ShrinkCandidate &a, const ShrinkCandidate &b) {
+                if (a.distance != b.distance) return a.distance < b.distance;
+                return a.node->id() < b.node->id();
+              });
+
+    // Exact duplicates of the owner (distance 0) need select_neighbors()'s
+    // special handling, and candidates at equal distances (copies of one
+    // vector) are ordered by its heap, not by anything systematic like the
+    // node id, which would always drop the same copy of a group and leave
+    // the copies inserted last unreachable (PS-11780). In both cases it is
+    // used as it is, and the flags are forgotten.
+    bool needs_select_neighbors = cands.front().distance == 0;
+    for (size_t i = 1; i < cands.size() && !needs_select_neighbors; ++i) {
+      needs_select_neighbors = cands[i].distance == cands[i - 1].distance;
+    }
+    if (needs_select_neighbors) {
+      std::vector<NodeDist> plain;
+      plain.reserve(original.size());
+      for (const ShrinkCandidate &x : original) {
+        plain.push_back({x.node, x.distance});
+      }
+      const size_t n =
+          select_neighbors(nullptr, plain, max_neighbors, out, out_dists);
+      std::fill_n(out_closer, max_neighbors, kCloserUnknown);
+      return n;
+    }
+
+    // True when e is closer to the owner than to every entry of list.
+    const auto closer_than_all =
+        [this](const ShrinkCandidate &e,
+               const std::vector<ShrinkCandidate *> &list) {
+          for (const ShrinkCandidate *r : list) {
+            if (e.distance >= dist(e.node->vec(), r->node)) return false;
+          }
+          return true;
+        };
+
+    std::vector<ShrinkCandidate *> picked;    // R in the paper
+    std::vector<ShrinkCandidate *> discarded;  // Wd in the paper
+    std::vector<ShrinkCandidate *> added;      // picked newly, this time
+    bool lost_a_pick = false;
+    picked.reserve(max_neighbors);
+    for (ShrinkCandidate &e : cands) {
+      if (picked.size() >= max_neighbors) break;
+      if (!flags_valid) {
+        e.closer = closer_than_all(e, picked) ? kCloserYes : kCloserNo;
+      } else if (!added.empty()) {
+        if (e.closer == kCloserYes) {
+          // Was closer than all the picks before it; the picks before it
+          // now are those, minus any lost, plus the new ones.
+          if (!closer_than_all(e, added)) {
+            e.closer = kCloserNo;
+            lost_a_pick = true;
+          }
+        } else if (lost_a_pick && closer_than_all(e, picked)) {
+          // A pick it was not closer than has gone: it may be now.
+          e.closer = kCloserYes;
+          added.push_back(&e);
+        }
+      } else if (e.node == new_node) {
+        if (closer_than_all(e, picked)) {
+          e.closer = kCloserYes;
+          added.push_back(&e);
+        } else {
+          e.closer = kCloserNo;
+        }
+      }
+      (e.closer == kCloserYes ? picked : discarded).push_back(&e);
+    }
+
+    size_t n = 0;
+    for (const ShrinkCandidate *c : picked) {
+      out[n] = c->node;
+      out_dists[n] = c->distance;
+      out_closer[n++] = kCloserYes;
+    }
+    // keepPrunedConnections: fill what is left with the nearest discarded.
+    for (size_t i = 0; i < discarded.size() && n < max_neighbors; ++i) {
+      out[n] = discarded[i]->node;
+      out_dists[n] = discarded[i]->distance;
+      out_closer[n++] = kCloserNo;
+    }
+    for (size_t i = n; i < max_neighbors; ++i) {
+      out[i] = nullptr;
+      out_dists[i] = kUnknownDist;
+      out_closer[i] = kCloserUnknown;
+    }
+    return n;
   }
 
   HnswResult load_node(PersistorContext *persistor_ctx, Node *node) {

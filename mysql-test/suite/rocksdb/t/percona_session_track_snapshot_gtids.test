@@ -1,0 +1,58 @@
+#
+# With session_track_gtids = ALL_GTIDS, START TRANSACTION WITH CONSISTENT
+# SNAPSHOT returns the snapshot GTID set (Binlog_snapshot_gtid_executed) in
+# the SESSION_TRACK_GTIDS entry of its OK packet, also when the snapshot is
+# taken by MyRocks. No entry is sent when MyRocks ignores the snapshot request.
+#
+--source include/have_rocksdb.inc
+--source include/have_debug.inc
+--source include/have_log_bin.inc
+--source include/count_sessions.inc
+
+# The server may be reused, start from an empty gtid_executed.
+RESET BINARY LOGS AND GTIDS;
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = ROCKSDB;
+INSERT INTO t1 VALUES (1);
+
+SET SESSION session_track_gtids = 'ALL_GTIDS';
+
+--echo #
+--echo # REPEATABLE READ: the snapshot GTID set is returned, it is the same as
+--echo # Binlog_snapshot_gtid_executed.
+--echo #
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+SHOW STATUS LIKE 'Binlog_snapshot_gtid_executed';
+SELECT * FROM t1;
+COMMIT;
+
+--echo #
+--echo # Implicit commit of an open MyRocks transaction: the snapshot GTID set,
+--echo # which includes the GTID of the implicitly committed transaction.
+--echo #
+BEGIN;
+INSERT INTO t1 VALUES (2);
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+SHOW STATUS LIKE 'Binlog_snapshot_gtid_executed';
+COMMIT;
+
+--echo #
+--echo # READ COMMITTED: the snapshot is ignored by MyRocks (and InnoDB), no
+--echo # GTIDs.
+--echo #
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+# Cleanup
+SET SESSION session_track_gtids = 'OFF';
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;
+--source include/wait_until_count_sessions.inc

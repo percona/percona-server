@@ -276,9 +276,18 @@ class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
   ulonglong encoding_specification() override { return 0; }
 
   bool encode(THD *thd, String &buf) override {
-    const Gtid_set *state = thd->rpl_thd_ctx.session_gtids_ctx().state();
+    Session_consistency_gtids_ctx &ctx = thd->rpl_thd_ctx.session_gtids_ctx();
+    const Gtid_set *state = ctx.state();
 
-    if (!state->is_empty()) {
+    /*
+      The GTID set of a consistent snapshot is sent even if it is empty, so
+      that the client can tell an empty snapshot GTID set from no snapshot.
+      GTIDs already sent are not sent again: they can be the state only after
+      a dropped snapshot restored them, see
+      Session_consistency_gtids_ctx::reset_snapshot_gtids().
+    */
+    if (!ctx.gtids_reported() &&
+        (!state->is_empty() || ctx.has_snapshot_gtids())) {
       /*
         No need to use net_length_size in the following two fields.
         These are constants in this class and will both be encoded using
@@ -320,8 +329,11 @@ class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
       /* the length of the gtid set string*/
       to = net_store_length(to, gtids_string_len);
 
-      /* the actual gtid set string */
-      state->to_string((char *)to);
+      /*
+        the actual gtid set string, none for an empty snapshot GTID set (no
+        bytes are reserved for it, not even for the null terminator)
+      */
+      if (gtids_string_len > 0) state->to_string((char *)to);
     }
     return false;
   }
@@ -1735,6 +1747,8 @@ bool Session_gtids_tracker::update(THD *thd) {
 
 bool Session_gtids_tracker::store(THD *thd, String &buf) {
   if (m_encoder && m_encoder->encode(thd, buf)) return true;
+  /* Before reset(), which may unregister from the collected state. */
+  thd->rpl_thd_ctx.session_gtids_ctx().notify_after_gtids_encoded();
   reset();
   return false;
 }

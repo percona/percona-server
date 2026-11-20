@@ -39,6 +39,7 @@
 #include "sql/system_variables.h"
 
 #include <functional>
+#include <string>
 #include <vector>
 
 class Gtid_set;
@@ -119,6 +120,39 @@ class Session_consistency_gtids_ctx {
   */
   ulong m_curr_session_track_gtids;
 
+  /**
+    True if m_gtid_set holds the GTID set of the consistent snapshot of the
+    current transaction, set by notify_after_consistent_snapshot(). The set is
+    then reported even if it is empty: an empty SESSION_TRACK_GTIDS entry means
+    that the snapshot GTID set is empty, while no entry means that there is no
+    snapshot GTID set to report.
+
+    Reset after the response packet is sent, and when the snapshot is dropped
+    at the end of its transaction (reset_snapshot_gtids()).
+  */
+  bool m_has_snapshot_gtids{false};
+
+  /**
+    The GTIDs collected in m_gtid_set before notify_after_consistent_snapshot()
+    replaced them by the snapshot GTID set, e.g. by an earlier statement of a
+    stored procedure. Restored to m_gtid_set when the snapshot is dropped, so
+    that the response does not report a dropped snapshot. Allocated on first
+    use.
+  */
+  Gtid_set *m_pre_snapshot_gtid_set{nullptr};
+
+  /**
+    True if m_gtid_set was sent to the client and nothing was collected since,
+    see notify_after_gtids_encoded(). Upstream GTID collection always resets
+    it before the state is encoded again; only a restore of
+    m_pre_snapshot_gtid_set can set it back, so that GTIDs already sent are
+    not sent again.
+  */
+  bool m_gtids_reported{false};
+
+  /** m_gtids_reported for m_pre_snapshot_gtid_set. */
+  bool m_pre_snapshot_gtids_reported{false};
+
  protected:
   /*
      Auxiliary function to determine if GTID collection should take place
@@ -134,6 +168,7 @@ class Session_consistency_gtids_ctx {
    Auxiliary function that allows notification of ctx change listeners.
    */
   inline void notify_ctx_change_listener() {
+    m_gtids_reported = false;
     m_listener->notify_session_gtids_ctx_change();
   }
 
@@ -174,6 +209,36 @@ class Session_consistency_gtids_ctx {
   inline Gtid_set *state() { return m_gtid_set; }
 
   /**
+    @return true if state() holds the GTID set of the consistent snapshot of
+            the current transaction, which shall be reported even if empty.
+  */
+  bool has_snapshot_gtids() const { return m_has_snapshot_gtids; }
+
+  /**
+    This function SHALL be called when the consistent snapshot of the session
+    is dropped at the end of its transaction. state() then again holds what
+    was collected before the snapshot, as if there was no snapshot: the
+    dropped snapshot GTID set is not reported.
+
+    @return true on error, false otherwise.
+  */
+  bool reset_snapshot_gtids();
+
+  /**
+    This function SHALL be called after state() was encoded into a response
+    packet. The collected state is kept, as a later response of the same
+    command (multi-statement query) reports it together with newly collected
+    GTIDs, but it is not reported again by itself, see gtids_reported().
+  */
+  void notify_after_gtids_encoded() { m_gtids_reported = true; }
+
+  /**
+    @return true if state() was already sent to the client and nothing was
+            collected since, so there is nothing new to report.
+  */
+  bool gtids_reported() const { return m_gtids_reported; }
+
+  /**
      This function MUST be called after the response packet is set to the
      client connected. The implementation may act on the collected state
      for instance to do garbage collection.
@@ -211,6 +276,22 @@ class Session_consistency_gtids_ctx {
   virtual bool notify_after_xa_prepare(const THD *thd) {
     return notify_after_transaction_commit(thd);
   }
+
+  /**
+     This function SHALL be called after START TRANSACTION WITH CONSISTENT
+     SNAPSHOT took its snapshot of gtid_executed, unless a storage engine
+     ignored the snapshot request.
+
+     If thd->variables.session_track_gtids is ALL_GTIDS, the collected set
+     is replaced by the snapshot set, so the client gets the GTIDs visible
+     to its read view. The snapshot set is reported even if it is empty.
+
+     @param thd            The thread context.
+     @param snapshot_gtids gtid_executed captured with the snapshot.
+     @return true on error, false otherwise.
+   */
+  virtual bool notify_after_consistent_snapshot(
+      const THD *thd, const std::string &snapshot_gtids);
 
   /**
     Update session tracker (m_curr_session_track_gtids) from thd.

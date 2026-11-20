@@ -1,0 +1,20 @@
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+SET SESSION session_track_gtids = 'ALL_GTIDS';
+# Empty gtid_executed, commit: no entry.
+INSERT INTO t1 VALUES (1);
+# Empty snapshot GTID set: an entry with an empty string.
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+-- Tracker : SESSION_TRACK_GTIDS
+-- 
+
+-- Tracker : SESSION_TRACK_TRANSACTION_STATE
+-- T_R_____
+
+SHOW STATUS LIKE 'Binlog_snapshot_gtid_executed';
+Variable_name	Value
+Binlog_snapshot_gtid_executed	
+COMMIT;
+SET SESSION session_track_gtids = 'OFF';
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;

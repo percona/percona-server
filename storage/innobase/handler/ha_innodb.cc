@@ -6407,6 +6407,7 @@ static int innobase_start_trx_and_assign_read_view(
                         " was ignored because this phrase"
                         " can only be used with"
                         " REPEATABLE READ isolation level.");
+    thd_set_consistent_snapshot_ignored(thd);
   }
 
   /* Set the MySQL flag to mark that there is an active transaction */
@@ -6438,6 +6439,7 @@ static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
                         "InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was "
                         "ignored because the specified session does not have "
                         "an open transaction inside InnoDB.");
+    thd_set_consistent_snapshot_ignored(thd);
 
     DBUG_RETURN(0);
   }
@@ -6460,6 +6462,7 @@ static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
                         "InnoDB: WITH CONSISTENT SNAPSHOT was ignored because "
                         "this phrase can only be used with REPEATABLE READ "
                         "isolation level.");
+    thd_set_consistent_snapshot_ignored(thd);
   } else {
     locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     trx_sys_mutex_enter();
@@ -6469,6 +6472,7 @@ static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
                           "InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was "
                           "ignored because the target transaction has not "
                           "been assigned a read view.");
+      thd_set_consistent_snapshot_ignored(thd);
     }
   }
 

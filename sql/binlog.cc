@@ -2739,6 +2739,23 @@ bool MYSQL_BIN_LOG::write_incident_commit(THD *thd,
   return false;
 }
 
+/**
+  Drops the consistent snapshot of the session when its transaction ends.
+
+  The GTIDs collected for session_track_gtids then no longer hold the dropped
+  snapshot GTID set, see Session_consistency_gtids_ctx::reset_snapshot_gtids().
+
+  @param thd         The session.
+  @param cache_mngr  The binary log cache manager of the session.
+*/
+static void drop_consistent_snapshot(THD *thd, binlog_cache_mngr *cache_mngr) {
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  cache_mngr->drop_consistent_snapshot();
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+  if (thd->rpl_thd_ctx.session_gtids_ctx().reset_snapshot_gtids())
+    LogErr(WARNING_LEVEL, ER_TRX_GTID_COLLECT_REJECT);
+}
+
 static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd) {
   DBUG_ENTER("binlog_start_consistent_snapshot");
 
@@ -2953,13 +2970,11 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     /*
       Reset binlog_snapshot_% variables for the current connection so that the
       current coordinates are shown after committing a consistent snapshot
-      transaction.
+      transaction. Not on a statement rollback, e.g. of a statement error
+      handled by a stored procedure, which does not end the transaction.
     */
-    if (cache_mngr != nullptr) {
-      mysql_mutex_lock(&thd->LOCK_thd_data);
-      cache_mngr->drop_consistent_snapshot();
-      mysql_mutex_unlock(&thd->LOCK_thd_data);
-    }
+    if (cache_mngr != nullptr && ending_trans(thd, all))
+      drop_consistent_snapshot(thd, cache_mngr);
     if ((error = trx_coordinator::rollback_in_engines(thd, all))) goto end;
   }
 
@@ -8506,11 +8521,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
     current coordinates are shown after committing a consistent snapshot
     transaction.
   */
-  if (all) {
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    cache_mngr->drop_consistent_snapshot();
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
-  }
+  if (all) drop_consistent_snapshot(thd, cache_mngr);
 
   Transaction_ctx::enum_trx_scope trx_scope =
       all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
@@ -12156,6 +12167,15 @@ static const binlog_cache_mngr *get_cache_mngr(THD *thd) {
           : nullptr;
 
   return cache_mngr;
+}
+
+const std::string *binlog_get_snapshot_gtid_executed(THD *thd) {
+  const binlog_cache_mngr *cache_mngr = get_cache_mngr(thd);
+
+  if (cache_mngr == nullptr || !cache_mngr->has_consistent_snapshot())
+    return nullptr;
+
+  return &cache_mngr->snapshot_gtid_executed;
 }
 
 static int show_binlog_vars(THD *thd, SHOW_VAR *var,

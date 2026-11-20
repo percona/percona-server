@@ -301,6 +301,103 @@ TEST_F(HnswTest, BruteForceRecall) {
   EXPECT_GE(avg_recall, kMinAvgRecall) << "avg recall@10=" << avg_recall;
 }
 
+/* A vector prepare hook (vec_prepare_func_t) changes how a vector is stored
+and how a distance is taken, not what the graph is: cosine with the squared
+norm cached after each vector must give exactly the graph, and so the search
+results, that plain cosine gives. Covers every path that touches a vector:
+insert (the new node's own distances), k_nn_search and the streaming search
+(the query), including exact duplicates, which sit at distance exactly 0. */
+static double plain_cosine(const char *a_raw, const char *b_raw,
+                           uint32_t dims) {
+  const float *a = reinterpret_cast<const float *>(a_raw);
+  const float *b = reinterpret_cast<const float *>(b_raw);
+  double ab = 0, na = 0, nb = 0;
+  for (uint32_t i = 0; i < dims; i++) {
+    ab += static_cast<double>(a[i]) * b[i];
+    na += static_cast<double>(a[i]) * a[i];
+    nb += static_cast<double>(b[i]) * b[i];
+  }
+  const double denom = std::sqrt(na * nb);
+  if (denom == 0.0) return std::numeric_limits<double>::infinity();
+  return std::clamp(1.0 - ab / denom, 0.0, 2.0);
+}
+
+static double stored_norm2(const char *v, uint32_t dims) {
+  double n;
+  memcpy(&n, v + dims * sizeof(float), sizeof(n));
+  return n;
+}
+
+static double prepared_cosine(const char *a_raw, const char *b_raw,
+                              uint32_t dims) {
+  const float *a = reinterpret_cast<const float *>(a_raw);
+  const float *b = reinterpret_cast<const float *>(b_raw);
+  double ab = 0;
+  for (uint32_t i = 0; i < dims; i++) ab += static_cast<double>(a[i]) * b[i];
+  const double denom =
+      std::sqrt(stored_norm2(a_raw, dims) * stored_norm2(b_raw, dims));
+  if (denom == 0.0) return std::numeric_limits<double>::infinity();
+  return std::clamp(1.0 - ab / denom, 0.0, 2.0);
+}
+
+static void prepare_cosine(const char *src, char *dst, uint32_t dims) {
+  memcpy(dst, src, dims * sizeof(float));
+  const float *v = reinterpret_cast<const float *>(src);
+  double n = 0;
+  for (uint32_t i = 0; i < dims; i++) n += static_cast<double>(v[i]) * v[i];
+  memcpy(dst + dims * sizeof(float), &n, sizeof(n));
+}
+
+TEST_F(HnswTest, PreparedVectorsGiveTheSameGraph) {
+  constexpr size_t kDimsP = 24;
+  constexpr size_t kMP = 6;
+  constexpr size_t kNumPoints = 600;
+
+  TestHnsw plain(kDimsP, plain_cosine, kMP, kEfConstruction);
+  TestHnsw prepared(kDimsP, prepared_cosine, kMP, kEfConstruction,
+                    TestHnsw::kDefaultSeed, prepare_cosine, sizeof(double));
+
+  uint64_t state = 7;
+  auto points = make_pseudo_random_points(kNumPoints, kDimsP, &state);
+  // Exact duplicates, which HNSW handles specially (distance exactly 0).
+  for (size_t i = 0; i < 40; i++) points.push_back(points[i % 5]);
+  for (size_t i = 0; i < points.size(); ++i) {
+    ASSERT_EQ(plain.insert(i + 1, i, as_bytes(points[i])),
+              TestHnsw::HNSW_SUCCESS);
+    ASSERT_EQ(prepared.insert(i + 1, i, as_bytes(points[i])),
+              TestHnsw::HNSW_SUCCESS);
+  }
+  ASSERT_EQ(plain.size(), prepared.size());
+
+  auto queries = make_pseudo_random_points(30, kDimsP, &state);
+  queries.push_back(points[2]);  // a stored vector, and one with duplicates
+  for (size_t q = 0; q < queries.size(); ++q) {
+    const auto [rc1, r1] = plain.k_nn_search(as_bytes(queries[q]), 10, 40);
+    const auto [rc2, r2] = prepared.k_nn_search(as_bytes(queries[q]), 10, 40);
+    ASSERT_EQ(rc1, TestHnsw::HNSW_SUCCESS);
+    ASSERT_EQ(rc2, TestHnsw::HNSW_SUCCESS);
+    ASSERT_EQ(r1.size(), r2.size()) << "q=" << q;
+    for (size_t i = 0; i < r1.size(); ++i) {
+      EXPECT_EQ(r1[i].id, r2[i].id) << "q=" << q << " i=" << i;
+    }
+
+    // The streaming search prepares the query in its own context.
+    TestHnsw::NNSearchContext c1, c2;
+    ASSERT_EQ(plain.nn_search_start(&c1, as_bytes(queries[q]), 8, 40),
+              TestHnsw::HNSW_SUCCESS);
+    ASSERT_EQ(prepared.nn_search_start(&c2, as_bytes(queries[q]), 8, 40),
+              TestHnsw::HNSW_SUCCESS);
+    for (int i = 0; i < 8; ++i) {
+      const auto n1 = plain.nn_search_next(&c1);
+      const auto n2 = prepared.nn_search_next(&c2);
+      ASSERT_EQ(n1.first, n2.first) << "q=" << q << " i=" << i;
+      if (n1.first != TestHnsw::HNSW_SUCCESS) break;
+      EXPECT_EQ(n1.second.base_pk, n2.second.base_pk)
+          << "q=" << q << " i=" << i;
+    }
+  }
+}
+
 TEST_F(HnswTest, SearchEfZeroStillReturnsK) {
   // ef is clamped with max(ef_search, k), so ef=0 must still work.
   TestHnsw index(kDims, euclidean, kM, kEfConstruction);

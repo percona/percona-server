@@ -46,6 +46,7 @@ vector index keeps in memory.
 #include "vec0vec.h"
 
 #include "vector-common/hnsw.h"
+#include "vector-common/vector_distance.h"
 
 class MDL_ticket;
 class THD;
@@ -413,6 +414,24 @@ using Vec_hnsw = HNSW<Vec_arena, Vec_persistor, Vec_random_engine>;
 uses before writing the aux in one pass. Same arena and same RNG, so it
 behaves identically - only the persistor differs. */
 using Vec_build_hnsw = HNSW<Vec_arena, Vec_null_persistor, Vec_random_engine>;
+
+/** What a graph needs besides the distance kernel to use it: the per-vector
+preparation (vec_prepare_func_t) and the bytes it appends. Cosine caches |v|^2
+next to each vector, so its kernel (vector_distance_cosine_prepared, set by
+parse_options) sums only a.b; the other metrics need nothing. Both HNSW
+constructions go through this, so the kernel and the stored form of a vector
+cannot disagree. */
+struct Vec_prepare {
+  vec_prepare_func_t *fn;
+  size_t extra_bytes;
+};
+
+inline Vec_prepare vec_prepare_for(vector_constants::Metric metric) {
+  if (metric == vector_constants::Metric::kCosine) {
+    return {&vector_cosine_prepare, kVectorCosinePreparedExtra};
+  }
+  return {nullptr, 0};
+}
 
 /** In-memory state of one open vector index. */
 struct vec_t : public Vec_runtime {

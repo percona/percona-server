@@ -134,9 +134,11 @@
 
 namespace {
 
-enum class Metric { Euclidean, Cosine, Dot, Manhattan };
+// CosinePrepared is cosine on vectors that carry their own |v|^2 as a double
+// right after the dims floats (see vector_cosine_prepare()): only ab is summed.
+enum class Metric { Euclidean, Cosine, Dot, Manhattan, CosinePrepared };
 
-// Sums per metric: cosine needs ab, |a|² and |b|².
+// Sums per metric: cosine needs ab, |a|² and |b|² (CosinePrepared: ab only).
 template <Metric M>
 constexpr uint32_t kSums = M == Metric::Cosine ? 3 : 1;
 
@@ -237,7 +239,7 @@ inline void accumulate(V (&acc)[kSums<M>][R], uint32_t r, const V &x,
     acc[0][r] += x * y;
     acc[1][r] += x * x;
     acc[2][r] += y * y;
-  } else if constexpr (M == Metric::Dot) {
+  } else if constexpr (M == Metric::Dot || M == Metric::CosinePrepared) {
     acc[0][r] += x * y;
   } else if constexpr (std::is_floating_point_v<V>) {  // Manhattan
     acc[0][r] += std::fabs(x - y);
@@ -301,6 +303,13 @@ inline void reduce_lanes(const V (&acc)[S][R], double (&sum)[S]) {
   }
 }
 
+// |v|^2 that vector_cosine_prepare() stored after the dims floats of v.
+inline double cached_norm2(const char *v, uint32_t dims) {
+  double n;
+  memcpy(&n, v + dims * sizeof(float), sizeof(n));
+  return n;
+}
+
 // Adds elements [i, dims) to sum in order, in double, and returns the result.
 template <Metric M>
 inline double finish(double (&sum)[kSums<M>], const char *a_raw,
@@ -317,11 +326,18 @@ inline double finish(double (&sum)[kSums<M>], const char *a_raw,
       sum[0] += x * y;
       sum[1] += x * x;
       sum[2] += y * y;
-    } else if constexpr (M == Metric::Dot) {
+    } else if constexpr (M == Metric::Dot || M == Metric::CosinePrepared) {
       sum[0] += x * y;
     } else {
       sum[0] += std::fabs(x - y);
     }
+  }
+
+  if constexpr (M == Metric::CosinePrepared) {
+    const double denom = std::sqrt(cached_norm2(a_raw, dims) *
+                                   cached_norm2(b_raw, dims));
+    if (denom == 0.0) return std::numeric_limits<double>::infinity();
+    return std::clamp(1.0 - sum[0] / denom, 0.0, 2.0);
   }
 
   if constexpr (M == Metric::Cosine) {
@@ -392,8 +408,16 @@ inline double lanes_kernel(const char *a_raw, const char *b_raw,
   double sum[kSums<M>] = {};
   if (i > 0) {
     reduce_lanes<L>(acc, sum);
-    if (needs_double<M>(sum)) [[unlikely]]
+    if constexpr (M == Metric::CosinePrepared) {
+      // Same conditions as for Metric::Cosine, with the norms taken from the
+      // cache (they were computed with the same float32/double rule).
+      if (!std::isfinite(sum[0]) ||
+          sum_out_of_range(cached_norm2(a_raw, dims)) ||
+          sum_out_of_range(cached_norm2(b_raw, dims))) [[unlikely]]
+        return double_lanes_kernel<L, M>(a_raw, b_raw, dims);
+    } else if (needs_double<M>(sum)) [[unlikely]] {
       return double_lanes_kernel<L, M>(a_raw, b_raw, dims);
+    }
   }
   return finish<M>(sum, a_raw, b_raw, i, dims);
 }
@@ -410,6 +434,10 @@ inline double lanes_kernel(const char *a_raw, const char *b_raw,
   attributes static double cosine_##tier(const char *a, const char *b,      \
                                          uint32_t dims) {                   \
     return lanes_kernel<lanes, Metric::Cosine>(a, b, dims);                 \
+  }                                                                         \
+  attributes static double cosine_prepared_##tier(                          \
+      const char *a, const char *b, uint32_t dims) {                        \
+    return lanes_kernel<lanes, Metric::CosinePrepared>(a, b, dims);         \
   }                                                                         \
   attributes static double dot_product_##tier(const char *a, const char *b, \
                                               uint32_t dims) {              \
@@ -449,6 +477,7 @@ using vector_distance_fn_t = double (*)(const char *, const char *, uint32_t);
 
 static vector_distance_fn_t g_euclidean = euclidean_scalar;
 static vector_distance_fn_t g_cosine = cosine_scalar;
+static vector_distance_fn_t g_cosine_prepared = cosine_prepared_scalar;
 static vector_distance_fn_t g_dot_product = dot_product_scalar;
 static vector_distance_fn_t g_manhattan = manhattan_scalar;
 
@@ -458,6 +487,7 @@ static VectorDistanceTier g_tier = VectorDistanceTier::Scalar;
   do {                                  \
     g_euclidean = euclidean_##tier;     \
     g_cosine = cosine_##tier;           \
+    g_cosine_prepared = cosine_prepared_##tier; \
     g_dot_product = dot_product_##tier; \
     g_manhattan = manhattan_##tier;     \
   } while (0)
@@ -574,6 +604,17 @@ double vector_distance_cosine(const char *a, const char *b, uint32_t dims) {
 
 double vector_distance_dot(const char *a, const char *b, uint32_t dims) {
   return g_dot_product(a, b, dims);
+}
+
+void vector_cosine_prepare(const char *src, char *dst, uint32_t dims) {
+  memcpy(dst, src, dims * sizeof(float));
+  const double n2 = g_dot_product(src, src, dims);
+  memcpy(dst + dims * sizeof(float), &n2, sizeof(n2));
+}
+
+double vector_distance_cosine_prepared(const char *a, const char *b,
+                                       uint32_t dims) {
+  return g_cosine_prepared(a, b, dims);
 }
 
 double vector_distance_manhattan(const char *a, const char *b, uint32_t dims) {

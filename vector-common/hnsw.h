@@ -43,6 +43,16 @@
 typedef double vec_dist_func_t(const char *a, const char *b, uint32_t dims);
 
 /**
+  Optional per-vector preparation. Writes the stored form of a vector: the
+  dims floats at @p src copied to @p dst, followed by whatever the distance
+  function wants to find next to each vector (for cosine, |v|^2, so a call
+  sums only a.b). @p dst has room for HNSW's vec_extra_bytes more than the
+  dims floats. Every vector the distance function sees - a node's, a query's
+  - is in this form; the first dims floats are still the plain vector.
+*/
+typedef void vec_prepare_func_t(const char *src, char *dst, uint32_t dims);
+
+/**
   Result codes for HNSW operations that can fail or miss.
 
   Defined outside HNSW so Persistor callbacks can use a single type for any
@@ -326,11 +336,20 @@ class HNSW {
                            clamped to at least M.
     @param seed            Seed passed to RandomEngine for random layer
                            assignment (default 42).
+    @param prepare         Optional; see vec_prepare_func_t. nullptr stores and
+                           compares the plain vector.
+    @param vec_extra_bytes Bytes @p prepare appends to the dims floats.
   */
+  /// The seed the constructor uses unless given one.
+  static constexpr uint32_t kDefaultSeed = 42;
+
   HNSW(size_t dimensions, vec_dist_func_t *dist_func, size_t M,
-       size_t ef_construction, uint32_t seed = 42)
+       size_t ef_construction, uint32_t seed = kDefaultSeed,
+       vec_prepare_func_t *prepare = nullptr, size_t vec_extra_bytes = 0)
       : m_dimensions(dimensions),
         m_dist_func(dist_func),
+        m_prepare(prepare),
+        m_vec_bytes(dimensions * sizeof(float) + vec_extra_bytes),
         m_M(M),
         m_ef_construction(std::max(ef_construction, M)),
         m_layer_factor(1 / std::log(M)),
@@ -411,6 +430,8 @@ class HNSW {
     new_node->set_base_pk(base_pk);
     new_node->set_vec(*this, q);
     new_node->set_linking();
+    // From here on distances are taken against the stored (prepared) form.
+    q = new_node->vec();
 
     if (entry_point == nullptr) {
       std::scoped_lock lock(m_entry_point_lock);
@@ -773,6 +794,13 @@ class HNSW {
 
     try {
       std::vector<Node *> scratch_buffer(get_Mmax(0));
+      // The query in the stored (prepared) form, when there is one.
+      std::vector<char> prepared_q;
+      if (m_prepare != nullptr) {
+        prepared_q.resize(m_vec_bytes);
+        m_prepare(q, prepared_q.data(), static_cast<uint32_t>(m_dimensions));
+        q = prepared_q.data();
+      }
 
       const uint8_t max_layer = entry_point->layer();
       NodeDist nearest_entry = {entry_point, dist(q, entry_point)};
@@ -934,10 +962,14 @@ class HNSW {
     bool init(const HNSW &hnsw, const char *q, size_t batch_size,
               size_t ef_search, PersistorContext *persistor_ctx) {
       assert(m_query_vec == nullptr);
-      char *query_vec = (char *)malloc(hnsw.m_dimensions * sizeof(float));
+      char *query_vec = (char *)malloc(hnsw.m_vec_bytes);
       // TODO: revisit once we add memory limits.
       if (query_vec == nullptr) return false;
-      memcpy(query_vec, q, hnsw.m_dimensions * sizeof(float));
+      if (hnsw.m_prepare != nullptr) {
+        hnsw.m_prepare(q, query_vec, static_cast<uint32_t>(hnsw.m_dimensions));
+      } else {
+        memcpy(query_vec, q, hnsw.m_dimensions * sizeof(float));
+      }
       try {
         m_scratch_buffer.resize(hnsw.get_Mmax(0));
       } catch (const std::bad_alloc &) {
@@ -1031,6 +1063,8 @@ class HNSW {
 
     if (!ctx->init(*this, q, batch_size, ef, persistor_ctx))
       return HNSW_OOM_CONTEXT;
+    // The context holds the query in the stored (prepared) form.
+    q = ctx->m_query_vec;
 
     Node *const entry_point = m_entry_point.load();
 
@@ -1562,7 +1596,7 @@ class HNSW {
     static Node *create(ArenaAllocator &allocator, const HNSW &hnsw,
                         uint64_t id, NodeState state) {
       // TODO: Needs to be adjusted to support quantization.
-      const size_t vec_size = hnsw.m_dimensions * sizeof(float);
+      const size_t vec_size = hnsw.m_vec_bytes;
       void *raw_mem =
           allocator.allocate(ALIGN_SIZE(sizeof(Node)) + ALIGN_SIZE(vec_size));
       if (raw_mem == nullptr) return nullptr;
@@ -1635,7 +1669,13 @@ class HNSW {
       const NodeState s = m_state.load();
       assert(s == NODE_NEW || s == NODE_DUMMY);
 #endif
-      memcpy(const_cast<char *>(vec()), v, hnsw.m_dimensions * sizeof(float));
+      if (hnsw.m_prepare != nullptr) {
+        hnsw.m_prepare(v, const_cast<char *>(vec()),
+                       static_cast<uint32_t>(hnsw.m_dimensions));
+      } else {
+        memcpy(const_cast<char *>(vec()), v,
+               hnsw.m_dimensions * sizeof(float));
+      }
     }
 
     uint64_t base_pk() const {
@@ -1905,6 +1945,9 @@ class HNSW {
 
   const size_t m_dimensions;
   vec_dist_func_t *const m_dist_func;
+  vec_prepare_func_t *const m_prepare;
+  /// Bytes of a stored vector: the dims floats plus what m_prepare appends.
+  const size_t m_vec_bytes;
   const size_t m_M;
   const size_t m_ef_construction;
   const double m_layer_factor;

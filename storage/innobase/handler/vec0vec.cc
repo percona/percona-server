@@ -180,13 +180,15 @@ bool parse_options(LEX_CSTRING type, const Vector_index_params_YY &params,
 
   /* Set the distance function for the accepted metrics. EUCLIDEAN uses
   squared L2: the graph only compares distances, so skipping the square
-  root does not change ordering. COSINE uses the cosine distance as-is. */
+  root does not change ordering. COSINE uses the cosine distance as-is, on
+  vectors that carry their |v|^2 (vec_prepare_for()): the same value from one
+  dot-product sum per call instead of three. */
   switch (hnsw_param.metric) {
     case vector_constants::Metric::kEuclidean:
       hnsw_param.dist = &vector_distance_euclidean_squared;
       break;
     case vector_constants::Metric::kCosine:
-      hnsw_param.dist = &vector_distance_cosine;
+      hnsw_param.dist = &vector_distance_cosine_prepared;
       break;
     default:
       my_error(ER_NOT_SUPPORTED_YET, MYF(0),

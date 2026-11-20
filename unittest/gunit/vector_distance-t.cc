@@ -640,6 +640,109 @@ TEST_P(VectorDistanceTierParityTest, CosineRangePerTier) {
   }
 }
 
+// A vector in the form vector_distance_cosine_prepared() takes.
+static std::vector<char> prepared_cosine(const std::vector<float> &v) {
+  std::vector<char> out(v.size() * sizeof(float) + kVectorCosinePreparedExtra);
+  vector_cosine_prepare(reinterpret_cast<const char *>(v.data()), out.data(),
+                        static_cast<uint32_t>(v.size()));
+  return out;
+}
+
+static double cosine_prepared(const std::vector<float> &a,
+                              const std::vector<float> &b) {
+  const auto pa = prepared_cosine(a), pb = prepared_cosine(b);
+  return vector_distance_cosine_prepared(pa.data(), pb.data(),
+                                         static_cast<uint32_t>(a.size()));
+}
+
+TEST_P(VectorDistanceTierParityTest, CosinePreparedPerTier) {
+  const auto tier = tier_name(GetParam());
+  std::mt19937 rng(21);
+  std::uniform_real_distribution<float> val(-3.0f, 3.0f);
+  for (uint32_t dims : {1u, 3u, 4u, 7u, 8u, 15u, 16u, 17u, 31u, 32u, 33u, 47u,
+                        768u, 1536u}) {
+    for (int rep = 0; rep < 10; rep++) {
+      std::vector<float> a(dims), b(dims);
+      for (uint32_t i = 0; i < dims; i++) {
+        a[i] = val(rng);
+        b[i] = val(rng);
+      }
+      const double plain = vector_distance_cosine(
+          (const char *)a.data(), (const char *)b.data(), dims);
+      const double prepared = cosine_prepared(a, b);
+      // Normal magnitudes: the same float32 sums, so the same value.
+      EXPECT_EQ(prepared, plain) << "tier=" << tier << " dims=" << dims;
+      EXPECT_EQ(prepared, cosine_prepared(b, a))
+          << "tier=" << tier << " dims=" << dims << " (symmetry)";
+      EXPECT_GE(prepared, 0.0);
+      EXPECT_LE(prepared, 2.0);
+      // Exact duplicates are at distance exactly 0 (HNSW treats them
+      // specially), as the plain kernel gives.
+      EXPECT_EQ(cosine_prepared(a, a), 0.0)
+          << "tier=" << tier << " dims=" << dims;
+    }
+  }
+}
+
+TEST_P(VectorDistanceTierParityTest, CosinePreparedEdgeCasesPerTier) {
+  const auto tier = tier_name(GetParam());
+  // A zero vector has no direction: +Inf, like vector_distance_cosine().
+  const std::vector<float> zero(16, 0.0f), one(16, 1.0f);
+  EXPECT_TRUE(std::isinf(cosine_prepared(zero, one))) << "tier=" << tier;
+  EXPECT_TRUE(std::isinf(cosine_prepared(one, zero))) << "tier=" << tier;
+  EXPECT_TRUE(std::isinf(cosine_prepared(zero, zero))) << "tier=" << tier;
+
+  // Beyond float32: tiny and huge norms take the double path. Compare with
+  // the double-precision reference.
+  struct Case {
+    float x, y;
+    uint32_t dims;
+  };
+  for (const Case &c : {Case{1e-21f, 2e-21f, 16383}, Case{2.5e38f, 1e38f, 40},
+                        Case{1e-30f, 1e-30f, 100}, Case{3e19f, 7e18f, 1536}}) {
+    std::vector<float> a(c.dims, c.x), b(c.dims, c.y);
+    for (uint32_t i = 0; i < c.dims; i += 2) b[i] = -b[i];  // not parallel
+    const double got = cosine_prepared(a, b);
+    EXPECT_TRUE(std::isfinite(got)) << "tier=" << tier << " x=" << c.x;
+    EXPECT_NEAR(got, ref_cosine(a.data(), b.data(), c.dims), 1e-9)
+        << "tier=" << tier << " x=" << c.x << " dims=" << c.dims;
+    EXPECT_NEAR(got, vector_distance_cosine((const char *)a.data(),
+                                            (const char *)b.data(), c.dims),
+                1e-9)
+        << "tier=" << tier << " x=" << c.x << " dims=" << c.dims;
+    EXPECT_EQ(cosine_prepared(a, a), 0.0) << "tier=" << tier << " x=" << c.x;
+  }
+}
+
+TEST_P(VectorDistanceTierParityTest, CosinePreparedBitIdenticalToScalarPerTier) {
+  std::mt19937 rng(33);
+  std::uniform_real_distribution<float> mantissa(-1.0f, 1.0f);
+  std::uniform_int_distribution<int> exponent(-60, 60);
+  std::vector<std::pair<std::vector<float>, std::vector<float>>> inputs;
+  for (uint32_t dims : {1u, 5u, 16u, 17u, 33u, 768u, 1536u}) {
+    for (int scaled = 0; scaled < 2; scaled++) {
+      std::vector<float> a(dims), b(dims);
+      for (uint32_t i = 0; i < dims; i++) {
+        a[i] = mantissa(rng);
+        b[i] = mantissa(rng);
+        if (scaled) {
+          a[i] = std::ldexp(a[i], exponent(rng));
+          b[i] = std::ldexp(b[i], exponent(rng));
+        }
+      }
+      inputs.emplace_back(a, b);
+    }
+  }
+  std::vector<double> got;
+  for (const auto &[a, b] : inputs) got.push_back(cosine_prepared(a, b));
+  init_vector_distance_functions_tier(VectorDistanceTier::Scalar);
+  size_t k = 0;
+  for (const auto &[a, b] : inputs) {
+    EXPECT_EQ(got[k++], cosine_prepared(a, b))
+        << "tier=" << tier_name(GetParam()) << " dims=" << a.size();
+  }
+}
+
 static std::string tier_param_name(
     const ::testing::TestParamInfo<VectorDistanceTier> &info) {
   return tier_name(info.param);

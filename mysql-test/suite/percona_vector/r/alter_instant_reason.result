@@ -18,3 +18,23 @@ ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: InnoDB does not support
 ALTER TABLE t ADD COLUMN c INT, ALGORITHM=INPLACE, LOCK=NONE;
 ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support LOCK=NONE on a table with a vector index. Try LOCK=SHARED.
 DROP TABLE t;
+#
+# PS-11590 follow-up: adding the first vector index with
+# ALGORITHM=INSTANT is refused with the generic error, like any other
+# ADD INDEX - no LOCK=NONE reason and no claim that the table already
+# has a vector index.
+#
+CREATE TABLE t2 (id BIGINT UNSIGNED PRIMARY KEY, v VECTOR(4) NOT NULL);
+ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t2 ADD COLUMN c INT, ADD VECTOR KEY vk (v) TYPE hnsw (M = 8),
+ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+# Same as an ordinary index.
+ALTER TABLE t2 ADD KEY kid (id), ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+# LOCK=NONE still gets the LOCK=NONE reason.
+ALTER TABLE t2 ADD VECTOR KEY vk (v) TYPE hnsw (M = 8), ALGORITHM=INPLACE,
+LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB does not support LOCK=NONE on a table with a vector index. Try LOCK=SHARED.
+DROP TABLE t2;

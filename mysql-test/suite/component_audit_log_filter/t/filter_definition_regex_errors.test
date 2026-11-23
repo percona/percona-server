@@ -6,12 +6,23 @@
 # audit_log_filter_regex_runtime_error
 #   a reached regex leaf fails with U_MEMORY_ALLOCATION_ERROR.
 #
-# A failed leaf is false, is counted exactly once in
+# A failed leaf is undecided, is counted exactly once in
 # Audit_log_filter_regex_match_errors and is reported in the error log at
 # most once per 60 seconds per condition. It is not a lost event.
+#
+# PS-12098: an undecided condition is neither true nor false, also when
+# negated: "log" logs the event, "abort" aborts the statement (unless the
+# account has both SYSTEM_USER and AUDIT_ABORT_EXEMPT), a "print" condition
+# replaces the field and "activate" does not activate the replacement
+# filter. An operand of "and" or "or" which decides the result without the
+# failed leaf still does so. "and" and "or" lists are checked in every
+# context, because the result requested for a failed leaf differs: true for
+# "log" and "abort", false for "print", "activate" and below "not".
 ####################################################################
 
 --source include/have_component_audit_log.inc
+# The records which are checked depend on the commands the client sends
+--source include/no_ps_protocol.inc
 --source include/have_debug.inc
 --source ../inc/audit_tables_init.inc
 --source ../inc/audit_comp_install.inc
@@ -63,29 +74,33 @@ SELECT audit_log_filter_flush() AS result;
 --echo # Run time failure of a reached regex leaf in every context
 --echo #
 --let $rx_case_i = 0
-while ($rx_case_i < 9) {
+while ($rx_case_i < 20) {
   --let $rx_target = orders1
+  --let $rx_expect_abort = 0
+  --let $rx_sentinel = 0
   if ($rx_case_i == 0) {
-    --let $rx_case = positive log
+    --let $rx_case = positive log, the event is logged
     --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}
   }
   if ($rx_case_i == 1) {
-    --let $rx_case = negated log
+    --let $rx_case = negated log, the event is logged
     --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"not": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}}
   }
   if ($rx_case_i == 2) {
-    --let $rx_case = positive abort does not abort
+    --let $rx_case = positive abort aborts
+    --let $rx_expect_abort = 1
     --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "table_name.str", "regex": "^secret_[0-9]+$"}}}}}}
     --let $rx_target = secret_1
   }
   if ($rx_case_i == 3) {
-    --let $rx_case = print condition false invokes replacement
+    --let $rx_case = undecided print condition invokes replacement
     --let $rx_definition = {"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "value": "INSERT INTO orders1 (v) VALUES (3)"}}, "print": {"field": {"name": "general_query.str", "print": {"field": {"name": "general_query.str", "regex": "^INSERT"}}, "replace": {"function": {"name": "query_digest"}}}}}}}}
   }
   if ($rx_case_i == 4) {
     --let $rx_case = replacement filter is not activated
     --let $rx_definition = {"filter": {"id": "main", "class": {"name": "table_access", "event": {"name": "insert", "log": false, "filter": {"class": {"name": "general", "event": {"name": "status", "log": true, "filter": {"ref": "main"}}}, "activate": {"field": {"name": "table_name.str", "regex": "^temp_[0-9]+$"}}}}}}}
     --let $rx_target = temp_1
+    --let $rx_sentinel = 1
   }
   if ($rx_case_i == 5) {
     --let $rx_case = and short-circuit, regex not reached
@@ -102,6 +117,58 @@ while ($rx_case_i < 9) {
   if ($rx_case_i == 8) {
     --let $rx_case = failures stop when the hook is cleared
     --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}
+  }
+  if ($rx_case_i == 9) {
+    --let $rx_case = negated abort aborts, a decided mismatch of the negated condition would not
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"not": {"field": {"name": "table_name.str", "regex": "^secret_[0-9]+$"}}}}}}}
+    --let $rx_target = secret_1
+    --let $rx_expect_abort = 1
+  }
+  if ($rx_case_i == 10) {
+    --let $rx_case = undecided negated print condition invokes replacement
+    --let $rx_definition = {"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "value": "INSERT INTO orders1 (v) VALUES (10)"}}, "print": {"field": {"name": "general_query.str", "print": {"not": {"field": {"name": "general_query.str", "regex": "^SELECT"}}}, "replace": {"function": {"name": "query_digest"}}}}}}}}
+  }
+  if ($rx_case_i == 11) {
+    --let $rx_case = replacement filter is not activated by a negated condition
+    --let $rx_definition = {"filter": {"id": "main", "class": {"name": "table_access", "event": {"name": "insert", "log": false, "filter": {"class": {"name": "general", "event": {"name": "status", "log": true, "filter": {"ref": "main"}}}, "activate": {"not": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}}}
+    --let $rx_target = temp_1
+    --let $rx_sentinel = 1
+  }
+  if ($rx_case_i == 12) {
+    --let $rx_case = and, a false operand after the reached regex decides
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"and": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "nope"}}]}}}}}
+  }
+  if ($rx_case_i == 13) {
+    --let $rx_case = or, no operand decides, the event is logged
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"or": [{"field": {"name": "table_name.str", "regex": "^history[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "nope"}}]}}}}}
+  }
+  if ($rx_case_i == 14) {
+    --let $rx_case = print condition, and, the other operand is true, invokes replacement
+    --let $rx_definition = {"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "value": "INSERT INTO orders1 (v) VALUES (14)"}}, "print": {"field": {"name": "general_query.str", "print": {"and": [{"field": {"name": "general_query.str", "regex": "^INSERT"}}, {"field": {"name": "general_command.str", "value": "Query"}}]}, "replace": {"function": {"name": "query_digest"}}}}}}}}
+  }
+  if ($rx_case_i == 15) {
+    --let $rx_case = print condition, or, the other operand is false, invokes replacement
+    --let $rx_definition = {"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "value": "INSERT INTO orders1 (v) VALUES (15)"}}, "print": {"field": {"name": "general_query.str", "print": {"or": [{"field": {"name": "general_query.str", "regex": "^INSERT"}}, {"field": {"name": "general_command.str", "value": "NoSuchCommand"}}]}, "replace": {"function": {"name": "query_digest"}}}}}}}}
+  }
+  if ($rx_case_i == 16) {
+    --let $rx_case = replacement filter is not activated, and, the other operand is true
+    --let $rx_definition = {"filter": {"id": "main", "class": {"name": "table_access", "event": {"name": "insert", "log": false, "filter": {"class": {"name": "general", "event": {"name": "status", "log": true, "filter": {"ref": "main"}}}, "activate": {"and": [{"field": {"name": "table_name.str", "regex": "^temp_[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "tpcc"}}]}}}}}}
+    --let $rx_target = temp_1
+    --let $rx_sentinel = 1
+  }
+  if ($rx_case_i == 17) {
+    --let $rx_case = replacement filter is not activated, or, the other operand is false
+    --let $rx_definition = {"filter": {"id": "main", "class": {"name": "table_access", "event": {"name": "insert", "log": false, "filter": {"class": {"name": "general", "event": {"name": "status", "log": true, "filter": {"ref": "main"}}}, "activate": {"or": [{"field": {"name": "table_name.str", "regex": "^temp_[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "nope"}}]}}}}}}
+    --let $rx_target = temp_1
+    --let $rx_sentinel = 1
+  }
+  if ($rx_case_i == 18) {
+    --let $rx_case = negated and, the other operand is true, the event is logged
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"not": {"and": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "tpcc"}}]}}}}}}
+  }
+  if ($rx_case_i == 19) {
+    --let $rx_case = negated or, the other operand is false, the event is logged
+    --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"not": {"or": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "nope"}}]}}}}}}
   }
   --echo # Case: $rx_case
   eval SELECT audit_log_filter_set_filter('rx_err_$rx_case_i', '$rx_definition') AS result;
@@ -121,16 +188,22 @@ while ($rx_case_i < 9) {
     INSERT INTO orders1 (v) VALUES (3);
   }
   if ($rx_case_i != 3) {
-    eval INSERT INTO $rx_target (v) VALUES ($rx_case_i);
+    if ($rx_expect_abort) {
+      --error ER_AUDIT_API_ABORT
+      eval INSERT INTO $rx_target (v) VALUES ($rx_case_i);
+    }
+    if (!$rx_expect_abort) {
+      eval INSERT INTO $rx_target (v) VALUES ($rx_case_i);
+    }
   }
-  if ($rx_case_i == 4) {
+  if ($rx_sentinel) {
     SELECT 'rx_sentinel';
   }
   connection default;
   --source filter_definition_regex_summary.inc
   --source filter_definition_regex_errors.inc
   SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
-  if ($rx_case_i == 2) {
+  if ($rx_expect_abort) {
     SELECT COUNT(*) - @rows AS inserted_rows FROM tpcc.secret_1;
   }
   disconnect rx;
@@ -141,7 +214,9 @@ while ($rx_case_i < 9) {
 --echo # Each failing condition reports its first failure, repeated failures of
 --echo # the same condition are only counted
 --echo #
-let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"or": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_name.str", "regex": "^history[0-9]+$"}}]}}}}};
+# An 'and' list is used because a failed match ends the evaluation of an 'or'
+# list of a 'log' condition, the event is logged then.
+let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"and": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_name.str", "regex": "^[a-z]+1$"}}]}}}}};
 eval SELECT audit_log_filter_set_filter('rx_err_two', '$rx_definition') AS result;
 SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_two') AS result;
 connect (rx, localhost, rx_app,, tpcc);
@@ -157,14 +232,14 @@ connection default;
 --source filter_definition_regex_summary.inc
 --source filter_definition_regex_errors.inc
 --let rx_warning_label = one for the first condition
---let rx_warning_text = Audit log filter 'rx_err_two': regex '^orders[0-9]+$' on field 'table_name.str' failed (allocation: U_MEMORY_ALLOCATION_ERROR); condition treated as not matching. Further failures of this condition are reported at most once per 60 seconds.
+--let rx_warning_text = Audit log filter 'rx_err_two': regex '^orders[0-9]+$' on field 'table_name.str' failed (allocation: U_MEMORY_ALLOCATION_ERROR); the condition is undecided. Further failures of this condition are reported at most once per 60 seconds.
 --let rx_warning_count = 1
 --let rx_warning_slow_max = 3
 --let rx_warning_keep_mark = 1
 --source filter_definition_regex_warnings.inc
 --let rx_warning_keep_mark =
 --let rx_warning_label = one for the second condition
---let rx_warning_text = Audit log filter 'rx_err_two': regex '^history[0-9]+$' on field 'table_name.str' failed (allocation: U_MEMORY_ALLOCATION_ERROR); condition treated as not matching. Further failures of this condition are reported at most once per 60 seconds.
+--let rx_warning_text = Audit log filter 'rx_err_two': regex '^[a-z]+1$' on field 'table_name.str' failed (allocation: U_MEMORY_ALLOCATION_ERROR); the condition is undecided. Further failures of this condition are reported at most once per 60 seconds.
 --let rx_warning_count = 1
 --let rx_warning_slow_max = 3
 --source filter_definition_regex_warnings.inc

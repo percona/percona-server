@@ -14,13 +14,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "components/audit_log_filter/audit_filter.h"
+#include "components/audit_log_filter/audit_action.h"
 #include "components/audit_log_filter/audit_error_log.h"
+#include "components/audit_log_filter/audit_record.h"
 #include "components/audit_log_filter/audit_rule.h"
+
+#include <functional>
 
 namespace audit_log_filter {
 
-AuditAction AuditEventFilter::apply(AuditRule *rule,
-                                    AuditRecordVariant &audit_record) noexcept {
+AuditAction AuditEventFilter::apply(
+    AuditRule *rule, AuditRecordVariant &audit_record,
+    const std::function<bool()> &is_aborted) noexcept {
   auto event_class_name = std::visit(
       [](const auto &rec) { return rec.event_class_name; }, audit_record);
   auto event_subclass_name = std::visit(
@@ -36,9 +41,12 @@ AuditAction AuditEventFilter::apply(AuditRule *rule,
 
   const auto *block_action = rule->get_action(
       EventActionType::Block, event_class_name, event_subclass_name);
+  const bool is_blocked = block_action != nullptr &&
+                          block_action->apply(event_fields, audit_record, rule);
 
-  if (block_action != nullptr &&
-      block_action->apply(event_fields, audit_record, rule)) {
+  // The record of an aborted event is not written, so nothing is done to
+  // prepare it.
+  if (is_blocked && is_aborted()) {
     return AuditAction::Block;
   }
 
@@ -59,6 +67,14 @@ AuditAction AuditEventFilter::apply(AuditRule *rule,
   }
   if (print_service_comp_action != nullptr) {
     print_service_comp_action->apply(event_fields, audit_record, rule);
+  }
+
+  // An event which satisfies the 'abort' condition and is not aborted is
+  // written to the log with the content prepared as for any other record.
+  // The 'log' condition is not evaluated for it and the replacement filter
+  // is not activated.
+  if (is_blocked) {
+    return AuditAction::Log;
   }
 
   const auto *log_action = rule->get_action(

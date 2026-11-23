@@ -19,6 +19,8 @@
 #include "components/audit_log_filter/audit_action.h"
 #include "components/audit_log_filter/audit_record.h"
 
+#include <functional>
+
 namespace audit_log_filter {
 
 class AuditRule;
@@ -31,13 +33,22 @@ class AuditEventFilter {
   /**
    * @brief Apply audit filtering rule.
    *
+   * An event which satisfies the 'abort' condition of the rule is not always
+   * aborted. AuditAction::Block is returned only for an event which is
+   * aborted, its record is not written and is left as it is. The record of
+   * an event which is not aborted is prepared and AuditAction::Log is
+   * returned for it, whatever the 'log' condition of the rule is.
+   *
    * @param rule Filtering rule
    * @param audit_record Audit record
+   * @param is_aborted Tells whether the event is aborted when it satisfies
+   *                   the 'abort' condition. Called for such an event only.
    * @return Action which should be applied to a record by audit filter,
    *         one of actions defined by @ref AuditAction
    */
   [[nodiscard]] static AuditAction apply(
-      AuditRule *rule, AuditRecordVariant &audit_record) noexcept;
+      AuditRule *rule, AuditRecordVariant &audit_record,
+      const std::function<bool()> &is_aborted) noexcept;
 };
 
 }  // namespace audit_log_filter

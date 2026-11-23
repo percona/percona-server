@@ -1,0 +1,188 @@
+####################################################################
+# PS-12098: the server does not abort some events when an audit event
+# consumer asks for it: the 'general' events 'status', 'error' and 'result',
+# 'connection' 'disconnect', 'command' 'end', 'command' 'start' of Quit and
+# Ping, and 'authentication' events. It does not abort an event of a
+# statement which has failed already either. An event of these kinds which
+# satisfies an 'abort' condition is written to the log, its statement is
+# executed and the server does not report that the event cannot be aborted.
+#
+# The record of an event which is aborted is not written, and the 'print'
+# actions of its event are not applied.
+#
+# The JSON format is used because its records have the event name.
+####################################################################
+
+--source include/have_component_audit_log.inc
+# The records which are checked depend on the commands the client sends
+--source include/no_ps_protocol.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+call mtr.add_suppression("Component audit_log_filter reported: 'Audit log filter '.*': regex '.*' on field '.*' failed");
+
+CREATE DATABASE tpcc;
+CREATE TABLE tpcc.orders1 (id INT PRIMARY KEY, v INT);
+CREATE USER rx_app@localhost;
+GRANT ALL ON tpcc.* TO rx_app@localhost;
+GRANT CREATE USER ON *.* TO rx_app@localhost;
+CREATE USER rx_dropped@localhost;
+
+--let $rx_errors_base =
+--source filter_definition_regex_errors.inc
+--let $rx_a40 = `SELECT REPEAT('a', 40)`
+
+--echo #
+--echo # 'abort' condition of the 'general' 'status' event
+--echo #
+--let $rx_case_i = 0
+while ($rx_case_i < 5) {
+  --let $rx_comment =
+  --let $rx_print =
+  if ($rx_case_i == 0) {
+    --echo # Case: the condition is false, the event is not logged
+    --let $rx_abort = {"field": {"name": "general_query.str", "regex": "^SELECT"}}
+  }
+  if ($rx_case_i == 1) {
+    --echo # Case: abort is true
+    --let $rx_abort = true
+  }
+  if ($rx_case_i == 2) {
+    --echo # Case: the condition is true
+    --let $rx_abort = {"field": {"name": "general_query.str", "regex": "^INSERT"}}
+  }
+  if ($rx_case_i == 3) {
+    --echo # Case: the condition is undecided, the match reaches the time limit
+    --let $rx_abort = {"field": {"name": "general_query.str", "regex": "(a+)+\$"}}
+    --let $rx_comment = /* $rx_a40 */
+  }
+  if ($rx_case_i == 4) {
+    --echo # Case: abort is true, the 'print' action applies to the record
+    --let $rx_abort = true
+    --let $rx_print = , "print": {"field": {"name": "general_query.str", "print": false, "replace": {"function": {"name": "query_digest"}}}}
+  }
+  --let $rx_definition = {"filter": {"class": {"name": "general", "event": {"name": "status", "abort": $rx_abort$rx_print}}}}
+  eval SELECT audit_log_filter_set_filter('rx_status_$rx_case_i', '$rx_definition') AS result;
+  eval SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_status_$rx_case_i') AS result;
+  connect (rx, localhost, rx_app,, tpcc);
+  connection default;
+  --source filter_definition_regex_begin.inc
+  connection rx;
+  --echo # INSERT INTO orders1 VALUES ($rx_case_i, 1)
+  --disable_query_log
+  eval INSERT INTO orders1 VALUES ($rx_case_i, 1) $rx_comment;
+  --enable_query_log
+  connection default;
+  --let rx_query_mask = /\* a{40} \*/
+  --source filter_definition_regex_summary.inc
+  --let rx_query_mask =
+  --source filter_definition_regex_errors.inc
+  disconnect rx;
+  --inc $rx_case_i
+}
+SELECT id FROM tpcc.orders1 ORDER BY id;
+
+--echo #
+--echo # The other events which are not aborted
+--echo #
+SET GLOBAL audit_log_filter.event_mode = FULL;
+let $rx_definition = {
+  "filter": {
+    "class": [
+      {"name": "general", "event": {"name": ["error", "result"], "abort": true}},
+      {"name": "connection", "event": {"name": "disconnect", "abort": true}},
+      {"name": "command", "event": [
+        {"name": "end", "abort": true},
+        {"name": "start", "abort": {"or": [
+          {"field": {"name": "command.str", "value": "Ping"}},
+          {"field": {"name": "command.str", "value": "Quit"}}]}}]},
+      {"name": "authentication", "event": {"name": "authid_drop", "abort": true}}
+    ]
+  }
+};
+eval SELECT audit_log_filter_set_filter('rx_ignored', '$rx_definition') AS result;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_ignored') AS result;
+connect (rx, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+connection rx;
+INSERT INTO orders1 VALUES (10, 1);
+--error ER_DUP_ENTRY
+INSERT INTO orders1 VALUES (10, 1);
+SELECT id FROM orders1 WHERE id = 10;
+--ping
+DROP USER rx_dropped@localhost;
+connection default;
+disconnect rx;
+--echo # Only the events with an 'abort' condition have actions in this
+--echo # filter. The record of each of them is written: 'general' 'error' of
+--echo # the failed statement, 'command' 'start' of Ping and Quit
+--let rx_record_events = 1
+--source filter_definition_regex_summary.inc
+--let rx_record_events =
+SELECT COUNT(*) AS dropped_users FROM mysql.user WHERE user = 'rx_dropped';
+SELECT audit_log_filter_remove_filter('rx_ignored') AS result;
+
+--echo #
+--echo # An event of a statement which has failed already is not aborted
+--echo #
+let $rx_definition = {"filter": {"class": {"name": "query", "event": {"name": "status_end", "abort": true}}}};
+eval SELECT audit_log_filter_set_filter('rx_failed', '$rx_definition') AS result;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_failed') AS result;
+connect (rx, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+connection rx;
+--echo # The statement fails with its own error and its record is written
+--error ER_DUP_ENTRY
+INSERT INTO orders1 VALUES (10, 1);
+--echo # The event of a statement which has not failed is aborted
+--error ER_AUDIT_API_ABORT
+INSERT INTO orders1 VALUES (11, 1);
+connection default;
+disconnect rx;
+--echo # The row of the aborted statement is not in the table. It is checked
+--echo # from this connection, which has no filter: the filter would abort
+--echo # the SELECT as well.
+SELECT id FROM tpcc.orders1 WHERE id = 11;
+--let rx_record_events = 1
+--source filter_definition_regex_summary.inc
+--let rx_record_events =
+SELECT audit_log_filter_remove_filter('rx_failed') AS result;
+SET GLOBAL audit_log_filter.event_mode = REDUCED;
+
+--echo #
+--echo # An event which the server aborts is still aborted. Its record is not
+--echo # written, so its 'print' condition is not evaluated: the match which
+--echo # would reach the time limit is not counted.
+--echo #
+let $rx_definition = {"filter": {"class": [{"name": "general", "event": {"name": "status", "abort": true}}, {"name": "table_access", "event": {"name": "insert", "abort": true, "print": {"field": {"name": "query.str", "print": {"field": {"name": "query.str", "regex": "(a+)+\$"}}, "replace": {"function": {"name": "query_digest"}}}}}}]}};
+eval SELECT audit_log_filter_set_filter('rx_table_access', '$rx_definition') AS result;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_table_access') AS result;
+connect (rx, localhost, rx_app,, tpcc);
+connection default;
+--source filter_definition_regex_begin.inc
+--source filter_definition_regex_errors.inc
+connection rx;
+--echo # INSERT INTO orders1 VALUES (20, 1)
+--disable_query_log
+--error ER_AUDIT_API_ABORT
+eval INSERT INTO orders1 VALUES (20, 1) /* $rx_a40 */;
+--enable_query_log
+SELECT id FROM orders1 WHERE id = 20;
+connection default;
+disconnect rx;
+--let rx_query_mask = /\* a{40} \*/
+--source filter_definition_regex_summary.inc
+--let rx_query_mask =
+--source filter_definition_regex_errors.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+--source filter_definition_regex_sync.inc
+DROP USER rx_app@localhost;
+DROP DATABASE tpcc;
+--source clean_all_audit_logs.inc
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

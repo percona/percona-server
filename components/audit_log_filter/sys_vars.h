@@ -348,7 +348,7 @@ class SysVars {
 
   /**
    * @brief Increment counter of regex field condition evaluations which
-   *        failed and were treated as not matching.
+   *        failed and left their condition undecided.
    */
   static void inc_regex_match_errors() noexcept;
 

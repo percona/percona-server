@@ -55,7 +55,7 @@ OK
 #
 # Run time failure of a reached regex leaf in every context
 #
-# Case: positive log
+# Case: positive log, the event is logged
 SELECT audit_log_filter_set_filter('rx_err_0', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}') AS result;
 result
 OK
@@ -66,12 +66,13 @@ SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
 SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
 SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
 INSERT INTO orders1 (v) VALUES (0);
-# Records: 0
+# Records: 1
+#   1 x table_access insert tpcc.orders1
 # Regex match errors: +1
 SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
 lost
 0
-# Case: negated log
+# Case: negated log, the event is logged
 SELECT audit_log_filter_set_filter('rx_err_1', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"not": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}}') AS result;
 result
 OK
@@ -88,7 +89,7 @@ INSERT INTO orders1 (v) VALUES (1);
 SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
 lost
 0
-# Case: positive abort does not abort
+# Case: positive abort aborts
 SELECT audit_log_filter_set_filter('rx_err_2', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "table_name.str", "regex": "^secret_[0-9]+$"}}}}}}') AS result;
 result
 OK
@@ -99,6 +100,7 @@ SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
 SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
 SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
 INSERT INTO secret_1 (v) VALUES (2);
+ERROR HY000: Statement was aborted by an audit log filter.
 # Records: 0
 # Regex match errors: +1
 SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
@@ -106,8 +108,8 @@ lost
 0
 SELECT COUNT(*) - @rows AS inserted_rows FROM tpcc.secret_1;
 inserted_rows
-1
-# Case: print condition false invokes replacement
+0
+# Case: undecided print condition invokes replacement
 SELECT audit_log_filter_set_filter('rx_err_3', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "value": "INSERT INTO orders1 (v) VALUES (3)"}}, "print": {"field": {"name": "general_query.str", "print": {"field": {"name": "general_query.str", "regex": "^INSERT"}}, "replace": {"function": {"name": "query_digest"}}}}}}}}') AS result;
 result
 OK
@@ -209,11 +211,206 @@ INSERT INTO orders1 (v) VALUES (8);
 SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
 lost
 0
+# Case: negated abort aborts, a decided mismatch of the negated condition would not
+SELECT audit_log_filter_set_filter('rx_err_9', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"not": {"field": {"name": "table_name.str", "regex": "^secret_[0-9]+$"}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_9') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO secret_1 (v) VALUES (9);
+ERROR HY000: Statement was aborted by an audit log filter.
+# Records: 0
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+SELECT COUNT(*) - @rows AS inserted_rows FROM tpcc.secret_1;
+inserted_rows
+0
+# Case: undecided negated print condition invokes replacement
+SELECT audit_log_filter_set_filter('rx_err_10', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "value": "INSERT INTO orders1 (v) VALUES (10)"}}, "print": {"field": {"name": "general_query.str", "print": {"not": {"field": {"name": "general_query.str", "regex": "^SELECT"}}}, "replace": {"function": {"name": "query_digest"}}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_10') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (10);
+# Records: 1
+#   1 x general INSERT INTO `orders1` ( `v` ) VALUES (?)
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: replacement filter is not activated by a negated condition
+SELECT audit_log_filter_set_filter('rx_err_11', '{"filter": {"id": "main", "class": {"name": "table_access", "event": {"name": "insert", "log": false, "filter": {"class": {"name": "general", "event": {"name": "status", "log": true, "filter": {"ref": "main"}}}, "activate": {"not": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_11') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO temp_1 (v) VALUES (11);
+SELECT 'rx_sentinel';
+rx_sentinel
+rx_sentinel
+# Records: 0
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: and, a false operand after the reached regex decides
+SELECT audit_log_filter_set_filter('rx_err_12', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"and": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "nope"}}]}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_12') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (12);
+# Records: 0
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: or, no operand decides, the event is logged
+SELECT audit_log_filter_set_filter('rx_err_13', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"or": [{"field": {"name": "table_name.str", "regex": "^history[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "nope"}}]}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_13') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (13);
+# Records: 1
+#   1 x table_access insert tpcc.orders1
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: print condition, and, the other operand is true, invokes replacement
+SELECT audit_log_filter_set_filter('rx_err_14', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "value": "INSERT INTO orders1 (v) VALUES (14)"}}, "print": {"field": {"name": "general_query.str", "print": {"and": [{"field": {"name": "general_query.str", "regex": "^INSERT"}}, {"field": {"name": "general_command.str", "value": "Query"}}]}, "replace": {"function": {"name": "query_digest"}}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_14') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (14);
+# Records: 1
+#   1 x general INSERT INTO `orders1` ( `v` ) VALUES (?)
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: print condition, or, the other operand is false, invokes replacement
+SELECT audit_log_filter_set_filter('rx_err_15', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "value": "INSERT INTO orders1 (v) VALUES (15)"}}, "print": {"field": {"name": "general_query.str", "print": {"or": [{"field": {"name": "general_query.str", "regex": "^INSERT"}}, {"field": {"name": "general_command.str", "value": "NoSuchCommand"}}]}, "replace": {"function": {"name": "query_digest"}}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_15') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (15);
+# Records: 1
+#   1 x general INSERT INTO `orders1` ( `v` ) VALUES (?)
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: replacement filter is not activated, and, the other operand is true
+SELECT audit_log_filter_set_filter('rx_err_16', '{"filter": {"id": "main", "class": {"name": "table_access", "event": {"name": "insert", "log": false, "filter": {"class": {"name": "general", "event": {"name": "status", "log": true, "filter": {"ref": "main"}}}, "activate": {"and": [{"field": {"name": "table_name.str", "regex": "^temp_[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "tpcc"}}]}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_16') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO temp_1 (v) VALUES (16);
+SELECT 'rx_sentinel';
+rx_sentinel
+rx_sentinel
+# Records: 0
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: replacement filter is not activated, or, the other operand is false
+SELECT audit_log_filter_set_filter('rx_err_17', '{"filter": {"id": "main", "class": {"name": "table_access", "event": {"name": "insert", "log": false, "filter": {"class": {"name": "general", "event": {"name": "status", "log": true, "filter": {"ref": "main"}}}, "activate": {"or": [{"field": {"name": "table_name.str", "regex": "^temp_[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "nope"}}]}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_17') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO temp_1 (v) VALUES (17);
+SELECT 'rx_sentinel';
+rx_sentinel
+rx_sentinel
+# Records: 0
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: negated and, the other operand is true, the event is logged
+SELECT audit_log_filter_set_filter('rx_err_18', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"not": {"and": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "tpcc"}}]}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_18') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (18);
+# Records: 1
+#   1 x table_access insert tpcc.orders1
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
+# Case: negated or, the other operand is false, the event is logged
+SELECT audit_log_filter_set_filter('rx_err_19', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"not": {"or": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_database.str", "value": "nope"}}]}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_19') AS result;
+result
+OK
+SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
+SET @rows = (SELECT COUNT(*) FROM tpcc.secret_1);
+SET @lost = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost');
+INSERT INTO orders1 (v) VALUES (19);
+# Records: 1
+#   1 x table_access insert tpcc.orders1
+# Regex match errors: +1
+SELECT VARIABLE_VALUE - @lost AS lost FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_log_filter_events_lost';
+lost
+0
 #
 # Each failing condition reports its first failure, repeated failures of
 # the same condition are only counted
 #
-SELECT audit_log_filter_set_filter('rx_err_two', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"or": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_name.str", "regex": "^history[0-9]+$"}}]}}}}}') AS result;
+SELECT audit_log_filter_set_filter('rx_err_two', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "log": {"and": [{"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, {"field": {"name": "table_name.str", "regex": "^[a-z]+1$"}}]}}}}}') AS result;
 result
 OK
 SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_err_two') AS result;
@@ -223,7 +420,9 @@ SET SESSION debug = '+d,audit_log_filter_regex_runtime_error';
 INSERT INTO orders1 (v) VALUES (10);
 INSERT INTO orders1 (v) VALUES (11);
 INSERT INTO history1 (v) VALUES (12);
-# Records: 0
+# Records: 3
+#   1 x table_access insert tpcc.history1
+#   2 x table_access insert tpcc.orders1
 # Regex match errors: +6
 # Warnings: one for the first condition
 # Warnings: one for the second condition
@@ -231,8 +430,7 @@ INSERT INTO history1 (v) VALUES (12);
 SET SESSION debug = '-d,audit_log_filter_regex_runtime_error';
 INSERT INTO orders1 (v) VALUES (13);
 INSERT INTO history1 (v) VALUES (14);
-# Records: 2
-#   1 x table_access insert tpcc.history1
+# Records: 1
 #   1 x table_access insert tpcc.orders1
 # Regex match errors: +0
 #

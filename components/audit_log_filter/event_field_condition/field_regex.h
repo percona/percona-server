@@ -125,16 +125,27 @@ struct RegexConditionDiagnostics {
  */
 class EventFieldConditionRegex : public EventFieldConditionBase {
  public:
+  /**
+   * @param field_name Name of the event field to match
+   * @param regex Compiled regular expression
+   * @param diagnostics Strings used in failure warnings
+   * @param failure_result Result of @ref check_applies in case the match
+   *                       fails. The result of such a match is not known, so
+   *                       the creator of the condition chooses the value
+   *                       which is safe at the place the condition is used.
+   * @param limits Regex engine limits
+   */
   EventFieldConditionRegex(
       std::string field_name, std::unique_ptr<regex::CompiledRegex> regex,
-      RegexConditionDiagnostics diagnostics,
+      RegexConditionDiagnostics diagnostics, bool failure_result,
       regex::RegexLimits limits = regex::kDefaultRegexLimits) noexcept;
 
   /**
    * @brief Check if logical condition applies to provided event fields.
    *
-   * Missing and non-string fields do not match. Engine failures do not match
-   * and are reported using @ref report_failure.
+   * Missing and non-string fields do not match. An engine failure is
+   * reported using @ref report_failure and gives the result chosen when the
+   * condition was created.
    *
    * @param fields Event fields list
    * @return true in case condition applies to an audit event, false otherwise
@@ -167,6 +178,7 @@ class EventFieldConditionRegex : public EventFieldConditionBase {
   std::string m_field_name;
   std::unique_ptr<regex::CompiledRegex> m_regex;
   RegexConditionDiagnostics m_diagnostics;
+  bool m_failure_result;
   regex::RegexLimits m_limits;
   mutable RegexWarningLimiter m_limiter;
 };

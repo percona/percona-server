@@ -96,7 +96,8 @@ const std::string kPathological = "SELECT '" + std::string(40, 'a') + "'";
 std::shared_ptr<EventFieldConditionRegex> make_condition(
     const std::string &field_name, std::string_view pattern,
     const std::string &filter_name = "rx_filter",
-    RegexLimits limits = regex::kDefaultRegexLimits) {
+    RegexLimits limits = regex::kDefaultRegexLimits,
+    bool failure_result = false) {
   RegexError error;
   auto compiled = regex::CompiledRegex::compile(pattern, error);
   EXPECT_NE(compiled, nullptr) << regex::status_name(error.status);
@@ -106,7 +107,7 @@ std::shared_ptr<EventFieldConditionRegex> make_condition(
       RegexConditionDiagnostics{make_diagnostic_text(filter_name),
                                 make_diagnostic_text(field_name),
                                 make_diagnostic_text(pattern)},
-      limits);
+      failure_result, limits);
 }
 
 class AuditFieldRegexTest : public ::testing::Test {
@@ -289,6 +290,17 @@ TEST_F(AuditFieldRegexTest, RuntimeErrorCountedAndRateLimited) {
   // Recovery, successful matches do not count errors
   EXPECT_TRUE(cond->check_applies(good));
   EXPECT_EQ(g_error_count.load(), 3U);
+
+  // A failed match gives the result chosen for the condition, a successful
+  // one does not depend on it
+  auto cond_true = make_condition("general_query.str", "(a+)+$", "rx_timeout",
+                                  regex::kDefaultRegexLimits, true);
+  ASSERT_NE(cond_true, nullptr);
+  EXPECT_TRUE(cond_true->check_applies(bad));
+  EXPECT_EQ(g_error_count.load(), 4U);
+  EXPECT_TRUE(cond_true->check_applies(good));
+  EXPECT_FALSE(cond_true->check_applies({{"general_query.str", "SELECT 1"s}}));
+  EXPECT_EQ(g_error_count.load(), 4U);
 }
 
 TEST_F(AuditFieldRegexTest, ReportPolicyWithExplicitTime) {
@@ -388,15 +400,44 @@ TEST_F(AuditFieldRegexTest, BooleanComposition) {
   EXPECT_TRUE(or_true.check_applies(bad));
   EXPECT_EQ(g_error_count.load(), 0U);
 
-  // A failed leaf is false, its negation is true
-  EventFieldConditionNot negated{failing};
-  EXPECT_TRUE(negated.check_applies(bad));
-  EXPECT_EQ(g_error_count.load(), 1U);
+  // The filter parser requests a result of the whole condition for a failed
+  // match: the leaf gets that value, a leaf below 'not' gets the opposite one
+  for (const bool requested : {true, false}) {
+    SCOPED_TRACE(requested);
+    reset_sink();
 
-  EventFieldConditionAnd and_true{
-      {std::make_shared<EventFieldConditionBool>(true), failing}};
-  EXPECT_FALSE(and_true.check_applies(bad));
-  EXPECT_EQ(g_error_count.load(), 2U);
+    const auto bool_true = std::make_shared<EventFieldConditionBool>(true);
+    const auto bool_false = std::make_shared<EventFieldConditionBool>(false);
+    auto leaf = make_condition("general_query.str", "(a+)+$", "rx_filter",
+                               regex::kDefaultRegexLimits, requested);
+    auto negated_leaf = make_condition("general_query.str", "(a+)+$", "rx_not",
+                                       regex::kDefaultRegexLimits, !requested);
+    ASSERT_NE(leaf, nullptr);
+    ASSERT_NE(negated_leaf, nullptr);
+
+    EXPECT_EQ(leaf->check_applies(bad), requested);
+    EXPECT_EQ(EventFieldConditionNot{negated_leaf}.check_applies(bad),
+              requested);
+    EXPECT_EQ(g_error_count.load(), 2U);
+
+    // The failed match decides when the other operand does not
+    EXPECT_EQ(EventFieldConditionAnd({bool_true, leaf}).check_applies(bad),
+              requested);
+    EXPECT_EQ(EventFieldConditionOr({bool_false, leaf}).check_applies(bad),
+              requested);
+    EXPECT_EQ(EventFieldConditionOr(
+                  {bool_false,
+                   std::make_shared<EventFieldConditionNot>(negated_leaf)})
+                  .check_applies(bad),
+              requested);
+    EXPECT_EQ(g_error_count.load(), 5U);
+
+    // An operand which decides the result still does, also when it follows
+    // the failed match
+    EXPECT_FALSE(EventFieldConditionAnd({leaf, bool_false}).check_applies(bad));
+    EXPECT_TRUE(EventFieldConditionOr({leaf, bool_true}).check_applies(bad));
+    EXPECT_EQ(g_error_count.load(), 7U);
+  }
 }
 
 /*

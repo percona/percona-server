@@ -1,0 +1,69 @@
+#
+# PS-12097: audit_log plugin: statement text with a NUL byte
+#
+# The NUL byte is written as "?" in the OLD, NEW and CSV formats and
+# as "\u0000" in the JSON format. The text that follows it is logged.
+#
+
+# audit_log_format=OLD
+# restart: --audit_log_format=OLD
+SET GLOBAL audit_log_flush = ON;
+SET GLOBAL audit_log_flush = ON;
+c
+1
+c
+a\0b
+c
+\0
+SET GLOBAL audit_log_flush = ON;
+/* stmt1 a?b */ SELECT 1 AS c
+SELECT /* stmt2 */ 'a?b' AS c
+SELECT /* stmt3 ?? */ '?' AS c /* &lt;?&gt; */
+
+# audit_log_format=NEW
+# restart: --audit_log_format=NEW
+SET GLOBAL audit_log_flush = ON;
+SET GLOBAL audit_log_flush = ON;
+c
+1
+c
+a\0b
+c
+\0
+SET GLOBAL audit_log_flush = ON;
+/* stmt1 a?b */ SELECT 1 AS c
+SELECT /* stmt2 */ 'a?b' AS c
+SELECT /* stmt3 ?? */ '?' AS c /* &lt;?&gt; */
+
+# audit_log_format=JSON
+# restart: --audit_log_format=JSON
+SET GLOBAL audit_log_flush = ON;
+SET GLOBAL audit_log_flush = ON;
+c
+1
+c
+a\0b
+c
+\0
+SET GLOBAL audit_log_flush = ON;
+\/* stmt1 a\u0000b *\/ SELECT 1 AS c
+SELECT \/* stmt2 *\/ 'a\u0000b' AS c
+SELECT \/* stmt3 \u0000\u0000 *\/ '\u0000' AS c \/* <\u0000> *\/
+
+# audit_log_format=CSV
+# restart: --audit_log_format=CSV
+SET GLOBAL audit_log_flush = ON;
+SET GLOBAL audit_log_flush = ON;
+c
+1
+c
+a\0b
+c
+\0
+SET GLOBAL audit_log_flush = ON;
+/* stmt1 a?b */ SELECT 1 AS c
+SELECT /* stmt2 */ 'a?b' AS c
+SELECT /* stmt3 ?? */ '?' AS c /* <?> */
+
+# Cleanup
+# restart:

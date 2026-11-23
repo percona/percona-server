@@ -484,7 +484,7 @@ void ReadView::prepare(trx_id_t id) {
   ut_a(m_up_limit_id <= m_low_limit_id);
 
   ut_d(m_view_low_limit_no = m_low_limit_no);
-  m_closed = false;
+  m_closed.store(false);
 }
 
 ReadView *MVCC::get_view() {
@@ -524,26 +524,26 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
 
     DEBUG_SYNC_C("mvcc_view_open_before_reopen");
 
-    ut_ad(closed->m_closed);
+    ut_ad(closed->is_closed());
     ut_ad(!closed->m_cloned);
 
-    /* NOTE: This can be optimised further, for now we only
-    reuse the view if there are no active RW transactions.
-
-    There is an inherent race here between purge and this
-    thread. Purge will skip views that are marked as closed.
-    Therefore we must set the low limit id after we reset the
-    closed status after the check. */
-
+    /* Reopen the view without trx_sys->mutex if no transaction got an id
+    since the view was created. Store the open flag before loading the id
+    counter. If the counter did not change, the store comes before any later
+    id allocation in the single total order of sequentially consistent
+    operations. Purge loads the flag under trx_sys->mutex, which id allocation
+    holds, so after such an allocation it sees the view open. A weaker order
+    of the store, of the counter accesses or of the flag load would let the
+    counter load be done before purge can see the store. */
     if (trx_is_autocommit_non_locking(trx) && closed->empty()) {
-      closed->m_closed = false;
+      closed->m_closed.store(false);
 
       if (closed->m_low_limit_id == trx_sys_get_next_trx_id_or_no()) {
         view = closed;
         return;
       }
 
-      closed->m_closed = true;
+      closed->m_closed.store(true);
     }
   }
 
@@ -656,7 +656,7 @@ void MVCC::view_clone(ReadView *&view, trx_t *from_trx) {
         from_trx->id != 0 ? from_trx->id : from_trx->preallocated_id;
   }
   view->m_cloned = true;
-  view->m_closed = false;
+  view->m_closed.store(false);
 
   /* Equal purge limits make the donor the insertion point even if newer
   views opened since. Publish the clone before releasing the donor mutex:
@@ -728,8 +728,13 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
     }
 
     /* Note this can be called for a read view that
-    was already closed. */
-    ptr->m_closed = true;
+    was already closed.
+
+    The default order costs a locked instruction on x86 at the end of every
+    autocommit non-locking read. Release order would be enough here: purge
+    only needs to see the reads through this view done before it sees the
+    view closed. Weaken it only if that proves to be a measurable cost. */
+    ptr->m_closed.store(true);
 
     /* Set the view as closed. */
     view = reinterpret_cast<ReadView *>(p | 0x1);

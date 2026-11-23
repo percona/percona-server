@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define read0types_h
 
 #include <algorithm>
+#include <atomic>
 #include "dict0mem.h"
 
 #include "mem0mem.h"
@@ -199,7 +200,7 @@ class ReadView {
 
   /**
   @return true if the view is closed */
-  bool is_closed() const { return (m_closed); }
+  bool is_closed() const { return m_closed.load(); }
 
   /**
   Write the limits to the file.
@@ -329,8 +330,11 @@ class ReadView {
   trx_id_t m_view_low_limit_no;
 #endif /* UNIV_DEBUG */
 
-  /** AC-NL-RO transaction view that has been "closed". */
-  bool m_closed;
+  /** Purge reads this flag under trx_sys->mutex. The owner can close or
+  reopen a cached view without that mutex, see MVCC::view_close() and
+  MVCC::view_open(). All accesses use the default sequentially consistent
+  order, which the lock-free reopen needs. */
+  std::atomic<bool> m_closed;
 
   /** A session clone retains the donor's creator id even if the receiver
   becomes read-write. It cannot be cached for an unrelated transaction. */

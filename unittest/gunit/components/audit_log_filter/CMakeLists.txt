@@ -56,3 +56,11 @@ MYSQL_ADD_EXECUTABLE(audit_password-t
   ADD_TEST audit_password
   LINK_LIBRARIES OpenSSL::Crypto gunit_small
 )
+
+# The unit test provides the system variable used by the options generator.
+MYSQL_ADD_EXECUTABLE(audit_encryption-t
+  audit_encryption-t.cc
+  ${AUDIT_LOG_FILTER_SOURCE_DIR}/audit_encryption.cc
+  ADD_TEST audit_encryption
+  LINK_LIBRARIES OpenSSL::Crypto extra::rapidjson extra::boost gunit_small
+)

@@ -46,6 +46,30 @@ bool generate_password(std::string &password);
  */
 bool generate_password(std::string &password, RandomBytesFunc random_bytes);
 
+/**
+ * @brief Check if a password has the structure of the passwords from the
+ *        generator used before generate_password()
+ *
+ * That generator mapped kGeneratedPasswordLength consecutive libc random()
+ * results onto 60 alphanumerics (no 'U' and 'V'). random() is an additive
+ * feedback generator: each result is the sum of the results 3 and 31 calls
+ * back, up to a carry and modulo 2^31, so the characters of such a password
+ * are related in the same way for any seed.
+ *
+ * The relation may be broken at up to two places, where other threads called
+ * rand() or random() while the password was generated. A password with more
+ * such places is reported only when enough of the relation is left. Strings
+ * that hold less than half of the 60 alphanumerics are never reported.
+ *
+ * Only the structure is checked: a password set by the user is reported as
+ * well when it has this structure, like a copy of a generated password.
+ *
+ * @param [in] password Password to check
+ * @return true if the password has the structure of the passwords from the
+ *         earlier generator, false otherwise
+ */
+bool is_legacy_generated_password(const std::string &password);
+
 }  // namespace audit_log_filter::encryption
 
 #endif  // AUDIT_LOG_FILTER_PASSWORD_H_INCLUDED

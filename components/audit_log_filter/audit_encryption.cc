@@ -27,6 +27,7 @@
 #include <boost/algorithm/hex.hpp>
 
 #include <algorithm>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <random>
@@ -115,14 +116,26 @@ std::unique_ptr<EncryptionOptions> EncryptionOptions::from_json_string(
     return {};
   }
 
+  // The strings may hold '\0' characters, take them with their lengths
   SaltType salt;
-  const std::string salt_hex_chars(doc["salt"].GetString());
-  boost::algorithm::unhex(salt_hex_chars, std::back_inserter(salt));
+  const std::string salt_hex_chars(doc["salt"].GetString(),
+                                   doc["salt"].GetStringLength());
 
-  assert(salt.size() == PKCS5_SALT_LEN);
+  try {
+    boost::algorithm::unhex(salt_hex_chars, std::back_inserter(salt));
+  } catch (const boost::algorithm::hex_decode_error &) {
+    return {};
+  }
+
+  if (salt.size() != PKCS5_SALT_LEN) {
+    return {};
+  }
+
+  std::string password{doc["password"].GetString(),
+                       doc["password"].GetStringLength()};
 
   return std::unique_ptr<EncryptionOptions>(new EncryptionOptions{
-      doc["password"].GetString(), salt, doc["iterations"].GetUint()});
+      std::move(password), salt, doc["iterations"].GetUint()});
 }
 
 std::size_t EncryptionOptions::get_iterations() const noexcept {

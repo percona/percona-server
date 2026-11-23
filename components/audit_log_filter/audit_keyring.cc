@@ -20,6 +20,9 @@
 #include "components/audit_log_filter/log_writer/file_handle.h"
 #include "components/audit_log_filter/sys_vars.h"
 
+#include "my_dbug.h"
+#include "mysql/my_loglevel.h"
+
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/keyring_keys_metadata_iterator.h>
 #include <mysql/components/services/keyring_metadata_query.h>
@@ -32,6 +35,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <iomanip>
+#include <limits>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -54,6 +58,33 @@ struct OptionInfo {
 };
 
 using OptionsIdList = std::vector<OptionInfo>;
+
+/**
+ * @brief Get the timestamp and the sequence number of an options ID
+ *
+ * @param [in] options_id Options ID
+ * @param [out] timestamp Timestamp of the ID
+ * @param [out] seq_num Sequence number of the ID
+ * @return true in case of success, false if options_id is not an options ID
+ */
+bool parse_keyring_options_id(const std::string &options_id,
+                              ulonglong &timestamp, ulonglong &seq_num) {
+  static const std::regex timestamp_regex(R"(.*-(\d{8}T\d{6})-(\d*).*)");
+  std::smatch pieces_match;
+
+  if (!std::regex_match(options_id, pieces_match, timestamp_regex)) {
+    return false;
+  }
+
+  std::tm tm{};
+  std::istringstream ss(pieces_match[1].str());
+  ss >> std::get_time(&tm, kOptionsKeyTimestampFormat.c_str());
+  tm.tm_isdst = -1;
+  timestamp = static_cast<ulonglong>(timelocal(&tm));
+  seq_num = std::stoull(pieces_match[2].str());
+
+  return true;
+}
 
 bool get_keyring_options_key_list_sorted(OptionsIdList &list) {
   list.clear();
@@ -86,7 +117,6 @@ bool get_keyring_options_key_list_sorted(OptionsIdList &list) {
   std::string auth_id;
   bool is_iter_valid = iterator_srv->is_valid(forward_iterator);
 
-  const std::regex timestamp_regex(R"(.*-(\d{8}T\d{6})-(\d*).*)");
   auto time_now = std::time(nullptr);
 
   DBUG_EXECUTE_IF("audit_log_filter_debug_timestamp", {
@@ -106,19 +136,18 @@ bool get_keyring_options_key_list_sorted(OptionsIdList &list) {
     }
 
     if (auth_id.find(kAuthId) != std::string::npos) {
-      std::smatch pieces_match;
+      ulonglong timestamp = 0;
+      ulonglong seq_num = 0;
 
-      if (std::regex_match(data_id, pieces_match, timestamp_regex)) {
-        std::tm tm{};
-        std::istringstream ss(pieces_match[1].str());
-        ss >> std::get_time(&tm, kOptionsKeyTimestampFormat.c_str());
-        tm.tm_isdst = -1;
-        const auto timestamp = timelocal(&tm);
-        ulonglong data_age_days = (time_now - timestamp) / (60 * 60 * 24);
-        auto seq_num = std::stoull(pieces_match[2].str());
+      if (parse_keyring_options_id(data_id, timestamp, seq_num)) {
+        // The ID is ahead of the clock after the clock was set back
+        const auto time_now_ull = static_cast<ulonglong>(time_now);
+        const ulonglong data_age_days =
+            timestamp < time_now_ull
+                ? (time_now_ull - timestamp) / (60 * 60 * 24)
+                : 0;
 
-        list.push_back({static_cast<ulonglong>(timestamp), seq_num,
-                        data_age_days, data_id});
+        list.push_back({timestamp, seq_num, data_age_days, data_id});
       }
     }
 
@@ -219,7 +248,21 @@ bool get_keyring_options(const std::string &options_id,
   return true;
 }
 
-bool generate_keyring_options_id(std::string &options_id) {
+/**
+ * @brief Generate an ID for new options
+ *
+ * The options with the latest ID become the active ones when the component
+ * starts, see get_active_keyring_options_key(). The ID is built from the
+ * current local time, which is behind the latest ID after the clock or the
+ * time zone was changed. The new ID takes the timestamp of the latest one
+ * then and the sequence number after it.
+ *
+ * @param [out] options_id Generated ID
+ * @param [in] latest_options_id ID the new one has to follow, may be empty
+ * @return true in case of success, false otherwise
+ */
+bool generate_keyring_options_id(std::string &options_id,
+                                 const std::string &latest_options_id) {
   my_service<SERVICE_TYPE(keyring_reader_with_status)> reader_srv(
       "keyring_reader_with_status", SysVars::get_comp_registry_srv());
 
@@ -233,7 +276,7 @@ bool generate_keyring_options_id(std::string &options_id) {
   std::stringstream id_prefix;
   std::time_t t =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  uint key_seq = 1;
+  ulonglong key_seq = 1;
   bool is_generated = false;
 
   DBUG_EXECUTE_IF("audit_log_filter_debug_timestamp", {
@@ -241,11 +284,43 @@ bool generate_keyring_options_id(std::string &options_id) {
         SysVars::get_debug_time_point_for_encryption());
   });
 
-  while (!is_generated) {
+  const auto build_id = [&id_prefix, &t, &key_seq] {
     id_prefix.str("");
     id_prefix << kAuthId << "-"
-              << std::put_time(std::localtime(&t), "%Y%m%dT%H%M%S") << "-"
-              << key_seq;
+              << std::put_time(std::localtime(&t),
+                               kOptionsKeyTimestampFormat.c_str())
+              << "-" << key_seq;
+  };
+
+  // The largest sequence number is followed by the first one of the next
+  // second
+  const auto next_key_seq = [&t, &key_seq] {
+    if (key_seq == std::numeric_limits<ulonglong>::max()) {
+      ++t;
+      key_seq = 1;
+    } else {
+      ++key_seq;
+    }
+  };
+
+  ulonglong timestamp = 0;
+  ulonglong seq_num = 0;
+  ulonglong latest_timestamp = 0;
+  ulonglong latest_seq_num = 0;
+
+  build_id();
+
+  if (parse_keyring_options_id(latest_options_id, latest_timestamp,
+                               latest_seq_num) &&
+      parse_keyring_options_id(id_prefix.str(), timestamp, seq_num) &&
+      timestamp <= latest_timestamp) {
+    t = static_cast<std::time_t>(latest_timestamp);
+    key_seq = latest_seq_num;
+    next_key_seq();
+  }
+
+  while (!is_generated) {
+    build_id();
 
     if (reader_srv->init(id_prefix.str().c_str(), kAuthId, &reader_object)) {
       LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
@@ -257,7 +332,7 @@ bool generate_keyring_options_id(std::string &options_id) {
       // Found free ID
       is_generated = true;
     } else {
-      ++key_seq;
+      next_key_seq();
     }
 
     reader_srv->deinit(reader_object);
@@ -280,6 +355,12 @@ bool set_keyring_options(const std::string &options_id,
     return false;
   }
 
+  DBUG_EXECUTE_IF("audit_log_filter_fail_keyring_store", {
+    LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "Failed to store keyring data");
+    return false;
+  });
+
   if (writer_srv->store(
           options_id.c_str(), kAuthId,
           reinterpret_cast<const unsigned char *>(options_json_str.c_str()),
@@ -292,8 +373,9 @@ bool set_keyring_options(const std::string &options_id,
   return true;
 }
 
-bool generate_keyring_options(std::string &options_id) {
-  if (!generate_keyring_options_id(options_id)) {
+bool generate_keyring_options(std::string &options_id,
+                              const std::string &latest_options_id) {
+  if (!generate_keyring_options_id(options_id, latest_options_id)) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to generate options ID");
     return false;
@@ -318,6 +400,50 @@ bool generate_keyring_options(std::string &options_id) {
   return set_keyring_options(options_id, options->to_json_string());
 }
 
+/**
+ * @brief Replace active options holding a password with the structure of
+ *        the passwords generated by earlier versions with newly generated
+ *        ones
+ *
+ * The replaced options stay in the keyring for the existing log files. The
+ * active options are kept when they cannot be read, when they are not valid
+ * or when the new ones cannot be generated.
+ *
+ * @param [in,out] options_id ID of the active options
+ */
+void replace_legacy_generated_options(std::string &options_id) {
+  const auto options = get_encryption_options(options_id);
+
+  if (options == nullptr || !options->check_valid() ||
+      !encryption::is_legacy_generated_password(options->get_password())) {
+    return;
+  }
+
+  // The ID of the active options is padded with '\0', see
+  // get_keyring_options_key_list_sorted(), the messages need it without
+  // the padding
+  const std::string old_options_id{options_id.c_str()};
+  std::string new_options_id;
+
+  if (!generate_keyring_options(new_options_id, old_options_id)) {
+    const std::string message =
+        "Failed to replace log encryption password with ID '" + old_options_id +
+        "' generated by an earlier server version";
+    LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, message.c_str());
+    return;
+  }
+
+  const std::string message =
+      "Log encryption password with ID '" + old_options_id +
+      "' generated by an earlier server version was replaced with newly "
+      "generated password with ID '" +
+      new_options_id +
+      "'. Existing log files stay encrypted with the earlier password.";
+  LogComponentErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, message.c_str());
+
+  options_id = new_options_id;
+}
+
 }  // namespace
 
 bool check_keyring_initialized() noexcept {
@@ -340,8 +466,12 @@ bool check_generate_initial_encryption_options() noexcept {
     return false;
   }
 
-  if (options_id.empty() && !generate_keyring_options(options_id)) {
-    return false;
+  if (options_id.empty()) {
+    if (!generate_keyring_options(options_id, "")) {
+      return false;
+    }
+  } else {
+    replace_legacy_generated_options(options_id);
   }
 
   SysVars::set_encryption_options_id(options_id);
@@ -369,7 +499,9 @@ std::unique_ptr<encryption::EncryptionOptions> get_encryption_options(
 bool set_encryption_options(const std::string &password) noexcept {
   std::string options_id;
 
-  if (!generate_keyring_options_id(options_id)) {
+  // The active options are the ones with the latest ID
+  if (!generate_keyring_options_id(options_id,
+                                   SysVars::get_encryption_options_id())) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to generate options ID");
     return false;

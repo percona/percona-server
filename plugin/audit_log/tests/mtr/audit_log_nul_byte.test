@@ -1,0 +1,86 @@
+--echo #
+--echo # PS-12097: audit_log plugin: statement text with a NUL byte
+--echo #
+--echo # The NUL byte is written as "?" in the OLD, NEW and CSV formats and
+--echo # as "\u0000" in the JSON format. The text that follows it is logged.
+--echo #
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--let MYSQLD_DATADIR = $MYSQLD_DATADIR
+--let QUERY_FILE = $MYSQL_TMP_DIR/audit_log_nul_byte.sql
+
+# mysqltest cannot send a NUL byte, so the statements go through the mysql
+# client, which passes the byte to the server with --binary-mode.
+perl;
+  use strict;
+  use warnings;
+
+  open(my $fh, '>', $ENV{QUERY_FILE}) or die "Can't open $ENV{QUERY_FILE}: $!";
+  binmode($fh);
+  print $fh "/* stmt1 a\0b */ SELECT 1 AS c;\n";
+  print $fh "SELECT /* stmt2 */ 'a\0b' AS c;\n";
+  print $fh "SELECT /* stmt3 \0\0 */ '\0' AS c /* <\0> */;\n";
+  # The server writes the record of a statement after it sends the result to
+  # the client. This statement makes the client wait until the record of
+  # stmt3 is written.
+  print $fh "DO 0;\n";
+  close($fh);
+EOF
+
+--let $i = 1
+while ($i <= 4) {
+  --let $format = `SELECT ELT($i, 'OLD', 'NEW', 'JSON', 'CSV')`
+  --let AUDIT_LOG_FORMAT = $format
+
+  --echo
+  --echo # audit_log_format=$format
+  --let $restart_parameters = restart: --audit_log_format=$format
+  --source include/restart_mysqld.inc
+
+  SET GLOBAL audit_log_flush = ON;
+  --remove_file $MYSQLD_DATADIR/test_audit.log
+  SET GLOBAL audit_log_flush = ON;
+
+  --exec $MYSQL --binary-mode test < $QUERY_FILE
+
+  --move_file $MYSQLD_DATADIR/test_audit.log $MYSQLD_DATADIR/test_audit_nul.log
+  SET GLOBAL audit_log_flush = ON;
+
+  # Print the statement text of the records written for the three statements.
+  perl;
+    use strict;
+    use warnings;
+
+    my %sqltext = (
+      OLD  => qr/^  SQLTEXT="(.*)"$/,
+      NEW  => qr/^  <SQLTEXT>(.*)<\/SQLTEXT>$/,
+      JSON => qr/"sqltext":"(.*)","user":"/,
+      # The statement text is followed by the user, host, os_user, ip and db
+      # fields, which depend on the connection and have no quotes inside.
+      CSV  => qr/^"Query","[^"]*","[^"]*","[^"]*","\d+",\d+,"(.*)"(?:,"[^"]*"){5}$/,
+    );
+    my $log_file = "$ENV{MYSQLD_DATADIR}/test_audit_nul.log";
+    open(my $fh, '<', $log_file) or die "Can't open $log_file: $!";
+    binmode($fh);
+    while (my $line = <$fh>) {
+      next unless $line =~ /stmt\d/;
+      chomp($line);
+      my ($text) = $line =~ $sqltext{$ENV{AUDIT_LOG_FORMAT}};
+      $text = "unexpected record: $line" unless defined $text;
+      # No NUL byte is expected in the log.
+      $text =~ s/\0/<NUL>/g;
+      print "$text\n";
+    }
+    close($fh);
+EOF
+
+  --remove_file $MYSQLD_DATADIR/test_audit.log
+  --remove_file $MYSQLD_DATADIR/test_audit_nul.log
+  --inc $i
+}
+
+--echo
+--echo # Cleanup
+--remove_file $QUERY_FILE
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

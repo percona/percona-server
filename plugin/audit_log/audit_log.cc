@@ -165,6 +165,14 @@ static char *make_record_id(char *buf, size_t buf_len) noexcept {
   return buf;
 }
 
+/*
+  A rule that replaces one character in escape_buf().
+
+  The table of control character rules has 32 entries and is indexed by the
+  byte value. An entry is used when its replacement is not nullptr; its
+  character field is not read. The table of other rules is searched by
+  character and ends with an entry whose character is 0.
+*/
 struct escape_rule_t {
   char character;
   size_t length;
@@ -183,7 +191,9 @@ static void escape_buf(const char *in, size_t *inlen, char *out, size_t *outlen,
   while ((in < inend) && (out < outend)) {
     const escape_rule_t *replace_rule = nullptr;
     if ((unsigned char)(*in) < 32) {
-      if (control_escape_rules[(unsigned int)*in].character) {
+      // The rule is selected by its replacement, not by its character, because
+      // the character of the rule for the NUL byte is 0.
+      if (control_escape_rules[(unsigned int)*in].replacement != nullptr) {
         replace_rule = &control_escape_rules[(unsigned int)*in];
       }
     } else {
@@ -258,9 +268,10 @@ static void json_escape(const char *in, size_t *inlen, char *out,
 
 static void csv_escape(const char *in, size_t *inlen, char *out,
                        size_t *outlen) noexcept {
-  // We do not have any standard control escape rules for CSVs
+  // We do not have any standard control escape rules for CSVs. Only the NUL
+  // byte is replaced, because a record is built and written as a C string.
   static const escape_rule_t control_rules[] = {
-      {0, 0, nullptr}, {0, 0, nullptr}, {0, 0, nullptr}, {0, 0, nullptr},
+      {0, 1, "?"},     {0, 0, nullptr}, {0, 0, nullptr}, {0, 0, nullptr},
       {0, 0, nullptr}, {0, 0, nullptr}, {0, 0, nullptr}, {0, 0, nullptr},
       {0, 0, nullptr}, {0, 0, nullptr}, {0, 0, nullptr}, {0, 0, nullptr},
       {0, 0, nullptr}, {0, 0, nullptr}, {0, 0, nullptr}, {0, 0, nullptr},

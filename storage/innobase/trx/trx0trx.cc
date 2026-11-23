@@ -2067,6 +2067,7 @@ written */
       MONITOR_INC(MONITOR_TRX_RO_COMMIT);
       if (trx->read_view != nullptr) {
         trx_sys->mvcc->view_close(trx->read_view, false);
+        DEBUG_SYNC_C("after_trx_ro_view_closed");
       }
 
     } else {
@@ -2403,10 +2404,9 @@ ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
     return nullptr;
   }
 
-  const bool needs_adding = trx->read_view == nullptr;
-  from_trx->read_view->clone(trx->read_view, from_trx);
+  trx_sys->mvcc->view_clone(trx->read_view, from_trx);
   donor_guard.reset();
-  if (needs_adding) trx_sys->mvcc->view_add(trx->read_view);
+  DEBUG_SYNC_C("trx_clone_read_view_after_donor_unlock");
   return trx->read_view;
 }
 

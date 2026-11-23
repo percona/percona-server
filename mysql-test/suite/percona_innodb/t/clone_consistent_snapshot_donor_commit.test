@@ -1,0 +1,53 @@
+#
+# PS-11621: a read-only donor commits right after START TRANSACTION WITH
+# CONSISTENT SNAPSHOT FROM SESSION copied its read view. The donor closes its
+# view without trx_sys->mutex, so the clone must be put in the view list after
+# the donor view while the donor trx mutex still keeps that view open.
+#
+# The binary log is off: the race is in InnoDB only.
+#
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 0);
+
+--connect (donor,localhost,root,,)
+--let $donor_id=`SELECT CONNECTION_ID()`
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--connection default
+UPDATE t1 SET c = 1 WHERE id = 1;
+
+--connection donor
+SET DEBUG_SYNC='transaction_commit_start SIGNAL donor_committing WAIT_FOR donor_commit';
+SET DEBUG_SYNC='after_trx_ro_view_closed SIGNAL donor_view_closed';
+--send COMMIT
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR donor_committing';
+
+--connect (receiver,localhost,root,,)
+SET DEBUG_SYNC='trx_clone_read_view_after_donor_unlock SIGNAL donor_unlocked WAIT_FOR donor_view_closed';
+--replace_result $donor_id DONOR_ID
+--send_eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR donor_unlocked';
+SET DEBUG_SYNC='now SIGNAL donor_commit';
+
+--connection receiver
+--reap
+--echo # The receiver must see the donor snapshot: c = 0
+SELECT c FROM t1 WHERE id = 1;
+COMMIT;
+
+--connection donor
+--reap
+
+--connection default
+--disconnect donor
+--disconnect receiver
+SET DEBUG_SYNC='RESET';
+DROP TABLE t1;
+--source include/wait_until_count_sessions.inc

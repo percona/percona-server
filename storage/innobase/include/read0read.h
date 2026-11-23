@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <algorithm>
 
 #include "read0types.h"
+#include "trx0types.h"
 #include "univ.i"
 
 /** The MVCC read view manager */
@@ -51,9 +52,11 @@ class MVCC {
   Free all the views in the m_free list */
   ~MVCC();
 
-  /** Insert the view in the proper order into the view list.
-  @param	view	view to add */
-  void view_add(const ReadView *view);
+  /** Copy the donor's open view and insert the copy immediately after it.
+  The caller holds trx_sys->mutex and the donor transaction mutex.
+  @param[in,out] view  Receiver view to overwrite, or nullptr to allocate one
+  @param[in] from_trx  Transaction that owns the donor view */
+  void view_clone(ReadView *&view, trx_t *from_trx);
 
   /** Allocate and create a view.
   @param view   View owned by this class created for the caller. Must be
@@ -67,12 +70,9 @@ class MVCC {
   @param own_mutex      true if caller owns trx_sys_t::mutex */
   void view_close(ReadView *&view, bool own_mutex);
 
-  /** Clones the oldest view and stores it in view. No need to
-  call view_close(). The caller owns the view that is passed in.
-  It will also move the closed views from the m_views list to the
-  m_free list. This function is called by Purge to determine whether it should
-  purge the delete marked record or not.
-  @param view           Preallocated view, owned by the caller */
+  /** Build the purge snapshot from the oldest open view, or from the active
+  transactions if there is no open view. The caller owns the destination.
+  @param[out] view  Preallocated purge view */
   void clone_oldest_view(ReadView *view);
 
   /**
@@ -104,20 +104,13 @@ class MVCC {
   Validates a read view list. */
   bool validate() const;
 
-  friend class ReadView;
-
-  /**
-  Find a free view from the active list, if none found then allocate
-  a new view. This function will also attempt to move delete marked
-  views from the active list to the freed list.
-  @return a view to use */
+  /** Take a view from the free list or allocate one.
+  Requires trx_sys->mutex. */
   inline ReadView *get_view();
 
  public:
-  /**
-  Get the oldest view in the system. It will also move the delete
-  marked read views from the views list to the freed list.
-  @return oldest view if found or NULL */
+  /** Return the oldest open view, or nullptr. Cached views stay linked so
+  their owners can reuse them. Requires trx_sys->mutex. */
   ReadView *get_oldest_view() const;
 
  private:
@@ -131,8 +124,8 @@ class MVCC {
   /** Free views ready for reuse. */
   view_list_t m_free;
 
-  /** Active and closed views, the closed views will have the
-  creator trx id set to TRX_ID_MAX */
+  /** Open and cached views in descending order of m_low_limit_no.
+  Purge searches from the tail for the oldest open view. */
   view_list_t m_views;
 };
 

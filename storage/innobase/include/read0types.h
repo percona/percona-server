@@ -189,7 +189,8 @@ class ReadView {
   bool sees(trx_id_t id) const { return (id < m_up_limit_id); }
 
   /**
-  Mark the view as closed */
+  Reset the creator and clone state before returning the view to the free
+  list. */
   void close() {
     ut_ad(m_creator_trx_id != TRX_ID_MAX);
     m_creator_trx_id = TRX_ID_MAX;
@@ -237,16 +238,6 @@ class ReadView {
   @return true if there are no transaction ids in the snapshot */
   bool empty() const { return (m_ids.empty()); }
 
-  /**
-  Clones a read view object. The resulting read view has identical change
-  visibility as the donor read view
-  @param	result	pointer to resulting read view. If NULL, a view will be
-  allocated. If non-NULL, a view will overwrite a previously-existing
-  in-use or released view.
-  @param	from_trx	transation owning the donor read view. */
-
-  void clone(ReadView *&result, trx_t *from_trx) const;
-
 #ifdef UNIV_DEBUG
   /**
   @return the view low limit number */
@@ -283,7 +274,8 @@ class ReadView {
   inline void prepare(trx_id_t id);
 
   /**
-  Copy state from another view. Must call copy_complete() to finish.
+  Copy the limits, active ids and creator. Purge calls copy_complete()
+  after releasing trx_sys->mutex. A session clone retains its donor creator.
   @param other          view to copy from */
   inline void copy_prepare(const ReadView &other);
 

@@ -1,0 +1,148 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+call mtr.add_suppression("incorrect rule definition");
+#
+# Functions without arguments
+CREATE TABLE t1 AS
+SELECT audit_log_encryption_password_get() AS password_get,
+audit_log_read_bookmark() AS read_bookmark,
+audit_log_filter_flush() AS filter_flush,
+audit_log_rotate() AS rotate;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `password_get` text NOT NULL,
+  `read_bookmark` varchar(511) NOT NULL DEFAULT '',
+  `filter_flush` varchar(511) NOT NULL DEFAULT '',
+  `rotate` varchar(511) NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT password_get = audit_log_encryption_password_get() COLLATE utf8mb4_bin AS password_get_stored,
+read_bookmark, filter_flush, rotate
+FROM t1;
+password_get_stored	read_bookmark	filter_flush	rotate
+1	{"timestamp": "<timestamp>", "id": 0}	OK	audit_filter.<timestamp>.log
+#
+# Functions with a result longer than their arguments
+CREATE TABLE t2 AS
+SELECT audit_log_filter_set_filter('f', '{}') AS set_filter_failed,
+audit_log_filter_set_filter('f', '{"filter": {"log": true}}') AS set_filter,
+audit_log_filter_set_user('%', 'f') AS set_user,
+audit_log_filter_remove_user('%') AS remove_user,
+audit_log_filter_remove_filter('f') AS remove_filter,
+audit_log_encryption_password_get('<options_id>') AS password_get,
+audit_log_encryption_password_set('p') AS password_set;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `set_filter_failed` varchar(511) NOT NULL DEFAULT '',
+  `set_filter` varchar(511) NOT NULL DEFAULT '',
+  `set_user` varchar(511) NOT NULL DEFAULT '',
+  `remove_user` varchar(511) NOT NULL DEFAULT '',
+  `remove_filter` varchar(511) NOT NULL DEFAULT '',
+  `password_get` text NOT NULL,
+  `password_set` varchar(511) NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT set_filter_failed, set_filter, set_user, remove_user, remove_filter,
+password_get = audit_log_encryption_password_get('<options_id>') COLLATE utf8mb4_bin AS password_get_stored,
+password_set
+FROM t2;
+set_filter_failed	set_filter	set_user	remove_user	remove_filter	password_get_stored	password_set
+ERROR: Incorrect rule definition: missing or invalid 'filter' object	OK	OK	OK	OK	1	OK
+#
+# audit_log_read() with an argument and without one
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}')
+OK
+SELECT audit_log_filter_set_user('%', 'log_all');
+audit_log_filter_set_user('%', 'log_all')
+OK
+SELECT 1;
+1
+1
+SELECT 2;
+2
+2
+SELECT audit_log_filter_remove_user('%');
+audit_log_filter_remove_user('%')
+OK
+SELECT audit_log_filter_remove_filter('log_all');
+audit_log_filter_remove_filter('log_all')
+OK
+CREATE TABLE t3 AS
+SELECT audit_log_read('{"start": {"timestamp": "2020-01-01 00:00:00"}, "max_array_length": 1}') AS read_start,
+audit_log_read() AS read_next;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `read_start` longtext NOT NULL,
+  `read_next` longtext NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT JSON_VALID(read_start) AS read_start_valid,
+JSON_LENGTH(read_start) AS read_start_events,
+CHAR_LENGTH(read_start) > CHAR_LENGTH('{"start": {"timestamp": "2020-01-01 00:00:00"}, "max_array_length": 1}') AS read_start_longer_than_argument,
+JSON_VALID(read_next) AS read_next_valid,
+JSON_LENGTH(read_next) > 1 AS read_next_events
+FROM t3;
+read_start_valid	read_start_events	read_start_longer_than_argument	read_next_valid	read_next_events
+1	1	1	1	1
+SELECT audit_log_read('null');
+audit_log_read('null')
+OK
+#
+# The result is not cut in a temporary table
+SELECT * FROM (SELECT audit_log_filter_flush() AS filter_flush LIMIT 1) AS dt;
+filter_flush
+OK
+SELECT audit_log_filter_flush() AS filter_flush UNION ALL SELECT '';
+filter_flush
+OK
+
+SELECT DISTINCT audit_log_read_bookmark() = read_bookmark AS read_bookmark_kept
+FROM (SELECT audit_log_read_bookmark() AS read_bookmark LIMIT 1) AS dt;
+read_bookmark_kept
+1
+#
+# The longest password, every character of it is escaped in the result
+SELECT audit_log_encryption_password_set(REPEAT(CHAR(1), 766));
+audit_log_encryption_password_set(REPEAT(CHAR(1), 766))
+OK
+CREATE TABLE t4 AS SELECT audit_log_encryption_password_get() AS password_get;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `password_get` text NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT password_get = audit_log_encryption_password_get() COLLATE utf8mb4_bin AS password_get_stored,
+CHAR_LENGTH(JSON_UNQUOTE(JSON_EXTRACT(password_get, '$.password'))) AS password_length,
+CHAR_LENGTH(password_get) > 6 * 766 AS password_escaped
+FROM t4;
+password_get_stored	password_length	password_escaped
+1	766	1
+#
+# The maximum lengths sent to the client: 4662 characters of the options
+# with the longest password for audit_log_encryption_password_get() and
+# the largest length the server takes from a function, 16777216
+# characters, for audit_log_read(). They are sent in bytes, 4 for a
+# character, and the server multiplies the length of a blob once more.
+SELECT audit_log_encryption_password_get() AS password_get LIMIT 0;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					password_get	253	18648	0	N	1	31	255
+password_get
+SELECT audit_log_read() AS log_read LIMIT 0;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					log_read	251	268435456	0	N	1	31	255
+log_read
+#
+# Cleanup
+DROP TABLE t1, t2, t3, t4;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

@@ -142,7 +142,7 @@ class TableResourceMonitor {
     return m_total_bytes;
   }
   size_t threshold() { return m_threshold; }
-  size_t consumption() { return m_total_bytes; }
+  size_t consumption() const { return m_total_bytes; }
 
  private:
   size_t m_threshold;

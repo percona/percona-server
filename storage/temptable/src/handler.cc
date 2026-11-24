@@ -791,6 +791,12 @@ int Handler::delete_all_rows() {
   return truncate(nullptr);
 }
 
+ulonglong Handler::tmp_table_bytes_used() {
+  DBUG_TRACE;
+  if (m_opened_table == nullptr) return 0;
+  return m_opened_table->bytes_occupied();
+}
+
 int Handler::info(uint) {
   DBUG_TRACE;
 

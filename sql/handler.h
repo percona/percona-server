@@ -4704,6 +4704,13 @@ class handler {
 
   ha_statistics stats;
 
+  /**
+    The largest size, in bytes, that tmp_table_bytes_used() has reported for
+    this table so far.  Only maintained for internal temporary tables; see
+    note_tmp_table_bytes_peak().
+  */
+  ulonglong m_tmp_table_bytes_peak{0};
+
   /* MultiRangeRead-related members: */
   range_seq_t mrr_iter;   /* Iterator to traverse the range sequence */
   RANGE_SEQ_IF mrr_funcs; /* Range sequence traversal functions */
@@ -5970,6 +5977,83 @@ class handler {
   */
 
   virtual int info(uint flag) = 0;
+
+  /**
+    Return the amount of storage, in bytes, that this table currently occupies.
+
+    This is used to report the size of internal temporary tables in the slow
+    query log (the Tmp_table_sizes and Tmp_disk_table_sizes fields).  It is
+    deliberately kept separate from info()/stats so that engines can report an
+    accurate current size here without perturbing the statistics the optimizer
+    costs plans with.
+
+    It is called once per internal temporary table just before the table is
+    dropped, and once more each time the table is emptied (see
+    ha_delete_all_rows()), so the number of calls is bounded by the number of
+    times the table is filled.  That is not necessarily a small number:
+    JOIN::clear() empties the temporary tables before every join
+    re-execution, so a correlated subquery samples once per outer row.
+
+    An implementation may still do work that would be too expensive for
+    info(), because the engine bounds the cost.  An engine used for a table
+    held in memory must keep this cheap, and both of them do: TempTable reads
+    a counter and MEMORY copies a few fields.  An engine is only free to do
+    real work here if a table reaches it after exceeding tmp_table_size, as
+    InnoDB does, since refilling such a table costs far more than measuring
+    it.
+
+    The default implementation refreshes the handler statistics and returns the
+    data plus the index size; engines whose stats do not track an internal
+    temporary table accurately should override it.
+
+    @return number of bytes occupied, or 0 if the size cannot be determined
+  */
+  virtual ulonglong tmp_table_bytes_used() {
+    if (info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK) != 0) return 0;
+    return stats.data_file_length + stats.index_file_length;
+  }
+
+  /**
+    Remember the size this table occupies right now, if it is the largest seen
+    so far.
+
+    An internal temporary table is not necessarily measurable at the point it
+    is dropped, because it may have been emptied first, and emptying it
+    releases what it held: TempTable gives the memory back to its resource
+    monitor, and InnoDB truncates the B-tree back to an empty root while the
+    session temporary tablespace keeps every extent the table made it
+    allocate.  Measuring only at drop time would therefore report a single
+    page for a table that had grown to gigabytes.
+
+    The table is emptied either because the statement is finishing with it -
+    Query_term::cleanup_query_result() empties a set operation's result table
+    and then closes it, which is what made ORDER BY over a UNION report
+    nothing at all - or because the plan is about to refill it, as
+    MaterializeIterator::Init() and JOIN::clear() do.
+
+    Calling this just before the table is emptied keeps the figure the user
+    cares about, which is how large the table ever became rather than how large
+    it happened to be when the statement finished with it.
+  */
+  void note_tmp_table_bytes_peak() {
+    const ulonglong bytes = tmp_table_bytes_used();
+    if (bytes > m_tmp_table_bytes_peak) m_tmp_table_bytes_peak = bytes;
+  }
+
+  /**
+    The largest size, in bytes, this table has occupied during its lifetime.
+
+    This is a maximum and not a sum: a table that is filled, emptied and filled
+    again to the same size reports that size once, since that is the space it
+    actually needed.
+
+    @return number of bytes, or 0 if the size could never be determined
+  */
+  ulonglong tmp_table_bytes_high_water() {
+    note_tmp_table_bytes_peak();
+    return m_tmp_table_bytes_peak;
+  }
+
   virtual uint32 calculate_key_hash_value(Field **field_array
                                           [[maybe_unused]]) {
     assert(0);

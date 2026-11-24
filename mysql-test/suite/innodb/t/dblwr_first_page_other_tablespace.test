@@ -1,0 +1,79 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+
+--echo #
+--echo # Recovery of a torn first page restores it from the doublewrite copy
+--echo # of the tablespace the caller asked about.  A file whose first page
+--echo # names another tablespace is not a torn page of that tablespace, and
+--echo # the doublewrite copy must not be written over it, whatever the
+--echo # caller expected to find there.
+--echo #
+--echo # The DDL log replay of an interrupted RENAME TABLE validates the
+--echo # target file against the renamed tablespace: put another table's
+--echo # file there.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Failed to read the first page of the file");
+--enable_query_log
+
+let MYSQLD_DATADIR=`select @@datadir`;
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 CHAR(3)) ENGINE=InnoDB;
+CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 CHAR(3)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+INSERT INTO t2 VALUES (2, 'two');
+
+let SPACE_T1=`SELECT space FROM information_schema.innodb_tables WHERE name = 'test/t1'`;
+let SPACE_T2=`SELECT space FROM information_schema.innodb_tables WHERE name = 'test/t2'`;
+
+--echo # Doublewrite copies of the first pages of both tables.
+FLUSH TABLES t1, t2 FOR EXPORT;
+UNLOCK TABLES;
+
+--echo # Crash after the DDL log entry for the rename was written; the file
+--echo # is still test/t1.ibd, and the entry says: rename t3.ibd to t1.ibd.
+SET SESSION debug = '+d,ddl_log_crash_after_rename_space_log_insert';
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 0,CR_SERVER_LOST
+RENAME TABLE t1 TO t3;
+
+--echo # Put t1's file where the replay looks for it, and t2's file at the
+--echo # target of the replay.
+--move_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t3.ibd
+--move_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t1.ibd
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--echo # The replay must have refused the rename ...
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= Failed to read the first page of the file '.*test/t1.ibd';
+--source include/search_pattern.inc
+
+--echo # ... and the first page of t2's file must still be t2's.
+perl;
+use IO::Handle;
+my $fname = "$ENV{'MYSQLD_DATADIR'}/test/t1.ibd";
+open(FILE, "<", $fname) or die "cannot open $fname: $!";
+binmode FILE;
+my $buf;
+read(FILE, $buf, 64);
+close FILE;
+my $fil_id = unpack("N", substr($buf, 34, 4));
+my $fsp_id = unpack("N", substr($buf, 38, 4));
+print "space id in the header of t2's file: "
+      . ($fil_id == $ENV{'SPACE_T2'} && $fsp_id == $ENV{'SPACE_T2'}
+         ? "t2" : "not t2 ($fil_id, $fsp_id)") . "\n";
+EOF
+
+--echo # Put the files back and clean up.
+--source include/shutdown_mysqld.inc
+--move_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/t2.ibd
+--move_file $MYSQLD_DATADIR/test/t3.ibd $MYSQLD_DATADIR/test/t1.ibd
+--source include/start_mysqld.inc
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TABLE t1, t2;

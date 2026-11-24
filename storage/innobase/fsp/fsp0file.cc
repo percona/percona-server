@@ -463,6 +463,13 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
     case DB_INVALID_ENCRYPTION_META:
       break;
 
+    case DB_WRONG_FILE_NAME:
+      /* The first page names another tablespace, in both of its space id
+      fields.  Whatever state the page is in, it is not a torn first page
+      of the tablespace we were asked about, and restoring anything into
+      this file would destroy that other tablespace.  Leave it alone. */
+      break;
+
     default:
       /* For encryption tablespace, we skip the retry step,
       since it is only because the keyring is not ready. */
@@ -470,9 +477,8 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
         return (err);
       }
 
-      /* Re-open the file in read-write mode  Attempt to restore
-      page 0 from doublewrite and read the space ID from a survey
-      of the first few pages. */
+      /* Re-open the file in read-write mode and attempt to restore
+      page 0 from the doublewrite buffer. */
       err = open_read_write(srv_read_only_mode);
       if (err != DB_SUCCESS) {
         ib::error(ER_IB_MSG_395) << "Datafile '" << m_filepath
@@ -482,14 +488,28 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
         return (err);
       };
 
-      err = find_space_id();
-      if (err != DB_SUCCESS || m_space_id == 0) {
-        ib::error(ER_IB_MSG_396)
-            << "Datafile '" << m_filepath
-            << "' is"
-               " corrupted. Cannot determine the space ID from"
-               " the first 64 pages.";
-        return (err);
+      if (space_id != SPACE_UNKNOWN && space_id != 0 &&
+          (m_space_id == SPACE_UNKNOWN || m_space_id == 0 ||
+           m_space_id == space_id)) {
+        /* The caller knows the space id from the redo log or from the
+        directory scan, and the first page does not contradict it: its
+        space id fields are unreadable, torn apart or zero, or they agree
+        with the caller.  Use the caller's id to look up the doublewrite
+        copy of page 0.  A survey of the first pages of the file,
+        find_space_id(), is a heuristic that can pick the wrong id from
+        torn or unrelated content, or find no valid page at all if the
+        whole file was being written at the time of the crash. */
+        m_space_id = space_id;
+      } else {
+        err = find_space_id();
+        if (err != DB_SUCCESS || m_space_id == 0) {
+          ib::error(ER_IB_MSG_396)
+              << "Datafile '" << m_filepath
+              << "' is"
+                 " corrupted. Cannot determine the space ID from"
+                 " the first 64 pages.";
+          return (err);
+        }
       }
 
       err = restore_from_doublewrite(0);

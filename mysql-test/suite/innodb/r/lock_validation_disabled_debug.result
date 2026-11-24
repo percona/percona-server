@@ -1,0 +1,97 @@
+SET @saved_disabled = @@GLOBAL.innodb_lock_validation_disabled_debug;
+CREATE TABLE t1 (id INT PRIMARY KEY, k INT, v INT, KEY k (k)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 10, 0), (2, 20, 0), (3, 30, 0);
+SET GLOBAL innodb_lock_validation_disabled_debug = 1;
+SELECT @@GLOBAL.innodb_lock_validation_disabled_debug;
+@@GLOBAL.innodb_lock_validation_disabled_debug
+1
+# Implicit lock on a secondary index record is converted to an
+# explicit one when another transaction reads it with a lock.
+BEGIN;
+INSERT INTO t1 VALUES (4, 40, 0);
+SET SESSION innodb_lock_wait_timeout = 1;
+BEGIN;
+SELECT id FROM t1 FORCE INDEX (k) WHERE k = 40 FOR SHARE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+ROLLBACK;
+# Lock wait on a clustered index record is granted after commit,
+# with the switch flipped while the transaction waits.
+BEGIN;
+UPDATE t1 SET v = v + 1 WHERE id = 1;
+SET SESSION innodb_lock_wait_timeout = 50;
+BEGIN;
+UPDATE t1 SET v = v + 1 WHERE id = 1;
+SET GLOBAL innodb_lock_validation_disabled_debug = 1 - 1;
+COMMIT;
+COMMIT;
+SET GLOBAL innodb_lock_validation_disabled_debug = 1;
+# Deadlock is still detected. con1 modified more rows, so con2 is
+# chosen as the victim.
+BEGIN;
+UPDATE t1 SET v = v + 1 WHERE id IN (1, 2);
+BEGIN;
+UPDATE t1 SET v = v + 1 WHERE id = 3;
+UPDATE t1 SET v = v + 1 WHERE id = 3;
+UPDATE t1 SET v = v + 1 WHERE id = 2;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ROLLBACK;
+COMMIT;
+SELECT * FROM t1 ORDER BY id;
+id	k	v
+1	10	3
+2	20	1
+3	30	1
+# InnoDB monitor output runs lock_validate() unless disabled.
+BEGIN;
+UPDATE t1 SET v = v + 1 WHERE id = 1;
+SHOW ENGINE INNODB STATUS;
+ROLLBACK;
+SET GLOBAL innodb_lock_validation_disabled_debug = 0;
+SELECT @@GLOBAL.innodb_lock_validation_disabled_debug;
+@@GLOBAL.innodb_lock_validation_disabled_debug
+0
+# Implicit lock on a secondary index record is converted to an
+# explicit one when another transaction reads it with a lock.
+BEGIN;
+INSERT INTO t1 VALUES (4, 40, 0);
+SET SESSION innodb_lock_wait_timeout = 1;
+BEGIN;
+SELECT id FROM t1 FORCE INDEX (k) WHERE k = 40 FOR SHARE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+ROLLBACK;
+# Lock wait on a clustered index record is granted after commit,
+# with the switch flipped while the transaction waits.
+BEGIN;
+UPDATE t1 SET v = v + 1 WHERE id = 1;
+SET SESSION innodb_lock_wait_timeout = 50;
+BEGIN;
+UPDATE t1 SET v = v + 1 WHERE id = 1;
+SET GLOBAL innodb_lock_validation_disabled_debug = 1 - 0;
+COMMIT;
+COMMIT;
+SET GLOBAL innodb_lock_validation_disabled_debug = 0;
+# Deadlock is still detected. con1 modified more rows, so con2 is
+# chosen as the victim.
+BEGIN;
+UPDATE t1 SET v = v + 1 WHERE id IN (1, 2);
+BEGIN;
+UPDATE t1 SET v = v + 1 WHERE id = 3;
+UPDATE t1 SET v = v + 1 WHERE id = 3;
+UPDATE t1 SET v = v + 1 WHERE id = 2;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ROLLBACK;
+COMMIT;
+SELECT * FROM t1 ORDER BY id;
+id	k	v
+1	10	6
+2	20	2
+3	30	2
+# InnoDB monitor output runs lock_validate() unless disabled.
+BEGIN;
+UPDATE t1 SET v = v + 1 WHERE id = 1;
+SHOW ENGINE INNODB STATUS;
+ROLLBACK;
+DROP TABLE t1;
+SET GLOBAL innodb_lock_validation_disabled_debug = @saved_disabled;

@@ -1,0 +1,209 @@
+--source include/not_valgrind.inc
+
+--echo #
+--echo # The doublewrite files hold several copies of a page that was flushed
+--echo # more than once.  When the page is torn, recovery must restore the
+--echo # newest copy, not the first one it finds in the files: an older copy
+--echo # misses the changes between its LSN and the checkpoint, and those are
+--echo # not in the redo log any more.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Database page corruption on disk or a failed file read of page");
+call mtr.add_suppression("Database page corruption or a failed file read of page");
+--enable_query_log
+
+let MYSQLD_DATADIR=`select @@datadir`;
+let INNODB_PAGE_SIZE=`select @@innodb_page_size`;
+let DBLWR_DIR=$MYSQL_TMP_DIR/dblwr;
+
+# Flush the root page (page 4) of $table twice, with an UPDATE in between,
+# so that the doublewrite files hold two copies of it with different LSNs,
+# let the checkpoint pass the UPDATE, and kill the server.
+--write_file $MYSQL_TMP_DIR/two_copies.inc
+eval CREATE TABLE $table (f1 INT PRIMARY KEY, f2 CHAR(3)) ENGINE=InnoDB;
+eval INSERT INTO $table VALUES (1, 'old');
+
+--echo # Write the pages of the table: a first copy of its root page goes to
+--echo # the doublewrite buffer.
+eval FLUSH TABLES $table FOR EXPORT;
+UNLOCK TABLES;
+
+eval UPDATE $table SET f2 = 'new' WHERE f1 = 1;
+
+--echo # Write the root page again: a newer copy goes to a later doublewrite
+--echo # slot; the older one stays behind.
+eval FLUSH TABLES $table FOR EXPORT;
+UNLOCK TABLES;
+
+--echo # Wait for a checkpoint past the UPDATE, so that its redo record is no
+--echo # longer applied at recovery.  The lsns are read from INNODB_METRICS;
+--echo # the Innodb_redo_log_*_lsn status variables are refreshed only now
+--echo # and then.
+SET GLOBAL innodb_monitor_enable = module_log;
+--source suite/innodb/include/log_read_current_lsn.inc
+let $wait_condition =
+  SELECT COUNT >= $current_lsn FROM INFORMATION_SCHEMA.INNODB_METRICS
+  WHERE NAME = 'log_lsn_last_checkpoint';
+--source include/wait_condition.inc
+
+--echo # A change after the checkpoint, so that recovery has a redo record
+--echo # for the tablespace and opens it.  The page cleaner is not allowed to
+--echo # write the page, so the checkpoint cannot move past the change before
+--echo # the server is killed.
+SET GLOBAL innodb_adaptive_flushing = OFF;
+SET GLOBAL innodb_idle_flush_pct = 0;
+SET GLOBAL innodb_max_dirty_pages_pct_lwm = 0;
+SET GLOBAL innodb_max_dirty_pages_pct = 99;
+eval INSERT INTO $table VALUES (2, 'add');
+
+let SPACE=`SELECT space FROM information_schema.innodb_tables WHERE name = 'test/$table'`;
+
+--source include/kill_mysqld.inc
+EOF
+
+# Perl helpers shared by the two rounds: find the copies of page 4 of
+# tablespace $SPACE in the doublewrite files, in the order recovery reads
+# them, and tear page 4 of $TABLE.
+--write_file $MYSQL_TMP_DIR/dblwr.pl
+use strict;
+use Fcntl qw(SEEK_SET);
+use IO::Handle;
+our $ps = $ENV{'INNODB_PAGE_SIZE'};
+
+# Returns a list of [file, offset, lsn] for the copies of the page.
+sub find_copies {
+  my @copies;
+  foreach my $f (sort glob("$ENV{'DBLWR_DIR'}/*.dblwr")) {
+    open(my $fh, "<", $f) or die "cannot open $f: $!";
+    binmode $fh;
+    my $buf;
+    for (my $off = 0; read($fh, $buf, $ps) == $ps; $off += $ps) {
+      my $page_no = unpack("N", substr($buf, 4, 4));
+      my $space_id = unpack("N", substr($buf, 34, 4));
+      next unless $space_id == $ENV{'SPACE'} && $page_no == 4;
+      my ($hi, $lo) = unpack("NN", substr($buf, 16, 8));
+      push @copies, [$f, $off, $hi * 4294967296 + $lo];
+    }
+    close $fh;
+  }
+  return @copies;
+}
+
+sub tear_page {
+  my $fname = "$ENV{'MYSQLD_DATADIR'}/test/$ENV{'TORN_TABLE'}.ibd";
+  open(my $fh, "+<", $fname) or die "cannot open $fname: $!";
+  binmode $fh;
+  seek($fh, 4 * $ps + $ps / 2, SEEK_SET);
+  print $fh chr(0xff) x ($ps / 2);
+  close $fh;
+}
+
+sub read_slot {
+  my ($f, $off) = @_;
+  open(my $fh, "<", $f) or die "cannot open $f: $!";
+  binmode $fh;
+  seek($fh, $off, SEEK_SET);
+  my $buf;
+  read($fh, $buf, $ps) == $ps or die "short read from $f";
+  close $fh;
+  return $buf;
+}
+
+sub write_slot {
+  my ($f, $off, $buf) = @_;
+  open(my $fh, "+<", $f) or die "cannot open $f: $!";
+  binmode $fh;
+  seek($fh, $off, SEEK_SET);
+  print $fh $buf;
+  close $fh;
+}
+1;
+EOF
+
+--echo #
+--echo # Round 1: an older copy precedes the newest one in the files.
+--echo #
+let $table = t1;
+--source $MYSQL_TMP_DIR/two_copies.inc
+let TORN_TABLE= $table;
+
+--echo # Check the premise: two copies with different LSNs.  Which slots they
+--echo # went to depends on the flushing threads, so put them in the order
+--echo # recovery reads them, the older one first.  Then tear page 4 of t1:
+--echo # its second half is garbage.
+perl;
+require "$ENV{'MYSQL_TMP_DIR'}/dblwr.pl";
+my @copies = find_copies();
+my %lsns = map { $_->[2] => 1 } @copies;
+die "expected two copies of the page with different LSNs, found "
+    . scalar(@copies) . " copies with " . scalar(keys %lsns) . " LSNs"
+    unless scalar(keys %lsns) == 2;
+my @pages = map { read_slot($_->[0], $_->[1]) }
+            sort { $a->[2] <=> $b->[2] } @copies;
+foreach my $c (@copies) {
+  write_slot($c->[0], $c->[1], shift @pages);
+}
+my @after = find_copies();
+print "the first copy of the page in the doublewrite files is the "
+      . ($after[0][2] < $after[-1][2] ? "older" : "newer") . " one\n";
+tear_page();
+EOF
+
+--source include/start_mysqld.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= Recovered page \\[page id: space=\\d+, page number=4\\] from the doublewrite buffer;
+--source include/search_pattern.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1 ORDER BY f1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Round 2: two copies with the same, highest LSN, of which the first
+--echo # one in the files is torn.  The intact one must be used.
+--echo #
+let $table = t2;
+--source $MYSQL_TMP_DIR/two_copies.inc
+let TORN_TABLE= $table;
+
+--echo # Overwrite the older copy with the newest one, damage the copy that
+--echo # comes first in the files (keeping its first sector, with the page
+--echo # id and LSN), and tear page 4 of t2.
+perl;
+require "$ENV{'MYSQL_TMP_DIR'}/dblwr.pl";
+my @copies = find_copies();
+my %lsns = map { $_->[2] => 1 } @copies;
+die "expected two copies of the page with different LSNs, found "
+    . scalar(@copies) . " copies with " . scalar(keys %lsns) . " LSNs"
+    unless scalar(keys %lsns) == 2;
+my ($newest) = sort { $b->[2] <=> $a->[2] } @copies;
+my $page = read_slot($newest->[0], $newest->[1]);
+foreach my $c (@copies) {
+  write_slot($c->[0], $c->[1], $page);
+}
+my $damaged = $page;
+substr($damaged, 1024, 512) = chr(0xff) x 512;
+write_slot($copies[0][0], $copies[0][1], $damaged);
+my @after = find_copies();
+my %after_lsns = map { $_->[2] => 1 } @after;
+print "the copies of the page in the doublewrite files now have "
+      . scalar(keys %after_lsns) . " distinct LSN\n";
+tear_page();
+EOF
+
+--source include/start_mysqld.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= Recovered page \\[page id: space=\\d+, page number=4\\] from the doublewrite buffer;
+--source include/search_pattern.inc
+
+CHECK TABLE t2;
+SELECT f1, f2 FROM t2 ORDER BY f1;
+
+DROP TABLE t2;
+
+--remove_file $MYSQL_TMP_DIR/two_copies.inc
+--remove_file $MYSQL_TMP_DIR/dblwr.pl

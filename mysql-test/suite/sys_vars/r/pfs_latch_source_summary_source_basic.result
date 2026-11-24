@@ -1,0 +1,15 @@
+select @@global.performance_schema_latch_source_summary;
+@@global.performance_schema_latch_source_summary
+SOURCE
+select variable_name, variable_source from performance_schema.variables_info
+where variable_name='performance_schema_latch_source_summary';
+variable_name	variable_source
+performance_schema_latch_source_summary	COMMAND_LINE
+set global performance_schema_latch_source_summary = OFF;
+select @@global.performance_schema_latch_source_summary;
+@@global.performance_schema_latch_source_summary
+OFF
+set global performance_schema_latch_source_summary = SOURCE;
+select @@global.performance_schema_latch_source_summary;
+@@global.performance_schema_latch_source_summary
+SOURCE

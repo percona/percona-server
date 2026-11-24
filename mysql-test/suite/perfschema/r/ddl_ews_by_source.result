@@ -1,0 +1,12 @@
+alter table performance_schema.events_waits_summary_by_source
+add column foo integer;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+truncate table performance_schema.events_waits_summary_by_source;
+ALTER TABLE performance_schema.events_waits_summary_by_source ADD INDEX test_index(SOURCE);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE UNIQUE INDEX test_index
+ON performance_schema.events_waits_summary_by_source(SOURCE);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE TABLE test.create_select
+AS SELECT * from performance_schema.events_waits_summary_by_source;
+DROP TABLE test.create_select;

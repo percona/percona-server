@@ -141,6 +141,12 @@ static void apply_heuristic(PFS_global_param *p, const PFS_sizing_data *h) {
     p->m_digest_sizing = h->m_digest_sizing;
   }
 
+  /* Percona: fixed default, the number of acquire sites does not depend on
+  the server sizing. */
+  if (p->m_latch_source_sizing < 0) {
+    p->m_latch_source_sizing = 4096;
+  }
+
   if (p->m_events_transactions_history_sizing < 0) {
     p->m_events_transactions_history_sizing =
         h->m_events_transactions_history_sizing;
@@ -285,6 +291,7 @@ void pfs_automated_sizing(PFS_global_param *param) {
     param->m_events_statements_history_sizing = 0;
     param->m_events_statements_history_long_sizing = 0;
     param->m_digest_sizing = 0;
+    param->m_latch_source_sizing = 0; /* Percona */
     param->m_program_sizing = 0;
     param->m_prepared_stmt_sizing = 0;
     param->m_events_transactions_history_sizing = 0;

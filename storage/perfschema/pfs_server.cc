@@ -54,6 +54,7 @@
 #include "storage/perfschema/pfs_host.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_latch_source.h" /* Percona */
 #include "storage/perfschema/pfs_metrics_service_imp.h"
 #include "storage/perfschema/pfs_plugin_table.h"
 #include "storage/perfschema/pfs_prepared_stmt.h"
@@ -169,7 +170,8 @@ int initialize_performance_schema(
       init_host(param) || init_host_hash(param) || init_user(param) ||
       init_user_hash(param) || init_account(param) ||
       init_account_hash(param) || init_digest(param) ||
-      init_digest_hash(param) || init_program(param) ||
+      init_digest_hash(param) || init_latch_source(param) ||
+      init_latch_source_hash(param) || init_program(param) ||
       init_program_hash(param) || init_prepared_stmt(param) ||
       init_meter_class(param->m_meter_class_sizing) ||
       init_metric_class(param->m_metric_class_sizing) ||
@@ -213,6 +215,7 @@ int initialize_performance_schema(
     flag_thread_instrumentation =
         param->m_consumer_thread_instrumentation_enabled;
     flag_statements_digest = param->m_consumer_statement_digest_enabled;
+    update_latch_source_summary_flag(); /* Percona */
   } else {
     flag_events_stages_current = false;
     flag_events_stages_history = false;
@@ -230,6 +233,7 @@ int initialize_performance_schema(
     flag_global_instrumentation = false;
     flag_thread_instrumentation = false;
     flag_statements_digest = false;
+    flag_latch_source_summary = false; /* Percona */
   }
 
   if (!init_failed) {
@@ -354,6 +358,7 @@ static void cleanup_performance_schema() {
   cleanup_table_share_hash();
   cleanup_file_hash();
   cleanup_digest_hash();
+  cleanup_latch_source_hash(); /* Percona */
 
   /*
     Then the lookup tables
@@ -376,6 +381,7 @@ static void cleanup_performance_schema() {
   */
 
   cleanup_digest();
+  cleanup_latch_source(); /* Percona */
   cleanup_account();
   cleanup_host();
   cleanup_user();
@@ -433,6 +439,7 @@ void shutdown_performance_schema() {
   flag_global_instrumentation = false;
   flag_thread_instrumentation = false;
   flag_statements_digest = false;
+  flag_latch_source_summary = false; /* Percona */
 
   global_table_io_class.m_enabled = false;
   global_table_lock_class.m_enabled = false;

@@ -44,6 +44,7 @@
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_host.h"
 #include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_latch_source.h" /* Percona */
 #include "storage/perfschema/pfs_stat.h"
 #include "storage/perfschema/pfs_user.h"
 
@@ -653,6 +654,7 @@ PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
     pfs->m_account_hash_pins = nullptr;
     pfs->m_host_hash_pins = nullptr;
     pfs->m_digest_hash_pins = nullptr;
+    pfs->m_latch_source_hash_pins = nullptr; /* Percona */
     pfs->m_program_hash_pins = nullptr;
 
     pfs->m_user_name.reset();
@@ -943,6 +945,7 @@ void destroy_thread(PFS_thread *pfs) {
     lf_hash_put_pins(pfs->m_digest_hash_pins);
     pfs->m_digest_hash_pins = nullptr;
   }
+  cleanup_latch_source_pins(pfs); /* Percona */
   if (pfs->m_program_hash_pins) {
     lf_hash_put_pins(pfs->m_program_hash_pins);
     pfs->m_program_hash_pins = nullptr;

@@ -1,0 +1,2 @@
+--performance-schema-consumer-thread-instrumentation=0
+--performance-schema-latch-source-summary=SOURCE

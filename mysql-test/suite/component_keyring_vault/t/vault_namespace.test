@@ -1,0 +1,84 @@
+--source include/have_component_keyring_vault.inc
+
+# Test: vault_namespace
+# Verifies the optional 'vault_namespace' configuration parameter
+# (sent as the 'X-Vault-Namespace' HTTP header on every Vault request).
+#
+# The test produces the same result with and without a namespaced Vault
+# server: when MTR_VAULT_NAMESPACE is set, all the checks are done against
+# that namespace, otherwise against an empty (unset) namespace.
+# Note that a non-existing namespace can not be tested here because Vault
+# Community Edition silently ignores the 'X-Vault-Namespace' header.
+
+--let $vault_conf_mount_point_uuid = `SELECT UUID()`
+--source ../inc/parse_combination.inc
+
+# Create mount points
+--let $mount_point_service_op = CREATE
+--source ../inc/mount_point_service.inc
+
+--source ../inc/setup_component.inc
+
+CALL mtr.add_suppression("The component is not initialized properly. Error: Failed to initialize or reinitialize keyring");
+
+--let $vault_namespace_env = $MTR_VAULT_NAMESPACE
+--let $expected_namespace = <NONE>
+if ($vault_namespace_env)
+{
+  --let $expected_namespace = $vault_namespace_env
+}
+
+--echo # Status reports the configured namespace
+--let $ns_status = query_get_value(SELECT STATUS_VALUE FROM performance_schema.keyring_component_status WHERE STATUS_KEY = 'vault_namespace', STATUS_VALUE, 1)
+--let $assert_text = vault_namespace status value matches the configuration
+--let $assert_cond = "$ns_status" = "$expected_namespace"
+--source include/assert.inc
+
+--echo # Keys can be generated and stored in the namespace
+CREATE TABLE t1 (a INT PRIMARY KEY) ENCRYPTION = 'Y';
+INSERT INTO t1 VALUES (1), (2);
+SELECT * FROM t1;
+
+--echo # Leading and trailing whitespace is trimmed from vault_namespace
+--let $skip_vault_conf_namespace = 1
+--source ../inc/generate_comp_config_content.inc
+--let $skip_vault_conf_namespace =
+--let KEYRING_CONFIG_CONTENT = `SELECT CONCAT('{ ', '$config_content', ', \"vault_namespace\": \"  ', '$vault_namespace_env', '  \" }')`
+--source include/keyring_tests/helper/local_keyring_create_config.inc
+
+ALTER INSTANCE RELOAD KEYRING;
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT * FROM t1;
+
+--let $ns_status = query_get_value(SELECT STATUS_VALUE FROM performance_schema.keyring_component_status WHERE STATUS_KEY = 'vault_namespace', STATUS_VALUE, 1)
+--let $assert_text = vault_namespace status value is trimmed
+--let $assert_cond = "$ns_status" = "$expected_namespace"
+--source include/assert.inc
+
+--echo # Non-string vault_namespace is rejected and the keyring is preserved
+--let $skip_vault_conf_namespace = 1
+--source ../inc/generate_comp_config_content.inc
+--let $skip_vault_conf_namespace =
+--let KEYRING_CONFIG_CONTENT = `SELECT CONCAT('{ ', '$config_content', ', \"vault_namespace\": 1 }')`
+--source include/keyring_tests/helper/local_keyring_create_config.inc
+
+--error ER_RELOAD_KEYRING_FAILURE
+ALTER INSTANCE RELOAD KEYRING;
+
+SELECT STATUS_KEY, STATUS_VALUE FROM performance_schema.keyring_component_status
+  WHERE STATUS_KEY = 'Component_status';
+--let $ns_status = query_get_value(SELECT STATUS_VALUE FROM performance_schema.keyring_component_status WHERE STATUS_KEY = 'vault_namespace', STATUS_VALUE, 1)
+--let $assert_text = vault_namespace status value is unchanged after failed reload
+--let $assert_cond = "$ns_status" = "$expected_namespace"
+--source include/assert.inc
+
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--source ../inc/teardown_component.inc
+
+# Delete mount points
+--let $mount_point_service_op = DELETE
+--source ../inc/mount_point_service.inc

@@ -24,6 +24,7 @@
 #include "sql/rpl_context.h"
 
 #include <stddef.h>
+#include <string>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -45,6 +46,9 @@ Session_consistency_gtids_ctx::Session_consistency_gtids_ctx()
       m_curr_session_track_gtids(SESSION_TRACK_GTIDS_OFF) {}
 
 Session_consistency_gtids_ctx::~Session_consistency_gtids_ctx() {
+  delete m_pre_snapshot_gtid_set;
+  m_pre_snapshot_gtid_set = nullptr;
+
   if (m_gtid_set) {
     delete m_gtid_set;
     m_gtid_set = nullptr;
@@ -137,6 +141,78 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
   return res;
 }
 
+bool Session_consistency_gtids_ctx::notify_after_consistent_snapshot(
+    const THD *thd, const std::string &snapshot_gtids) {
+  DBUG_TRACE;
+  assert(thd);
+  bool res = false;
+
+  /*
+    Check the current session variable, not m_curr_session_track_gtids: that
+    is refreshed only after the whole command, so it misses a change by an
+    earlier statement of a multi-statement query, which sends its own OK
+    packet for this statement.
+  */
+  if (m_listener == nullptr ||
+      thd->variables.session_track_gtids != SESSION_TRACK_GTIDS_ALL_GTIDS)
+    return res;
+
+  /*
+    The GTIDs collected earlier for this response, e.g. by an earlier statement
+    of a stored procedure, may be newer than the snapshot (FROM SESSION).
+    Report only the snapshot, but keep them, and whether they were already
+    sent, for reset_snapshot_gtids(). If a snapshot is already reported, they
+    are already kept.
+  */
+  if (!m_has_snapshot_gtids) {
+    if (m_pre_snapshot_gtid_set == nullptr)
+      m_pre_snapshot_gtid_set = new Gtid_set(m_tsid_map);
+    m_pre_snapshot_gtid_set->clear();
+    res = m_pre_snapshot_gtid_set->add_gtid_set(m_gtid_set) != RETURN_STATUS_OK;
+    m_pre_snapshot_gtids_reported = m_gtids_reported;
+  }
+
+  m_gtid_set->clear();
+  if (!res && !snapshot_gtids.empty())
+    res = m_gtid_set->add_gtid_text(snapshot_gtids.c_str()) != RETURN_STATUS_OK;
+
+  if (!res) {
+    /* Report the snapshot GTID set even if it is empty. */
+    m_has_snapshot_gtids = true;
+    notify_ctx_change_listener();
+  }
+  return res;
+}
+
+bool Session_consistency_gtids_ctx::reset_snapshot_gtids() {
+  DBUG_TRACE;
+  if (!m_has_snapshot_gtids) return false;
+  m_has_snapshot_gtids = false;
+
+  /*
+    Restore what was collected before the snapshot. If it was already sent,
+    e.g. by an earlier statement of a multi-statement query, it is not sent
+    again.
+  */
+  m_gtid_set->clear();
+  const bool res =
+      m_gtid_set->add_gtid_set(m_pre_snapshot_gtid_set) != RETURN_STATUS_OK;
+  m_gtids_reported = m_pre_snapshot_gtids_reported;
+  m_pre_snapshot_gtid_set->clear();
+  m_pre_snapshot_gtids_reported = false;
+
+  /*
+    A response sent since the snapshot, e.g. the OK packet terminating a
+    result set of a stored procedure with CLIENT_DEPRECATE_EOF, sent the
+    snapshot instead and reset the tracker's changed flag. Mark the restored
+    GTIDs as changed again if they were not sent yet.
+  */
+  if (!res && !m_gtids_reported && !m_gtid_set->is_empty() &&
+      m_listener != nullptr)
+    notify_ctx_change_listener();
+  return res;
+}
+
 void Session_consistency_gtids_ctx::
     update_tracking_activeness_from_session_variable(const THD *thd) {
   m_curr_session_track_gtids = thd->variables.session_track_gtids;
@@ -148,6 +224,10 @@ bool Session_consistency_gtids_ctx::notify_after_response_packet(
   DBUG_TRACE;
 
   if (m_gtid_set && !m_gtid_set->is_empty()) m_gtid_set->clear();
+  if (m_pre_snapshot_gtid_set) m_pre_snapshot_gtid_set->clear();
+  m_has_snapshot_gtids = false;
+  m_gtids_reported = false;
+  m_pre_snapshot_gtids_reported = false;
 
   /*
    Every time we get a notification that a packet was sent, we update
@@ -181,6 +261,10 @@ void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
     [[maybe_unused]]) {
   assert(m_listener == listener || m_listener == nullptr);
 
+  /* Uses m_tsid_map, delete it first. */
+  delete m_pre_snapshot_gtid_set;
+  m_pre_snapshot_gtid_set = nullptr;
+
   if (m_gtid_set) delete m_gtid_set;
 
   if (m_tsid_map) delete m_tsid_map;
@@ -188,6 +272,9 @@ void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
   m_listener = nullptr;
   m_gtid_set = nullptr;
   m_tsid_map = nullptr;
+  m_has_snapshot_gtids = false;
+  m_gtids_reported = false;
+  m_pre_snapshot_gtids_reported = false;
 }
 
 Last_used_gtid_tracker_ctx::Last_used_gtid_tracker_ctx() {

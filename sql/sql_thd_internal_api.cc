@@ -387,6 +387,10 @@ bool thd_is_dd_update_stmt(const THD *thd) {
 
 my_thread_id thd_thread_id(const THD *thd) { return (thd->thread_id()); }
 
+void thd_set_consistent_snapshot_ignored(THD *thd) {
+  thd->consistent_snapshot_ignored = true;
+}
+
 /** Gets page fragmentation statistics. Assigns zeros to stats if thd is
 NULL.
 @param[in]  thd   the calling thread

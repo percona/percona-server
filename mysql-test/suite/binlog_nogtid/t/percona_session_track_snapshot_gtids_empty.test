@@ -1,0 +1,32 @@
+#
+# With session_track_gtids = ALL_GTIDS, START TRANSACTION WITH CONSISTENT
+# SNAPSHOT returns the GTID set of the snapshot in the SESSION_TRACK_GTIDS
+# entry of its OK packet. An empty snapshot GTID set is returned as an entry
+# with an empty string: a snapshot was established and its GTID set is empty.
+# Other statements never return an entry with an empty GTID set.
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/have_gtid_mode_off.inc
+
+RESET BINARY LOGS AND GTIDS;
+
+CREATE TABLE t1 (a INT) ENGINE = InnoDB;
+
+SET SESSION session_track_gtids = 'ALL_GTIDS';
+
+--echo # Empty gtid_executed, commit: no entry.
+--enable_session_track_info
+INSERT INTO t1 VALUES (1);
+--disable_session_track_info
+
+--echo # Empty snapshot GTID set: an entry with an empty string.
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+SHOW STATUS LIKE 'Binlog_snapshot_gtid_executed';
+COMMIT;
+
+SET SESSION session_track_gtids = 'OFF';
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;

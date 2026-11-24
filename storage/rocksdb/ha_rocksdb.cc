@@ -7969,6 +7969,7 @@ static int rocksdb_start_tx_and_assign_read_view(
                         "supported for START TRANSACTION WITH CONSISTENT "
                         "SNAPSHOT in RocksDB Storage Engine. Snapshot has not "
                         "been taken.");
+    thd_set_consistent_snapshot_ignored(thd);
   }
   return HA_EXIT_SUCCESS;
 }

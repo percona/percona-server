@@ -1,0 +1,208 @@
+#
+# PS-11796: ha_rocksdb::info() is the only place that sets ref_length.
+# When update_stats() failed (e.g. the recalculation of bad cached stats
+# failed), it returned before that, with a plain return instead of
+# DBUG_RETURN, and ha_rocksdb::open() ignores the result. A debug server
+# aborted with "missing DBUG_RETURN". A release server kept the default
+# ref_length of 8 bytes for the opened handler, while a BIGINT primary
+# key needs 12, so position() wrote past the row position buffers. A
+# partitioned table took its own ref_length at open from these 8 bytes,
+# and a later position() on it crashed.
+#
+# info() also returned before it gave the key parts their rec_per_key
+# estimates, so a table opened this way had none, which the optimizer
+# must not see change (PS-11840). ha_rocksdb::open() asserts that every
+# key part has an estimate.
+#
+CREATE TABLE t1 (pk BIGINT PRIMARY KEY, a INT) ENGINE=ROCKSDB
+PARTITION BY HASH(pk) PARTITIONS 2;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+CREATE TABLE t2 (pk VARCHAR(200) PRIMARY KEY, a INT) ENGINE=ROCKSDB;
+INSERT INTO t2 VALUES (REPEAT('a', 150), 1), (REPEAT('b', 150), 2);
+# Open t1 and t2 while the stats recalculation fails.
+FLUSH TABLES;
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+LOCK TABLES t1 READ, t2 READ;
+UNLOCK TABLES;
+SET SESSION debug = "-d,myrocks_simulate_stats_recalc_failure";
+# An UPDATE of the scanned key buffers row ids with position().
+UPDATE t1 SET pk = pk + 10 WHERE pk BETWEEN 1 AND 3;
+SELECT * FROM t1 ORDER BY pk;
+pk	a
+11	1
+12	2
+13	3
+UPDATE t2 SET pk = CONCAT(pk, 'x') WHERE pk > 'a';
+SELECT LENGTH(pk), LEFT(pk, 1), RIGHT(pk, 1), a FROM t2 ORDER BY pk;
+LENGTH(pk)	LEFT(pk, 1)	RIGHT(pk, 1)	a
+151	a	x	1
+151	b	x	2
+DROP TABLE t1, t2;
+#
+# A table that has estimates keeps them when update_stats() fails for a
+# statement that goes on all the same, as a single-table UPDATE does:
+# 500 rows for each of the 2 values of a.
+#
+SET @save_sampling_pct = @@global.rocksdb_table_stats_sampling_pct;
+SET GLOBAL rocksdb_table_stats_sampling_pct = 100;
+CREATE TABLE t3 (pk INT PRIMARY KEY, a INT, b INT, c INT, KEY kab (a, b))
+ENGINE=ROCKSDB;
+INSERT INTO t3 WITH RECURSIVE s (i) AS
+(SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 1000)
+SELECT i, i MOD 2, i, i FROM s;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+SET GLOBAL rocksdb_table_stats_sampling_pct = @save_sampling_pct;
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
+# Take the estimate from the index statistics, not from an index dive.
+SET SESSION eq_range_index_dive_limit = 1;
+EXPLAIN UPDATE t3 FORCE INDEX (kab) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	range	kab	kab	5	const	500	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t3` FORCE INDEX (`kab`) set `test`.`t3`.`c` = 0 where (`test`.`t3`.`a` = 1)
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+EXPLAIN UPDATE t3 FORCE INDEX (kab) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	range	kab	kab	5	const	500	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t3` FORCE INDEX (`kab`) set `test`.`t3`.`c` = 0 where (`test`.`t3`.`a` = 1)
+SET SESSION debug = "-d,myrocks_simulate_stats_recalc_failure";
+#
+# A table that is opened for the first time while update_stats() fails
+# has no estimates to keep, and its number of rows is not known, so it
+# gets the estimates of a table without rows, 1 row for each value, and
+# not ones made from the row count that the failed call left behind.
+# The next statement for which update_stats() works sets the estimates
+# from the index statistics.
+#
+FLUSH TABLES;
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+EXPLAIN UPDATE t3 FORCE INDEX (kab) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	range	kab	kab	5	const	1	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t3` FORCE INDEX (`kab`) set `test`.`t3`.`c` = 0 where (`test`.`t3`.`a` = 1)
+SET SESSION debug = "-d,myrocks_simulate_stats_recalc_failure";
+EXPLAIN UPDATE t3 FORCE INDEX (kab) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t3	NULL	range	kab	kab	5	const	500	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t3` FORCE INDEX (`kab`) set `test`.`t3`.`c` = 0 where (`test`.`t3`.`a` = 1)
+DROP TABLE t3;
+#
+# A table keeps its estimates too when another session opens it while
+# update_stats() fails, also if it is partitioned.
+# Partition_base::info() refreshes the statistics of every partition
+# and then lets one of them set the estimates in a call of its own,
+# which took the 0 rows that the failed refresh left behind for the
+# number of rows and set the estimates of a table without rows. The
+# rows are in the memtable, so there are no index statistics: the
+# estimate is the default of 8 rows for the first of the 4 key parts
+# (with the primary key) of kabc.
+#
+CREATE TABLE t4 (pk INT PRIMARY KEY, a INT, b INT, c INT, KEY kabc (a, b, c))
+ENGINE=ROCKSDB;
+CREATE TABLE t4p (pk INT PRIMARY KEY, a INT, b INT, c INT, KEY kabc (a, b, c))
+ENGINE=ROCKSDB PARTITION BY HASH (pk) PARTITIONS 2;
+INSERT INTO t4 WITH RECURSIVE s (i) AS
+(SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 1000)
+SELECT i, i MOD 2, i, i FROM s;
+INSERT INTO t4p WITH RECURSIVE s (i) AS
+(SELECT 1 UNION ALL SELECT i + 1 FROM s WHERE i < 1000)
+SELECT i, i MOD 2, i, i FROM s;
+EXPLAIN UPDATE t4 FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t4	NULL	range	kabc	kabc	5	const	8	#	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t4` FORCE INDEX (`kabc`) set `test`.`t4`.`c` = 0 where (`test`.`t4`.`a` = 1)
+EXPLAIN UPDATE t4p FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t4p	p0,p1	range	kabc	kabc	5	const	8	#	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t4p` FORCE INDEX (`kabc`) set `test`.`t4p`.`c` = 0 where (`test`.`t4p`.`a` = 1)
+# This connection keeps the tables in use, so that the other one opens
+# them again.
+LOCK TABLES t4 READ, t4p READ;
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+LOCK TABLES t4 READ, t4p READ;
+UNLOCK TABLES;
+UNLOCK TABLES;
+# The estimates as they are now: these statements do not refresh them,
+# as update_stats() fails for them too.
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+EXPLAIN UPDATE t4 FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t4	NULL	range	kabc	kabc	5	const	8	#	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t4` FORCE INDEX (`kabc`) set `test`.`t4`.`c` = 0 where (`test`.`t4`.`a` = 1)
+EXPLAIN UPDATE t4p FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t4p	p0,p1	range	kabc	kabc	5	const	8	#	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t4p` FORCE INDEX (`kabc`) set `test`.`t4p`.`c` = 0 where (`test`.`t4p`.`a` = 1)
+SET SESSION debug = "-d,myrocks_simulate_stats_recalc_failure";
+#
+# The same with index statistics: 500 rows for each value of a. Then
+# the index statistics change, as rows with 100 other values of a are
+# flushed, and no statement has set the estimates from them yet when
+# the other session opens the tables. The estimates stay as they are:
+# the partition must not set them from the new index statistics and
+# the number of rows that the failed refresh left behind either.
+#
+SET GLOBAL rocksdb_table_stats_sampling_pct = 100;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+ANALYZE TABLE t4, t4p;
+Table	Op	Msg_type	Msg_text
+test.t4	analyze	status	OK
+test.t4p	analyze	status	OK
+INSERT INTO t4 WITH RECURSIVE s (i) AS
+(SELECT 1001 UNION ALL SELECT i + 1 FROM s WHERE i < 2000)
+SELECT i, 1000 + i MOD 100, i, i FROM s;
+INSERT INTO t4p WITH RECURSIVE s (i) AS
+(SELECT 1001 UNION ALL SELECT i + 1 FROM s WHERE i < 2000)
+SELECT i, 1000 + i MOD 100, i, i FROM s;
+EXPLAIN UPDATE t4 FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t4	NULL	range	kabc	kabc	5	const	500	#	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t4` FORCE INDEX (`kabc`) set `test`.`t4`.`c` = 0 where (`test`.`t4`.`a` = 1)
+EXPLAIN UPDATE t4p FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t4p	p0,p1	range	kabc	kabc	5	const	500	#	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t4p` FORCE INDEX (`kabc`) set `test`.`t4p`.`c` = 0 where (`test`.`t4p`.`a` = 1)
+LOCK TABLES t4 READ, t4p READ;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+SET GLOBAL rocksdb_table_stats_sampling_pct = @save_sampling_pct;
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+LOCK TABLES t4 READ, t4p READ;
+UNLOCK TABLES;
+SET SESSION debug = "+d,myrocks_simulate_stats_recalc_failure";
+UNLOCK TABLES;
+EXPLAIN UPDATE t4 FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t4	NULL	range	kabc	kabc	5	const	500	#	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t4` FORCE INDEX (`kabc`) set `test`.`t4`.`c` = 0 where (`test`.`t4`.`a` = 1)
+EXPLAIN UPDATE t4p FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t4p	p0,p1	range	kabc	kabc	5	const	500	#	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t4p` FORCE INDEX (`kabc`) set `test`.`t4p`.`c` = 0 where (`test`.`t4p`.`a` = 1)
+SET SESSION debug = "-d,myrocks_simulate_stats_recalc_failure";
+# A statement for which update_stats() works sets the estimates from
+# the index statistics: 2000 rows with 102 values of a.
+EXPLAIN UPDATE t4 FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t4	NULL	range	kabc	kabc	5	const	19	#	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t4` FORCE INDEX (`kabc`) set `test`.`t4`.`c` = 0 where (`test`.`t4`.`a` = 1)
+EXPLAIN UPDATE t4p FORCE INDEX (kabc) SET c = 0 WHERE a = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t4p	p0,p1	range	kabc	kabc	5	const	19	#	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t4p` FORCE INDEX (`kabc`) set `test`.`t4p`.`c` = 0 where (`test`.`t4p`.`a` = 1)
+DROP TABLE t4, t4p;
+SET SESSION eq_range_index_dive_limit = DEFAULT;

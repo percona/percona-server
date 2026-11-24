@@ -80,6 +80,8 @@ struct Rdb_index_stats {
   void adjust_cardinality(double adjustment_factor);
 
   void reset_cardinality();
+  void limit_cardinality_to_rows();
+  [[nodiscard]] bool cardinality_within_rows() const;
 };
 
 struct Rdb_table_stats {

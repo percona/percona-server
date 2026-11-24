@@ -1,0 +1,89 @@
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # PS-11793: a skip scan on a partitioned MyRocks table returned only the
+--echo # rows of the first key prefix group. The range read in that group left
+--echo # its end range in the handler of the partition, and it limited the read
+--echo # of the first row of the next group.
+--echo # Expected: the same rows with and without skip scan.
+--echo #
+
+--echo # One partition, primary key
+CREATE TABLE t (ip_col INT, ipkey INT, PRIMARY KEY (ipkey, ip_col))
+  ENGINE=ROCKSDB
+  PARTITION BY RANGE (ip_col) (PARTITION p1 VALUES LESS THAN (1000));
+INSERT INTO t VALUES (150,1),(160,2),(170,3),(150,4),(160,5),(170,6);
+
+--replace_column 10 # 11 #
+EXPLAIN SELECT /*+ SKIP_SCAN(t PRIMARY) */ * FROM t WHERE ip_col = 160;
+SELECT /*+ SKIP_SCAN(t PRIMARY) */ * FROM t WHERE ip_col = 150;
+SELECT /*+ SKIP_SCAN(t PRIMARY) */ * FROM t WHERE ip_col = 160;
+SELECT /*+ SKIP_SCAN(t PRIMARY) */ * FROM t WHERE ip_col > 155;
+SELECT /*+ NO_SKIP_SCAN(t) */ * FROM t WHERE ip_col > 155;
+
+DROP TABLE t;
+
+--echo # Three partitions, primary key and secondary key
+CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL,
+                PRIMARY KEY (a, b, c), KEY k (b, c, d))
+  ENGINE=ROCKSDB
+  PARTITION BY HASH (c) PARTITIONS 3;
+INSERT INTO t
+  WITH RECURSIVE seq (n) AS
+    (SELECT 0 UNION ALL SELECT n + 1 FROM seq WHERE n < 63)
+  SELECT n DIV 16, (n DIV 4) % 4, n % 4, n FROM seq;
+
+--echo # Skipped key part: a
+--replace_column 10 # 11 #
+EXPLAIN SELECT /*+ SKIP_SCAN(t PRIMARY) */ a, b, c FROM t WHERE b > 2;
+SELECT /*+ SKIP_SCAN(t PRIMARY) */ a, b, c FROM t WHERE b > 2;
+SELECT /*+ NO_SKIP_SCAN(t) */ a, b, c FROM t WHERE b > 2 ORDER BY a, b, c;
+
+--echo # Equality on a, skipped key part: b
+--replace_column 10 # 11 #
+EXPLAIN SELECT /*+ SKIP_SCAN(t PRIMARY) */ a, b, c FROM t
+  WHERE a IN (1, 3) AND c > 1;
+SELECT /*+ SKIP_SCAN(t PRIMARY) */ a, b, c FROM t WHERE a IN (1, 3) AND c > 1;
+SELECT /*+ NO_SKIP_SCAN(t) */ a, b, c FROM t WHERE a IN (1, 3) AND c > 1
+  ORDER BY a, b, c;
+
+--echo # Secondary key, skipped key part: b
+--replace_column 10 # 11 #
+EXPLAIN SELECT /*+ SKIP_SCAN(t k) */ b, c, d FROM t WHERE c > 2;
+SELECT /*+ SKIP_SCAN(t k) */ b, c, d FROM t WHERE c > 2;
+SELECT /*+ NO_SKIP_SCAN(t) */ b, c, d FROM t WHERE c > 2 ORDER BY b, c, d;
+
+--echo # Secondary key, the condition selects one partition
+--replace_column 10 # 11 #
+EXPLAIN SELECT /*+ SKIP_SCAN(t k) */ b, c, d FROM t WHERE c = 1 AND d < 40;
+SELECT /*+ SKIP_SCAN(t k) */ b, c, d FROM t WHERE c = 1 AND d < 40;
+SELECT /*+ NO_SKIP_SCAN(t) */ b, c, d FROM t WHERE c = 1 AND d < 40
+  ORDER BY b, c, d;
+
+--echo #
+--echo # A loose index scan reads the maximum of a group after a range read of
+--echo # the group prefixes. With the end range of that read left in the
+--echo # partition, a debug server aborted with "Assertion
+--echo # `lower_bound_slice->compare(*upper_bound_slice) <= 0' failed" in
+--echo # ha_rocksdb::setup_iterator_bounds().
+--echo # Expected: the same rows as without the loose index scan.
+--echo #
+--echo # Flush the rows and count all keys, so that the plan does not depend
+--echo # on the approximate number of rows in the memtable or on sampling.
+SET @save_sampling_pct = @@global.rocksdb_table_stats_sampling_pct;
+SET GLOBAL rocksdb_table_stats_sampling_pct = 100;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+SET GLOBAL rocksdb_table_stats_sampling_pct = @save_sampling_pct;
+ANALYZE TABLE t;
+--replace_column 10 # 11 #
+EXPLAIN SELECT a, MAX(b) FROM t FORCE INDEX (PRIMARY)
+  WHERE a < 3 AND b < 3 GROUP BY a;
+SELECT a, MAX(b) FROM t FORCE INDEX (PRIMARY) WHERE a < 3 AND b < 3 GROUP BY a;
+SELECT a, MAX(b) FROM t IGNORE INDEX (PRIMARY, k) WHERE a < 3 AND b < 3
+  GROUP BY a ORDER BY a;
+SELECT a, MIN(b), MAX(b) FROM t FORCE INDEX (PRIMARY)
+  WHERE a > 0 AND b BETWEEN 1 AND 2 GROUP BY a;
+SELECT a, MIN(b), MAX(b) FROM t IGNORE INDEX (PRIMARY, k)
+  WHERE a > 0 AND b BETWEEN 1 AND 2 GROUP BY a ORDER BY a;
+
+DROP TABLE t;

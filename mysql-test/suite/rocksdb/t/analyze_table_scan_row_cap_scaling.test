@@ -1,0 +1,39 @@
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # ANALYZE TABLE with rocksdb_table_stats_use_table_scan = ON scans at
+--echo # most rocksdb_table_stats_max_num_rows_scanned rows of each index and
+--echo # scales the number of distinct keys it found up to the whole index, by
+--echo # rows / rows scanned. The factor was computed with an integer division,
+--echo # so that scanning 900 of 1000 rows did not scale at all.
+--echo # Expected: the cardinality of a unique key is the number of rows,
+--echo # whatever part of them is scanned.
+--echo #
+
+SET SESSION information_schema_stats_expiry = 0;
+SET @save_use_scan = @@global.rocksdb_table_stats_use_table_scan;
+SET @save_sampling_pct = @@global.rocksdb_table_stats_sampling_pct;
+SET @save_max_rows = @@global.rocksdb_table_stats_max_num_rows_scanned;
+SET GLOBAL rocksdb_table_stats_use_table_scan = ON;
+# Count every key that is scanned.
+SET GLOBAL rocksdb_table_stats_sampling_pct = 100;
+
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO t1 WITH RECURSIVE s (n) AS
+  (SELECT 0 UNION ALL SELECT n + 1 FROM s WHERE n < 999) SELECT n FROM s;
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+
+--let $cap = 0
+while ($cap <= 900)
+{
+  --eval SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = $cap
+  ANALYZE TABLE t1;
+  SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+  --let $cap = `SELECT $cap + 300`
+}
+
+SET GLOBAL rocksdb_table_stats_use_table_scan = @save_use_scan;
+SET GLOBAL rocksdb_table_stats_sampling_pct = @save_sampling_pct;
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = @save_max_rows;
+DROP TABLE t1;

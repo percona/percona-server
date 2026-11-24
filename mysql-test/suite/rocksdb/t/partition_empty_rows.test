@@ -1,0 +1,51 @@
+--source include/have_rocksdb.inc
+
+--echo #
+--echo # The partitions of a partitioned MyRocks table report the rows they
+--echo # found, and Partition_base::info() adjusts the sum once: at least one
+--echo # row for the optimizer (MyRocks counts are not exact), the count found
+--echo # for SHOW TABLE STATUS, INFORMATION_SCHEMA and ANALYZE TABLE. Each
+--echo # partition without rows used to count as one row, so a table with four
+--echo # empty partitions reported TABLE_ROWS 4 and Cardinality 4. InnoDB
+--echo # (ha_innopart) reports 0.
+--echo #
+
+SET SESSION information_schema_stats_expiry = 0;
+
+CREATE TABLE tp (a INT PRIMARY KEY, b INT, KEY kb (b)) ENGINE=ROCKSDB
+  PARTITION BY HASH (a) PARTITIONS 4;
+
+--echo # 1. No rows.
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp';
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp' ORDER BY PARTITION_NAME;
+ANALYZE TABLE tp;
+SELECT INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp' ORDER BY INDEX_NAME;
+--echo # The optimizer gets at least one row.
+EXPLAIN SELECT * FROM tp;
+
+--echo # ANALYZE TABLE stores TABLE_ROWS 0 too. INFORMATION_SCHEMA shows the
+--echo # stored value if information_schema_stats_expiry is not 0, as by
+--echo # default (the test suite runs with 0).
+SET SESSION information_schema_stats_expiry = 86400;
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp';
+SET SESSION information_schema_stats_expiry = 0;
+
+--echo # 2. One row, in one of the four partitions. The count is 2, not 1:
+--echo #    Partition_base::info() reports at least 2 rows for a table that has
+--echo #    rows and no exact count (a rule it inherited from ha_partition).
+INSERT INTO tp VALUES (1, 1);
+SET GLOBAL rocksdb_force_flush_memtable_now = ON;
+ANALYZE TABLE tp;
+SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp';
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp' ORDER BY PARTITION_NAME;
+SELECT INDEX_NAME, CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'tp' ORDER BY INDEX_NAME;
+EXPLAIN SELECT * FROM tp;
+
+DROP TABLE tp;

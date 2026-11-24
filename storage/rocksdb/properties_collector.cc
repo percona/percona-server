@@ -235,20 +235,16 @@ rocksdb::Status Rdb_tbl_prop_coll::Finish(
       m_cardinality_collector.SetCardinality(&stat);
       m_cardinality_collector.AdjustStats(&stat);
 
-      // Adjust cardinality down if it exceeds total number of rows.
-      if (stat.m_distinct_keys_per_prefix.size()) {
-        int64_t max_distinct_keys = stat.m_distinct_keys_per_prefix.back();
-        if (max_distinct_keys > stat.m_rows) {
-          stat.adjust_cardinality(static_cast<double>(stat.m_rows) /
-                                  max_distinct_keys);
-        }
-      }
-#ifndef NDEBUG
-      for (size_t i = 0; i < stat.m_distinct_keys_per_prefix.size(); i++) {
-        assert(stat.m_distinct_keys_per_prefix[i] <= stat.m_rows);
-      }
-#endif
+      stat.limit_cardinality_to_rows();
     }
+
+#ifndef NDEBUG
+    // Checked here, and not where the estimates are limited, so that a debug
+    // server notices statistics that were not limited at all.
+    for (const Rdb_index_stats &stat : m_stats) {
+      assert(stat.cardinality_within_rows());
+    }
+#endif
 
     m_recorded = true;
   }
@@ -511,6 +507,38 @@ void Rdb_index_stats::adjust_cardinality(double adjustment_factor) {
     num_keys = std::max<int64_t>(
         1, static_cast<int64_t>(num_keys * adjustment_factor));
   }
+}
+
+/*
+  An index cannot have more distinct key prefixes than rows, but the
+  estimates can: sampling (rocksdb_table_stats_sampling_pct) scales the
+  number of distinct keys it found up, and a table scan limited by
+  rocksdb_table_stats_max_num_rows_scanned scales it up again to the whole
+  index. Scale the estimates down so that the largest one, the last key part,
+  is at most the number of rows.
+*/
+void Rdb_index_stats::limit_cardinality_to_rows() {
+  if (m_distinct_keys_per_prefix.empty()) return;
+
+  if (m_rows <= 0) {
+    reset_cardinality();
+  } else {
+    const int64_t max_distinct_keys = m_distinct_keys_per_prefix.back();
+    if (max_distinct_keys > m_rows) {
+      adjust_cardinality(static_cast<double>(m_rows) / max_distinct_keys);
+    }
+  }
+}
+
+/*
+  Whether no key prefix has more distinct values than the index has rows,
+  which is what limit_cardinality_to_rows() ensures.
+*/
+bool Rdb_index_stats::cardinality_within_rows() const {
+  const int64_t rows = std::max<int64_t>(m_rows, 0);
+  return std::all_of(
+      m_distinct_keys_per_prefix.begin(), m_distinct_keys_per_prefix.end(),
+      [rows](const int64_t num_keys) { return num_keys <= rows; });
 }
 
 Rdb_tbl_card_coll::Rdb_tbl_card_coll(const uint8_t table_stats_sampling_pct)

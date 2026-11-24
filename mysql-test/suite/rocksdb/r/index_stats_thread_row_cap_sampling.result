@@ -1,0 +1,17 @@
+# Created 8 tables with 1000 rows each
+SET GLOBAL rocksdb_force_flush_memtable_now = 1;
+SET @save_use_scan = @@global.rocksdb_table_stats_use_table_scan;
+SET @save_max_rows = @@global.rocksdb_table_stats_max_num_rows_scanned;
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = 100;
+SET GLOBAL rocksdb_table_stats_use_table_scan = ON;
+# INPLACE ADD INDEX queues each table for the background statistics thread
+include/assert.inc [No background statistics calculation failed]
+FLUSH TABLES;
+# Background statistics: index cardinality never exceeds the row count
+SELECT COUNT(*) AS n_indexes, SUM(cardinality > 1000) AS over_row_count
+FROM information_schema.statistics
+WHERE table_schema = 'test' AND table_name LIKE 't%';
+n_indexes	over_row_count
+24	0
+SET GLOBAL rocksdb_table_stats_use_table_scan = @save_use_scan;
+SET GLOBAL rocksdb_table_stats_max_num_rows_scanned = @save_max_rows;

@@ -63,6 +63,7 @@ enum class Metric {
   Euclidean,
   EuclideanSquared,
   Cosine,
+  CosinePrepared,
   DotProduct,
   Manhattan
 };
@@ -98,12 +99,20 @@ static void bench_impl(size_t num_iterations) {
   std::vector<float> a(kDims), b(kDims);
   fill_random(a.data(), kDims, 1);
   fill_random(b.data(), kDims, 2);
+  // The form vector_distance_cosine_prepared() takes: the floats plus |v|^2.
+  std::vector<char> pa(kDims * sizeof(float) + kVectorCosinePreparedExtra);
+  std::vector<char> pb(pa.size());
+  vector_cosine_prepare((const char *)a.data(), pa.data(), kDims);
+  vector_cosine_prepare((const char *)b.data(), pb.data(), kDims);
 
   StartBenchmarkTiming();
   for (size_t i = 0; i < num_iterations; i++) {
     if constexpr (kMetric == Metric::Cosine)
       bench_sink = vector_distance_cosine((const char *)a.data(),
                                           (const char *)b.data(), kDims);
+    else if constexpr (kMetric == Metric::CosinePrepared)
+      bench_sink =
+          vector_distance_cosine_prepared(pa.data(), pb.data(), kDims);
     else if constexpr (kMetric == Metric::DotProduct)
       bench_sink = vector_distance_dot((const char *)a.data(),
                                        (const char *)b.data(), kDims);
@@ -154,7 +163,24 @@ static void bench_impl(size_t num_iterations) {
   }                                                                     \
   BENCHMARK(BenchCosine_##tier_label##_##dims)
 
+// Registers one prepared-cosine benchmark function for a given tier + size.
+#define BENCH_COSINE_PREPARED_ONE(tier_enum, tier_label, dims)                 \
+  static void BenchCosinePrepared_##tier_label##_##dims(size_t n) {            \
+    bench_impl<VectorDistanceTier::tier_enum, dims, Metric::CosinePrepared>(n); \
+  }                                                                            \
+  BENCHMARK(BenchCosinePrepared_##tier_label##_##dims)
+
 // Per-size expanders (one per size, named so the tier macro can paste them).
+#define BENCH_COSINE_PREPARED_Scalar(dims) \
+  BENCH_COSINE_PREPARED_ONE(Scalar, Scalar, dims)
+#define BENCH_COSINE_PREPARED_Sse42(dims) \
+  BENCH_COSINE_PREPARED_ONE(Sse42, Sse42, dims)
+#define BENCH_COSINE_PREPARED_Avx2(dims) \
+  BENCH_COSINE_PREPARED_ONE(Avx2, Avx2, dims)
+#define BENCH_COSINE_PREPARED_Avx512f(dims) \
+  BENCH_COSINE_PREPARED_ONE(Avx512f, Avx512f, dims)
+#define BENCH_COSINE_PREPARED_Neon(dims) \
+  BENCH_COSINE_PREPARED_ONE(Neon, Neon, dims)
 #define BENCH_EUCLIDEAN_Scalar(dims) BENCH_EUCLIDEAN_ONE(Scalar, Scalar, dims)
 #define BENCH_EUCLIDEAN_Sse42(dims) BENCH_EUCLIDEAN_ONE(Sse42, Sse42, dims)
 #define BENCH_EUCLIDEAN_Avx2(dims) BENCH_EUCLIDEAN_ONE(Avx2, Avx2, dims)
@@ -216,6 +242,7 @@ static void bench_impl(size_t num_iterations) {
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_Scalar)
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Scalar)
 FOR_EACH_SIZE(BENCH_COSINE_Scalar)
+FOR_EACH_SIZE(BENCH_COSINE_PREPARED_Scalar)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Scalar)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Scalar)
 
@@ -225,18 +252,21 @@ FOR_EACH_SIZE(BENCH_MANHATTAN_Scalar)
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_Sse42)
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Sse42)
 FOR_EACH_SIZE(BENCH_COSINE_Sse42)
+FOR_EACH_SIZE(BENCH_COSINE_PREPARED_Sse42)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Sse42)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Sse42)
 
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_Avx2)
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Avx2)
 FOR_EACH_SIZE(BENCH_COSINE_Avx2)
+FOR_EACH_SIZE(BENCH_COSINE_PREPARED_Avx2)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Avx2)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Avx2)
 
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_Avx512f)
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Avx512f)
 FOR_EACH_SIZE(BENCH_COSINE_Avx512f)
+FOR_EACH_SIZE(BENCH_COSINE_PREPARED_Avx512f)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Avx512f)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Avx512f)
 
@@ -248,6 +278,7 @@ FOR_EACH_SIZE(BENCH_MANHATTAN_Avx512f)
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_Neon)
 FOR_EACH_SIZE(BENCH_EUCLIDEAN_SQUARED_Neon)
 FOR_EACH_SIZE(BENCH_COSINE_Neon)
+FOR_EACH_SIZE(BENCH_COSINE_PREPARED_Neon)
 FOR_EACH_SIZE(BENCH_DOT_PRODUCT_Neon)
 FOR_EACH_SIZE(BENCH_MANHATTAN_Neon)
 
@@ -270,10 +301,15 @@ FOR_EACH_SIZE(BENCH_MANHATTAN_Neon)
 #undef BENCH_DOT_PRODUCT_Scalar
 #undef BENCH_DOT_PRODUCT_ONE
 #undef BENCH_COSINE_Neon
+#undef BENCH_COSINE_PREPARED_Neon
 #undef BENCH_COSINE_Avx512f
+#undef BENCH_COSINE_PREPARED_Avx512f
 #undef BENCH_COSINE_Avx2
+#undef BENCH_COSINE_PREPARED_Avx2
 #undef BENCH_COSINE_Sse42
+#undef BENCH_COSINE_PREPARED_Sse42
 #undef BENCH_COSINE_Scalar
+#undef BENCH_COSINE_PREPARED_Scalar
 #undef BENCH_EUCLIDEAN_SQUARED_Neon
 #undef BENCH_EUCLIDEAN_SQUARED_Avx512f
 #undef BENCH_EUCLIDEAN_SQUARED_Avx2
@@ -286,6 +322,7 @@ FOR_EACH_SIZE(BENCH_MANHATTAN_Neon)
 #undef BENCH_EUCLIDEAN_Sse42
 #undef BENCH_EUCLIDEAN_Scalar
 #undef BENCH_COSINE_ONE
+#undef BENCH_COSINE_PREPARED_ONE
 #undef BENCH_EUCLIDEAN_ONE
 #undef FOR_EACH_SIZE
 

@@ -96,6 +96,29 @@ double vector_distance_cosine(const char *a, const char *b, uint32_t dims);
 */
 double vector_distance_dot(const char *a, const char *b, uint32_t dims);
 
+/** Bytes vector_cosine_prepare() appends to a vector: its |v|^2, a double. */
+constexpr size_t kVectorCosinePreparedExtra = sizeof(double);
+
+/**
+  Write the form of a vector that vector_distance_cosine_prepared() takes:
+  @p dims floats copied from @p src, then |v|^2 as a double. @p dst must have
+  room for dims * sizeof(float) + kVectorCosinePreparedExtra bytes and may not
+  overlap @p src.
+*/
+void vector_cosine_prepare(const char *src, char *dst, uint32_t dims);
+
+/**
+  Cosine distance of two vectors in the form written by
+  vector_cosine_prepare(). The same value as vector_distance_cosine() on the
+  raw floats (same range [0, 2], +Inf for a zero vector, exactly 0 for equal
+  vectors), but sums only a.b per call instead of a.b, |a|^2 and |b|^2.
+  Beyond what float32 can hold (|v|^2 above FLT_MAX or below
+  FLT_MIN * (max_dimensions + 1)) the last bits may differ from
+  vector_distance_cosine(): the norms come from the cache, not the call.
+*/
+double vector_distance_cosine_prepared(const char *a, const char *b,
+                                       uint32_t dims);
+
 /**
   Compute Manhattan (L1) distance between two float vectors encoded as raw
   bytes. Returns sum(|a[i] - b[i]|). Always >= 0 for finite inputs. No NaN

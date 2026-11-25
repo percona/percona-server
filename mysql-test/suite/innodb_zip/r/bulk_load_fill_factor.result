@@ -1,0 +1,62 @@
+#
+# PS-9914: sorted index build of a compressed table with
+# innodb_fill_factor < 100
+#
+SET @old_fill_factor = @@GLOBAL.innodb_fill_factor;
+SET SESSION cte_max_recursion_depth = 10000;
+#
+# A page whose compressed data exceeds the fill factor's share of the
+# compressed page is trimmed, but keeps at least two records. With one
+# record per page, every non-leaf level would have as many pages as the
+# level below, and the tree would grow higher with every leaf page. With
+# KEY_BLOCK_SIZE=1 and innodb_fill_factor=10 any page of two records
+# exceeds the share.
+#
+CREATE TABLE t1 (id INT PRIMARY KEY, k INT, KEY k (k))
+ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+INSERT INTO t1
+WITH RECURSIVE s (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM s WHERE n < 2000)
+SELECT n, n MOD 100 FROM s;
+SET GLOBAL innodb_fill_factor = 10;
+ALTER TABLE t1 ENGINE=InnoDB;
+SET GLOBAL innodb_fill_factor = @old_fill_factor;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT COUNT(*), SUM(id), SUM(k) FROM t1;
+COUNT(*)	SUM(id)	SUM(k)
+2000	2001000	99000
+SELECT COUNT(*), SUM(id) FROM t1 FORCE INDEX (k) WHERE k = 7;
+COUNT(*)	SUM(id)
+20	19140
+DROP TABLE t1;
+#
+# The records that a trim moves start the next page, which then receives
+# the record that did not fit the trimmed page, and may have no room for
+# it. Record 13 is big and compresses only a little, so with
+# innodb_fill_factor=70 the first page (records 1-23, its uncompressed
+# share full) is trimmed before record 13. Records 13-23 then take more
+# than half of the next page, and the big record 24 does not fit there.
+#
+CREATE TABLE t2 (id INT PRIMARY KEY, c VARBINARY(8000))
+ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+INSERT INTO t2
+WITH RECURSIVE s (n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM s WHERE n < 60)
+SELECT n, IF(n IN (13, 24),
+CONCAT(RANDOM_BYTES(1024), RANDOM_BYTES(1024), RANDOM_BYTES(1024),
+RANDOM_BYTES(1024), RANDOM_BYTES(1024), RANDOM_BYTES(480),
+REPEAT('a', 2400)),
+CONCAT(RANDOM_BYTES(50), REPEAT('a', 50)))
+FROM s;
+SET GLOBAL innodb_fill_factor = 70;
+ALTER TABLE t2 ENGINE=InnoDB;
+SET GLOBAL innodb_fill_factor = @old_fill_factor;
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+include/assert.inc [The rebuild keeps the rows of t2]
+SELECT id, LENGTH(c) FROM t2 WHERE LENGTH(c) > 100;
+id	LENGTH(c)
+13	8000
+24	8000
+DROP TABLE t2;

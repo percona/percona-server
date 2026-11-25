@@ -128,8 +128,11 @@ class Btree_load : private ut::Non_copyable {
                                    Page_load *next_page_load) noexcept;
 
   /** Commit(finish) a page. We set next/prev page no, compress a page of
-  compressed table and split the page if compression fails, insert a node
-  pointer to father page if needed, and commit mini-transaction.
+  compressed table and split the page if compression fails, or trim it if its
+  compressed data exceeds the innodb_fill_factor share of the compressed page
+  (the trimmed records go to the next page when it is empty, else to a new
+  page), insert a node pointer to father page if needed, and commit
+  mini-transaction.
   @param[in]    page_load               Page to commit
   @param[in]    next_page_load    Next page
   @param[in]    insert_father       Flag whether need to insert node ptr

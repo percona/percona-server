@@ -28,6 +28,7 @@
 #include "components/audit_log_filter/log_writer/file_handle.h"
 #include "components/audit_log_filter/sys_vars.h"
 
+#include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "rapidjson/document.h"
 
@@ -1272,6 +1273,11 @@ char *AuditUdf::audit_log_encryption_password_get_udf(
     unsigned char *error) noexcept {
   *is_null = 0;
   *error = 0;
+
+  // The function is called for every row of the result, release the buffer
+  // of the previous row. The last one is released by the deinit function.
+  my_free(initid->ptr);
+  initid->ptr = nullptr;
 
   std::unique_ptr<encryption::EncryptionOptions> options;
 

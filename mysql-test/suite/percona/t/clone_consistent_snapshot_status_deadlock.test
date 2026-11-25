@@ -1,0 +1,119 @@
+#
+# START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION must not wait for
+# LOCK_log while it holds LOCK_thd_data of its donor. A binary log commit locks
+# LOCK_status under LOCK_log to publish the binary log position, and a reader
+# of the status of the donor session locks LOCK_thd_data of the donor under
+# LOCK_status, so the three sessions would wait for each other forever.
+#
+--source include/have_debug_sync.inc
+--source include/have_log_bin.inc
+--source include/have_perfschema.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+
+--connect (donor,localhost,root,,)
+--let $donor_id=`SELECT CONNECTION_ID()`
+--let $donor_thread=`SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = $donor_id`
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--connect (receiver,localhost,root,,)
+SET DEBUG_SYNC='clone_consistent_snapshot_donor_locked SIGNAL clone_locked WAIT_FOR clone_go';
+--replace_regex /FROM SESSION [0-9]+/FROM SESSION DONOR_ID/
+--send_eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR clone_locked';
+--echo # The receiver holds LOCK_thd_data of the donor.
+
+--connect (status_reader,localhost,root,,)
+--let $reader_thread=`SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = CONNECTION_ID()`
+--replace_regex /THREAD_ID = [0-9]+/THREAD_ID = DONOR_THREAD/
+--send_eval SELECT COUNT(*) > 0 AS has_status FROM performance_schema.status_by_thread WHERE THREAD_ID = $donor_thread
+
+--connection default
+--echo # The status reader waits for LOCK_thd_data of the donor under LOCK_status.
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.events_waits_current WHERE THREAD_ID = $reader_thread AND EVENT_NAME = 'wait/synch/mutex/sql/THD::LOCK_thd_data' AND END_EVENT_ID IS NULL
+--source include/wait_condition.inc
+
+--connect (committer,localhost,root,,)
+--let $committer_thread=`SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = CONNECTION_ID()`
+--send INSERT INTO t1 VALUES (1)
+
+--connection default
+--echo # The commit waits for LOCK_status under LOCK_log, or for LOCK_log.
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.events_waits_current WHERE THREAD_ID = $committer_thread AND EVENT_NAME IN ('wait/synch/mutex/sql/LOCK_status', 'wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_log') AND END_EVENT_ID IS NULL
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now SIGNAL clone_go';
+
+--connection receiver
+--reap
+COMMIT;
+
+--connection status_reader
+--reap
+
+--connection committer
+--reap
+
+--connection donor
+COMMIT;
+
+--connection default
+--disconnect donor
+--disconnect receiver
+--disconnect status_reader
+--disconnect committer
+SET DEBUG_SYNC='RESET';
+
+--echo #
+--echo # Two sessions that clone from each other at the same time must not wait
+--echo # for each other: neither may lock LOCK_thd_data of the receiver while it
+--echo # holds LOCK_log. Both have a consistent snapshot, so the binary log part
+--echo # of the clone runs.
+--echo #
+--connect (con_a,localhost,root,,)
+--let $a_id=`SELECT CONNECTION_ID()`
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--connect (con_b,localhost,root,,)
+--let $b_id=`SELECT CONNECTION_ID()`
+--let $b_thread=`SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = $b_id`
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--connection con_a
+SET DEBUG_SYNC='clone_consistent_snapshot_donor_locked SIGNAL a_locked WAIT_FOR a_go';
+--replace_regex /FROM SESSION [0-9]+/FROM SESSION B_ID/
+--send_eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $b_id
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR a_locked';
+--echo # A holds LOCK_log and LOCK_thd_data of B.
+
+--connection con_b
+--replace_regex /FROM SESSION [0-9]+/FROM SESSION A_ID/
+--send_eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $a_id
+
+--connection default
+--echo # B waits for LOCK_log, or for its own LOCK_thd_data, which A holds.
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.events_waits_current WHERE THREAD_ID = $b_thread AND EVENT_NAME IN ('wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_log', 'wait/synch/mutex/sql/THD::LOCK_thd_data') AND END_EVENT_ID IS NULL
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now SIGNAL a_go';
+
+--connection con_a
+--reap
+
+# B clones the transaction of A, so A commits only after B is done.
+--connection con_b
+--reap
+COMMIT;
+
+--connection con_a
+COMMIT;
+
+--connection default
+--disconnect con_a
+--disconnect con_b
+SET DEBUG_SYNC='RESET';
+DROP TABLE t1;
+--source include/wait_until_count_sessions.inc

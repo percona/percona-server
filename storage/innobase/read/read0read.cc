@@ -40,6 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #include "trx0types.h"
 #include "ut0lst.h"
+#include "ut0mutex.h"
 
 /*
 -------------------------------------------------------------------------------
@@ -524,6 +525,7 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
     DEBUG_SYNC_C("mvcc_view_open_before_reopen");
 
     ut_ad(closed->m_closed);
+    ut_ad(!closed->m_cloned);
 
     /* NOTE: This can be optimised further, for now we only
     reuse the view if there are no active RW transactions.
@@ -713,16 +715,21 @@ Close a view created by the above function.
 void MVCC::view_close(ReadView *&view, bool own_mutex) {
   uintptr_t p = reinterpret_cast<uintptr_t>(view);
 
-  /* Note: The assumption here is that AC-NL-RO transactions will
-  call this function with own_mutex == false. */
+  ut_ad(own_mutex == trx_sys_mutex_own());
   if (!own_mutex) {
     /* Sanitise the pointer first. */
     ReadView *ptr = reinterpret_cast<ReadView *>(p & ~1);
 
+    /* Reopening a clone as-is would expose the previous donor's writes. */
+    if (ptr->m_cloned) {
+      IB_mutex_guard guard{&trx_sys->mutex, UT_LOCATION_HERE};
+      view_close(view, true);
+      return;
+    }
+
     /* Note this can be called for a read view that
     was already closed. */
     ptr->m_closed = true;
-    ptr->m_cloned = false;
 
     /* Set the view as closed. */
     view = reinterpret_cast<ReadView *>(p | 0x1);

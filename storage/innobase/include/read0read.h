@@ -65,9 +65,10 @@ class MVCC {
   void view_open(ReadView *&view, trx_t *trx);
 
   /**
-  Close a view created by the above function.
-  @param view           view allocated by trx_open.
-  @param own_mutex      true if caller owns trx_sys_t::mutex */
+  Close a transaction view. A caller without trx_sys->mutex may cache an
+  ordinary view for reuse. A clone always returns to the free list.
+  @param[in,out] view   Transaction's view (possibly already tagged closed)
+  @param[in] own_mutex  Whether the caller holds trx_sys->mutex */
   void view_close(ReadView *&view, bool own_mutex);
 
   /** Build the purge snapshot from the oldest open view, or from the active

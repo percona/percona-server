@@ -332,9 +332,8 @@ class ReadView {
   /** AC-NL-RO transaction view that has been "closed". */
   bool m_closed;
 
-  /** This is a view cloned by clone but not by
-  MVCC::clone_oldest_view. Used to make sure the cloned transaction does
-  not see its own changes. */
+  /** A session clone retains the donor's creator id even if the receiver
+  becomes read-write. It cannot be cached for an unrelated transaction. */
   bool m_cloned;
 
   typedef UT_LIST_NODE_T(ReadView) node_t;

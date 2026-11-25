@@ -1,5 +1,6 @@
 # PS-11621: overwriting a cached receiver view must also move it next to
-# its donor in the MVCC list. Cover both ordinary and cloned cached views.
+# its donor in the MVCC list. Cover an ordinary cached view, and a receiver
+# whose previous cloned view was freed when its transaction ended.
 
 --source include/have_debug.inc
 --source include/count_sessions.inc

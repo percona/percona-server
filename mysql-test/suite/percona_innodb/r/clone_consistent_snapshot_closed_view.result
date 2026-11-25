@@ -14,6 +14,7 @@ SET SESSION transaction_isolation='REPEATABLE-READ';
 SET DEBUG_SYNC='now WAIT_FOR donor_before_reopen TIMEOUT 120';
 START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id;
 Warnings:
+Warning	138	WITH CONSISTENT SNAPSHOT FROM SESSION was ignored for binary log, because the specified session does not have a consistent snapshot of binary log coordinates.
 Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was ignored because the target transaction has not been assigned a read view.
 SELECT c FROM t1 WHERE id=1;
 c
@@ -38,6 +39,7 @@ c
 200
 START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id;
 Warnings:
+Warning	138	WITH CONSISTENT SNAPSHOT FROM SESSION was ignored for binary log, because the specified session does not have a consistent snapshot of binary log coordinates.
 Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was ignored because the target transaction has not been assigned a read view.
 SELECT c FROM t1 WHERE id=1;
 c
@@ -52,6 +54,7 @@ SELECT c FROM t1 WHERE id=1;
 SET DEBUG_SYNC='now WAIT_FOR donor_before_reopen TIMEOUT 120';
 START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id;
 Warnings:
+Warning	138	WITH CONSISTENT SNAPSHOT FROM SESSION was ignored for binary log, because the specified session does not have a consistent snapshot of binary log coordinates.
 Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was ignored because the target transaction has not been assigned a read view.
 SELECT c FROM t1 WHERE id=1;
 c

@@ -7,6 +7,8 @@ id	c
 1	1
 2	0
 START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id;
+Warnings:
+Warning	138	WITH CONSISTENT SNAPSHOT FROM SESSION was ignored for binary log, because the specified session does not have a consistent snapshot of binary log coordinates.
 SELECT * FROM t1 ORDER BY id;
 id	c
 1	1

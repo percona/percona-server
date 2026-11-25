@@ -2771,7 +2771,9 @@ static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
   mysql_mutex_assert_owner(mysql_bin_log.get_log_lock());
   const binlog_cache_mngr *from_cache_mngr = thd_get_cache_mngr(from_thd);
 
-  if (from_cache_mngr == nullptr) {
+  /* The cache manager outlives the transaction that saved its coordinates. */
+  if (from_cache_mngr == nullptr ||
+      !from_cache_mngr->has_consistent_snapshot()) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
                         "WITH CONSISTENT SNAPSHOT FROM SESSION was ignored for "
                         "binary log, because the specified session does not "

@@ -1,0 +1,29 @@
+#
+# START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION warns that it is
+# ignored for the binary log if the donor has no consistent snapshot of binary
+# log coordinates, also when the donor had one in a transaction that ended.
+#
+--source include/have_log_bin.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+
+--connect (donor,localhost,root,,)
+--let $donor_id=`SELECT CONNECTION_ID()`
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+COMMIT;
+START TRANSACTION;
+SELECT * FROM t1;
+
+--connection default
+--replace_regex /FROM SESSION [0-9]+/FROM SESSION DONOR_ID/
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+COMMIT;
+
+--connection donor
+COMMIT;
+--disconnect donor
+
+--connection default
+DROP TABLE t1;
+--source include/wait_until_count_sessions.inc

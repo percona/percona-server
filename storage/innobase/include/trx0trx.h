@@ -866,7 +866,10 @@ struct trx_t {
                             RO transaction whose read view was
                             cloned. If this transaction is promoted
                             to RW, it will become the transaction
-                            id. */
+                            id. It is in trx_sys->rw_trx_ids from
+                            the clone on, so that read views opened
+                            in the meantime treat it as active.
+                            Written under trx_sys->mutex. */
 
   trx_id_t no; /*!< transaction serialization number:
                max trx id shortly before the

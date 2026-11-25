@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
+#include "trx0types.h"
 #include "ut0lst.h"
 
 /*
@@ -416,6 +417,12 @@ void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
   /* The check is done randomly from time to time, because the check adds
   a kind of extra synchronization which itself could hide existing bugs. */
   if (ut::random_from_interval_fast(0, 99) == 0) {
+    const auto is_reserved = [](trx_id_t id) {
+      for (const trx_t *trx : trx_sys->mysql_trx_list) {
+        if (trx->preallocated_id == id) return true;
+      }
+      return false;
+    };
     /* Assert that all transaction ids in list are active. */
     for (auto trx_id : trx_ids) {
       while (trx_sys->latch_and_execute_with_active_trx(
@@ -433,6 +440,9 @@ void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
             return true;
           },
           UT_LOCATION_HERE)) {
+        /* A reservation has no shard entry until promotion. Scan sessions only
+        on a miss, so ordinary active ids need just their shard lookup. */
+        if (is_reserved(trx_id)) break;
         /* It might happen that transaction became added to rw_trx_ids,
         then trx_sys mutex has been released and thread become scheduled
         out before the call to trx_sys_rw_trx_add(trx). We need to wait,

@@ -61,7 +61,7 @@ unordered_dense  | 4.4.0        | MIT          | yes | header-only | extra/unord
 jwt-cpp          | 3e037df3e669633a3044618e30550ea2f212e915 | MIT | yes | header-only | extra/jwt-cpp | none | submodule; version is the pinned commit; header-only dependency of auth_openid_connect / authentication_openid_connect_client
 
 # --- shipped in the binary tarball only --------------------------------------
-curl             | 8.14.1       | curl         | tarball | static  | extra/curl/curl-8.14.1                       | dir | -DWITH_CURL=bundled in build-binary.sh; RPM and DEB use the system libcurl
+curl             | 8.23.0       | curl         | tarball | static  | extra/curl/curl-8.23.0                       | dir | -DWITH_CURL=bundled in build-binary.sh; RPM and DEB use the system libcurl
 tirpc            | 1.3.7        | BSD-3-Clause | tarball | static  | extra/tirpc/libtirpc-1.3.7                   | dir | forced bundled on EL8/EL9 by the tarball custom-OpenSSL path; RPM and DEB use system libtirpc
 
 # --- not shipped -------------------------------------------------------------

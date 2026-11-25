@@ -37,9 +37,17 @@ let $row_format = COMPACT;
 SET GLOBAL innodb_fill_factor=10;
 -- source suite/innodb/include/innodb_bulk_create_index.inc
 
+# With COMPRESSED the fill factor also limits the compressed page data,
+# which trims pages and predicts the page fill (PS-9914).
+let $row_format = COMPRESSED;
+-- source suite/innodb/include/innodb_bulk_create_index.inc
+
 # Test Fill Factor: 50
 let $row_format = COMPACT;
 SET GLOBAL innodb_fill_factor=50;
+-- source suite/innodb/include/innodb_bulk_create_index.inc
+
+let $row_format = COMPRESSED;
 -- source suite/innodb/include/innodb_bulk_create_index.inc
 
 SET GLOBAL innodb_fill_factor=default;

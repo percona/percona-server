@@ -32,12 +32,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include "btr0load.h"
+
+#include <algorithm>
+
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "ibuf0ibuf.h"
 #include "lob0lob.h"
 #include "log0chkp.h"
+#include "page0zip.h"
 
 namespace ddl {
 /** Innodb B-tree index fill factor for bulk load. */
@@ -125,9 +129,12 @@ class Page_load : private ut::Non_copyable {
   /** Commit mtr for a page */
   void rollback() noexcept;
 
-  /** Compress if it is compressed table
-  @return       true    compress successfully or no need to compress
-  @return       false   compress failed. */
+  /** Compress the page of a compressed table. With innodb_fill_factor < 100,
+  also check that the compressed data takes at most the fill factor's share
+  of the compressed page.
+  @return       true    compressed, within that share or not checked
+  @return       false   compression failed, or the compressed data exceeds
+  that share: is_zip_trim_needed() is true only in the latter case */
   [[nodiscard]] bool compress() noexcept;
 
   /** Check whether the record needs to be stored externally.
@@ -192,10 +199,19 @@ class Page_load : private ut::Non_copyable {
 #endif /* UNIV_DEBUG */
 
   /** Get page split point. We split a page in half when compression
-  fails, and the split record and all following records should be copied
-  to the new page.
+  fails. A page whose compressed data exceeds the fill factor's share of the
+  compressed page (compress()) is trimmed: it keeps the share of its data
+  that should compress into that share, and at least two records. The
+  split record and all following records should be copied to the new page.
   @return split record descriptor */
   [[nodiscard]] Split_point get_split_rec() noexcept;
+
+  /** Check if compress() found the page compressed with less room left than
+  innodb_fill_factor reserves.
+  @return true if the page should be trimmed */
+  [[nodiscard]] bool is_zip_trim_needed() const noexcept {
+    return m_zip_keep_pct < 100;
+  }
 
   /** Copy given and all following records.
   @param[in]  first_rec         First record to copy */
@@ -268,6 +284,23 @@ class Page_load : private ut::Non_copyable {
 
   /** The padding space for compressed page */
   size_t m_padding_space{};
+
+  /** Percentage of the page data, by size, that should compress into the fill
+  factor's share of the compressed page; 100 if all of it does. Set by
+  compress(). */
+  size_t m_zip_keep_pct{100};
+
+  /** Whether compress() keeps the page without checking it against the fill
+  factor's share of the compressed page: it was trimmed once already
+  (split()), or it is the root page, copied from a page that was checked
+  (Btree_load::load_root_page()). */
+  bool m_zip_fill_checked{false};
+
+  /** Space to leave free in the uncompressed page so that its data compresses
+  into a little less than the fill factor's share of the compressed page, as
+  compress() of the previous page of the level predicted; 0 without a
+  prediction. compress() replaces it with the prediction for the next page. */
+  size_t m_zip_reserved_space{};
 
   /** Total data in the page */
   IF_DEBUG(size_t m_total_data{};)
@@ -598,7 +631,50 @@ bool Page_load::compress() noexcept {
   ut_ad(!m_modified);
   ut_ad(m_page_zip != nullptr);
 
-  return page_zip_compress(m_page_zip, m_page, m_index, page_zip_level, m_mtr);
+  m_zip_keep_pct = 100;
+
+  if (!page_zip_compress(m_page_zip, m_page, m_index, page_zip_level, m_mtr)) {
+    return false;
+  }
+
+  /* A trimmed page keeps at least two records and moves at least one
+  (get_split_rec()). */
+  if (ddl::fill_factor == 100 || m_rec_no < 3 || m_zip_fill_checked) {
+    return true;
+  }
+
+  /* With innodb_fill_factor < 100 the compressed page data may take only that
+  share of the compressed page, so that the modification log has room for
+  later changes and the page stays compressible as it grows, whatever the
+  compression ratio of the index. The trailer is stored uncompressed and grows
+  with every record: it is no room for either. */
+  const size_t zip_space =
+      page_zip_get_size(m_page_zip) -
+      page_zip_get_trailer_len(m_page_zip, m_index->is_clustered());
+  const size_t zip_fill = zip_space * ddl::fill_factor / 100;
+
+  /* Predict for the next page of the level how much data compresses into
+  zip_fill, with the compressed size growing about in proportion to the data.
+  Aim 1/32 below zip_fill, so that a page that compresses a little worse than
+  this one still fits and is not compressed a second time after a trim. The
+  margin is fixed: if data compresses so unevenly that trims stay frequent,
+  it should adapt as dict_index_zip_pad_update() does. */
+  const size_t empty_space = page_get_free_space_of_empty(m_is_comp);
+  const size_t next_data_size = (empty_space - m_free_space) *
+                                (zip_fill - zip_fill / 32) / m_page_zip->m_end;
+  m_zip_reserved_space =
+      next_data_size < empty_space ? empty_space - next_data_size : 0;
+
+  if (m_page_zip->m_end <= zip_fill) {
+    return true;
+  }
+
+  /* The compressed size grows about in proportion to the data: keep the share
+  of the data that should compress into zip_fill. The page is trimmed once
+  (split()): a trimmed page that still exceeds zip_fill a little is kept. */
+  m_zip_keep_pct = zip_fill * 100 / m_page_zip->m_end;
+
+  return false;
 }
 
 dtuple_t *Page_load::get_node_ptr() noexcept {
@@ -618,6 +694,10 @@ void Page_load::split(Page_load &new_page_loader) noexcept {
   new_page_loader.copy_records(split_point.m_rec);
   split_trim(split_point);
 
+  if (is_zip_trim_needed()) {
+    m_zip_fill_checked = true;
+  }
+
   ut_ad(new_page_loader.m_modified);
   ut_ad(m_modified);
 }
@@ -633,6 +713,16 @@ Page_load::Split_point Page_load::get_split_rec() noexcept {
   Rec_offsets offsets{};
   size_t total_recs_size{};
 
+  /* Keep at least one record on left page. A trimmed page keeps at least two,
+  as is_space_available() does, so that the levels above have fewer pages:
+  with one record per page every level would have as many pages as the level
+  below, and the tree would grow without bound. */
+  const size_t keep_min_recs = is_zip_trim_needed() ? 2 : 1;
+  const size_t keep_size =
+      total_used_size * (is_zip_trim_needed() ? m_zip_keep_pct : 50) / 100;
+
+  ut_a(m_rec_no > keep_min_recs);
+
   auto rec = page_get_infimum_rec(m_page);
 
   do {
@@ -643,17 +733,11 @@ Page_load::Split_point Page_load::get_split_rec() noexcept {
                               UT_LOCATION_HERE, &m_heap);
     total_recs_size += rec_offs_size(offsets);
     n_recs++;
-  } while (total_recs_size + page_dir_calc_reserved_space(n_recs) <
-           total_used_size / 2);
+  } while (n_recs <= keep_min_recs ||
+           total_recs_size + page_dir_calc_reserved_space(n_recs) < keep_size);
 
-  /* Keep at least one record on left page */
-  if (page_rec_is_infimum(page_rec_get_prev(rec))) {
-    rec = page_rec_get_next(rec);
-    ut_ad(page_rec_is_user_rec(rec));
-  } else {
-    /* rec is to be moved, and this is used as number of records before split */
-    --n_recs;
-  }
+  /* rec is to be moved, and this is used as number of records before split */
+  --n_recs;
 
   return Split_point{rec, n_recs};
 }
@@ -759,15 +843,22 @@ bool Page_load::is_space_available(size_t rec_size) const noexcept {
 
   /* Fillfactor & Padding apply to both leaf and non-leaf pages.
   Note: we keep at least 2 records in a page to avoid B-tree level
-  growing too high. */
-  if (m_rec_no >= 2 && ((m_page_zip == nullptr &&
-                         m_free_space - required_space < m_reserved_space) ||
-                        (m_page_zip != nullptr &&
-                         m_free_space - required_space < m_padding_space))) {
-    return false;
+  growing too high. A compressed page is filled up to the padding that keeps
+  it compressible, and with innodb_fill_factor < 100 at most up to the fill
+  factor of the uncompressed page and up to the data size that compress()
+  predicted to compress into the fill factor's share of the compressed page:
+  a page filled up to the padding has no room left in the compressed page, so
+  nearly every later change of it recompresses and splits it. */
+  size_t reserved_space = m_reserved_space;
+
+  if (m_page_zip != nullptr) {
+    reserved_space = ddl::fill_factor == 100
+                         ? m_padding_space
+                         : std::max({m_padding_space, m_reserved_space,
+                                     m_zip_reserved_space});
   }
 
-  return true;
+  return m_rec_no < 2 || m_free_space - required_space >= reserved_space;
 }
 
 bool Page_load::need_ext(const dtuple_t *tuple,
@@ -916,7 +1007,7 @@ dberr_t Btree_load::page_split(Page_load *page_loader,
     return err;
   }
 
-  /* 3. copy the upper half to new page. */
+  /* 3. copy the records from the split point (get_split_rec()) to new page. */
   page_loader->split(new_page_loader);
 
   /* 4. finish page bulk modifications. */
@@ -967,6 +1058,15 @@ dberr_t Btree_load::page_commit(Page_load *page_loader,
 
   /* Compress page if it's a compressed table. */
   if (page_loader->is_table_compressed() && !page_loader->compress()) {
+    if (page_loader->is_zip_trim_needed() && next_page_loader != nullptr &&
+        next_page_loader->get_rec_no() == 0) {
+      /* The records that the page should not keep start the following page
+      instead of a page of their own, which would stay underfilled. The
+      following page is filled further (Btree_load::prepare_space()). */
+      page_loader->split(*next_page_loader);
+      page_loader->finish();
+      return page_commit(page_loader, next_page_loader, insert_father);
+    }
     return page_split(page_loader, next_page_loader);
   }
 
@@ -1065,6 +1165,8 @@ dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
     }
   }
 
+  sibling_page_loader->m_zip_reserved_space = page_loader->m_zip_reserved_space;
+
   /* Set new page bulk to page_loaders. */
   ut_a(sibling_page_loader->get_level() <= m_root_level);
 
@@ -1080,7 +1182,9 @@ dberr_t Btree_load::prepare_space(Page_load *&page_loader, size_t level,
     log_free_check();
   }
 
-  return DB_SUCCESS;
+  /* The sibling may hold the records that a trim moved there (page_commit()),
+  and have no room left for this record. */
+  return prepare_space(page_loader, level, rec_size);
 }
 
 dberr_t Btree_load::insert(Page_load *page_loader, dtuple_t *tuple,
@@ -1256,6 +1360,10 @@ dberr_t Btree_load::load_root_page(page_no_t last_page_no) noexcept {
   if (err == DB_SUCCESS) {
     page_loader.copy_all(last_page);
     page_loader.finish();
+
+    /* The last page was checked against innodb_fill_factor when it was
+    committed, possibly trimmed once: the root page must not be split. */
+    page_loader.m_zip_fill_checked = true;
 
     /* Remove last page. */
     btr_page_free_low(m_index, last_block, m_root_level, &mtr);

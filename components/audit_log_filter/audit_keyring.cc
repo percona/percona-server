@@ -561,7 +561,17 @@ void prune_encryption_options(
     }
   }
 
+  // The active options are not used by any log file when the log is not
+  // encrypted. Both IDs may be padded with '\0', see
+  // get_keyring_options_key_list_sorted().
+  const std::string active_options_id{
+      SysVars::get_encryption_options_id().c_str()};
+
   for (const auto &el : id_list) {
+    if (active_options_id == el.data_id.c_str()) {
+      continue;
+    }
+
     std::smatch keyring_match;
     if (!std::regex_match(el.data_id, keyring_match, keyring_opt_id_regex) ||
         used_opts_ids.count(keyring_match[1].str())) {

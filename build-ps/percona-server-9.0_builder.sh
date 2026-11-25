@@ -1086,6 +1086,10 @@ build_deb(){
         exit 1
     fi
 
+    for ddeb in $WORKDIR/*.ddeb; do
+        [ -e "${ddeb}" ] || continue
+        mv -v "${ddeb}" "${ddeb%.ddeb}.deb"
+    done
     cd ${WORKDIR}
     mkdir -p $CURDIR/deb
     mkdir -p $WORKDIR/deb

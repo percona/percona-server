@@ -250,6 +250,11 @@ override_dh_missing:
 	dh_missing --list-missing
 
 override_dh_install:
+ifeq ($(ARCH),arm64)
+	# libcoredumper is not shipped in ARM packages
+	sed -i '/coredumper/d' debian/percona-server-common.install
+	rm -rf debian/tmp/usr/include/coredumper debian/tmp/usr/lib/libcoredumper.a
+endif
 	dh_install
 	# Install mysqld_pre_systemd if built (requires libsystemd-dev at cmake time)
 	if [ -f debian/tmp/usr/bin/mysqld_pre_systemd ]; then \

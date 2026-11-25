@@ -744,6 +744,11 @@ rm -f %{buildroot}%{_datadir}/percona-server/audit_log_filter_win_install.sql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -rf %{buildroot}/usr/cmake/coredumper-relwithdebinfo.cmake
 rm -rf %{buildroot}/usr/cmake/coredumper.cmake
+%ifarch aarch64
+# libcoredumper is not shipped in ARM packages
+rm -rf %{buildroot}%{_includedir}/coredumper
+rm -f %{buildroot}/usr/lib/libcoredumper.a
+%endif
 # extra/libkmip (kmipcore, kmipclient, kmiputil) installs nothing here:
 # vendored with add_subdirectory(), its KMIPCLIENT_INSTALL defaults to OFF,
 # and component_keyring_kmip.so links it statically.
@@ -1328,6 +1333,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/procfs.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
+%if 0%{?rhel} >= 8 || 0%{?amzn} >= 2023
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
+%endif
 
 %if 0%{?rhel} > 6 || 0%{?amzn} >= 2023
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_encryption_udf.so
@@ -1447,9 +1456,11 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so.24*
-#coredumper
+#coredumper (not shipped in ARM packages)
+%ifnarch aarch64
 %attr(755, root, root) %{_includedir}/coredumper/coredumper.h
 %attr(755, root, root) /usr/lib/libcoredumper.a
+%endif
 
 %ifarch x86_64
 %if 0%{?compatlib}

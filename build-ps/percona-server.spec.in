@@ -756,6 +756,11 @@ rm -f %{buildroot}%{_datadir}/percona-server/audit_log_filter_win_install.sql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -rf %{buildroot}/usr/cmake/coredumper-relwithdebinfo.cmake
 rm -rf %{buildroot}/usr/cmake/coredumper.cmake
+%ifarch aarch64
+# libcoredumper is not shipped in ARM packages
+rm -rf %{buildroot}%{_includedir}/coredumper
+rm -f %{buildroot}/usr/lib/libcoredumper.a
+%endif
 rm -rf %{buildroot}/usr/include/kmip.h
 rm -rf %{buildroot}/usr/include/kmippp.h
 rm -rf %{buildroot}/usr/lib/libkmip.a
@@ -1279,6 +1284,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/procfs.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
+%if 0%{?add_fido_plugins}
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_webauthn.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_webauthn.so
+%endif
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_encryption_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_encryption_udf.so
@@ -1395,12 +1404,9 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/lib%{shared_lib_pri_name}.so.24*
-#coredumper
+#coredumper (not shipped in ARM packages)
+%ifnarch aarch64
 %attr(755, root, root) %{_includedir}/coredumper/coredumper.h
-%ifarch aarch64
-# libcoredumper.a is built but not shipped on aarch64
-%exclude /usr/lib/libcoredumper.a
-%else
 %attr(755, root, root) /usr/lib/libcoredumper.a
 %endif
 

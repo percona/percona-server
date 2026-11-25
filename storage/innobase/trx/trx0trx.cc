@@ -2382,8 +2382,8 @@ ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
   return (trx->read_view);
 }
 
-ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
-  ut_ad(trx != from_trx);
+ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx,
+                              const THD *from_thd) {
   if (UNIV_UNLIKELY(srv_read_only_mode)) {
     ut_ad(trx->read_view == nullptr);
     return nullptr;
@@ -2395,19 +2395,25 @@ ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
   auto donor_guard =
       create_scope_guard([from_trx] { trx_mutex_exit(from_trx); });
 
-  /* An autocommit non-locking transaction closes and reopens its statement
+  /* XA PREPARE can detach the donor transaction from its session, and free it,
+  after the caller read it from from_thd. A freed trx_t stays in the pool and
+  can be allocated again, even to the receiver. Freeing resets its mysql_thd,
+  and detaching a prepared one does that under trx_sys->mutex.
+
+  An autocommit non-locking transaction closes and reopens its statement
   view without either mutex. A closed view, tagged or not yet tagged by
   view_close(), does not retain undo history for a clone. Its auto_commit and
   will_lock change without these mutexes too, so this check can misjudge it.
   Its read_view is still safe to copy then: it is untagged only while the view
   is open, see MVCC::view_open(), and purge needs trx_sys->mutex to skip it. */
-  if (from_trx->state != TRX_STATE_ACTIVE ||
+  if (from_trx->mysql_thd != from_thd || from_trx->state != TRX_STATE_ACTIVE ||
       trx_is_autocommit_non_locking(from_trx) ||
       !MVCC::is_view_active(from_trx->read_view) ||
       from_trx->read_view->is_closed()) {
     return nullptr;
   }
 
+  ut_ad(trx != from_trx);
   trx_sys->mvcc->view_clone(trx->read_view, from_trx);
   donor_guard.reset();
   DEBUG_SYNC_C("trx_clone_read_view_after_donor_unlock");

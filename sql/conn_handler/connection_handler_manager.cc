@@ -66,7 +66,13 @@ mysql_cond_t Connection_handler_manager::COND_connection_count;
 Connection_handler_manager *Connection_handler_manager::m_instance = nullptr;
 ulong Connection_handler_manager::thread_handling =
     SCHEDULER_ONE_THREAD_PER_CONNECTION;
+ulong Connection_handler_manager::admin_thread_handling =
+    ADMIN_THREAD_HANDLING_INHERIT;
 uint Connection_handler_manager::max_threads = 0;
+
+// Runs admin interface connections when admin_thread_handling is
+// one-thread-per-connection.
+static Per_thread_connection_handler admin_connection_handler;
 
 /**
   Helper functions to allow mysys to call the thread scheduler when
@@ -284,7 +290,14 @@ void Connection_handler_manager::process_new_connection(
     return;
   }
 
-  if (m_connection_handler->add_connection(channel_info)) {
+  Connection_handler *handler = m_connection_handler;
+  // A dedicated thread keeps admin connections usable when every thread pool
+  // worker is blocked.
+  if (channel_info->is_admin_connection() &&
+      admin_thread_handling == ADMIN_THREAD_HANDLING_ONE_THREAD_PER_CONNECTION)
+    handler = &admin_connection_handler;
+
+  if (handler->add_connection(channel_info)) {
     inc_aborted_connects();
     delete channel_info;
   }

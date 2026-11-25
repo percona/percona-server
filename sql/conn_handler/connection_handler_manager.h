@@ -114,13 +114,23 @@ class Connection_handler_manager {
     SCHEDULER_TYPES_COUNT
   };
 
+  /**
+    admin_thread_handling enumeration, in the order of
+    admin_thread_handling_names.
+  */
+  enum admin_thread_handling_types {
+    ADMIN_THREAD_HANDLING_INHERIT = 0,
+    ADMIN_THREAD_HANDLING_ONE_THREAD_PER_CONNECTION
+  };
+
   // Status variables. Must be static as they are used by the signal handler.
   static uint connection_count;            // Protected by LOCK_connection_count
   static ulong max_used_connections;       // Protected by LOCK_connection_count
   static ulong max_used_connections_time;  // Protected by LOCK_connection_count
 
-  // System variable
+  // System variables
   static ulong thread_handling;
+  static ulong admin_thread_handling;
 
   // Functions for lock wait and post-kill notification events
   static THD_event_functions *event_functions;

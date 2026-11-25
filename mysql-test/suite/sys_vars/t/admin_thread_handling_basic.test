@@ -1,0 +1,40 @@
+SET @start_global_value = @@GLOBAL.admin_thread_handling;
+
+#
+# Global only, defaults to inherit
+#
+SELECT @@GLOBAL.admin_thread_handling;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.admin_thread_handling;
+SHOW GLOBAL VARIABLES LIKE 'admin_thread_handling';
+SHOW SESSION VARIABLES LIKE 'admin_thread_handling';
+--disable_warnings
+SELECT * FROM performance_schema.global_variables WHERE variable_name = 'admin_thread_handling';
+SELECT * FROM performance_schema.session_variables WHERE variable_name = 'admin_thread_handling';
+--enable_warnings
+
+#
+# Valid values
+#
+SET @@GLOBAL.admin_thread_handling = 'one-thread-per-connection';
+SELECT @@GLOBAL.admin_thread_handling;
+SET @@GLOBAL.admin_thread_handling = 'inherit';
+SELECT @@GLOBAL.admin_thread_handling;
+SET @@GLOBAL.admin_thread_handling = 1;
+SELECT @@GLOBAL.admin_thread_handling;
+SET @@GLOBAL.admin_thread_handling = DEFAULT;
+SELECT @@GLOBAL.admin_thread_handling;
+
+#
+# Invalid values and scope
+#
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.admin_thread_handling = 'inherit';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.admin_thread_handling = 'pool-of-threads';
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.admin_thread_handling = 2;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@GLOBAL.admin_thread_handling = 1.1;
+
+SET @@GLOBAL.admin_thread_handling = @start_global_value;

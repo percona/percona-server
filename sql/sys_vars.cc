@@ -4075,6 +4075,18 @@ static Sys_var_enum Sys_thread_handling(
     READ_ONLY GLOBAL_VAR(Connection_handler_manager::thread_handling),
     CMD_LINE(REQUIRED_ARG), thread_handling_names, DEFAULT(0));
 
+static const char *admin_thread_handling_names[] = {
+    "inherit", "one-thread-per-connection", nullptr};
+
+static Sys_var_enum Sys_admin_thread_handling(
+    "admin_thread_handling",
+    "How connections on the admin interface are handled: 'inherit' uses "
+    "thread_handling, 'one-thread-per-connection' gives each admin connection "
+    "its own thread, so it keeps working when the thread pool is saturated",
+    GLOBAL_VAR(Connection_handler_manager::admin_thread_handling),
+    CMD_LINE(REQUIRED_ARG), admin_thread_handling_names,
+    DEFAULT(Connection_handler_manager::ADMIN_THREAD_HANDLING_INHERIT));
+
 static Sys_var_charptr Sys_secure_file_priv(
     "secure_file_priv",
     "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files "

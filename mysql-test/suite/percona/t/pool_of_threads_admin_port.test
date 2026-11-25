@@ -1,0 +1,86 @@
+--source include/not_windows.inc
+
+--echo #
+--echo # With admin_thread_handling=one-thread-per-connection, admin port
+--echo # connections keep working when every thread pool worker is blocked.
+--echo #
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL");
+CALL mtr.add_suppression("Threadpool could not create additional thread to handle queries");
+--enable_query_log
+
+--let $PORT_OFFSET = 1
+--expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET
+
+--let $restart_parameters=restart:--thread-handling=pool-of-threads --thread-pool-size=1 --thread-pool-max-threads=2 --admin-address=127.0.0.1 --admin-port=$ADMIN_PORT --admin-thread-handling=one-thread-per-connection --innodb-lock-wait-timeout=60 --loose-skip-mysqlx
+--replace_result $ADMIN_PORT ADMIN_PORT
+--source include/restart_mysqld.inc
+--source include/have_pool_of_threads.inc
+
+SELECT @@GLOBAL.admin_thread_handling;
+
+CREATE TABLE t1 (id INT PRIMARY KEY, v INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 0);
+
+--echo # Admin connection opened before the pool fills up, like a pooled client.
+--connect (adm, 127.0.0.1, root,, test, $ADMIN_PORT)
+
+--connect (holder, localhost, root,, test)
+BEGIN;
+SELECT id FROM t1 WHERE id = 1 FOR UPDATE;
+
+--connect (w1, localhost, root,, test)
+--let $w1_id = `SELECT CONNECTION_ID()`
+--connect (w2, localhost, root,, test)
+--let $w2_id = `SELECT CONNECTION_ID()`
+--connect (w3, localhost, root,, test)
+
+--echo # Both pool workers wait on the row lock and w3's statement has no worker.
+--connection w1
+--send UPDATE t1 SET v = v + 1 WHERE id = 1
+--connection w2
+--send UPDATE t1 SET v = v + 1 WHERE id = 1
+--connection w3
+--send UPDATE t1 SET v = v + 1 WHERE id = 1
+
+--connection adm
+--let $wait_condition = SELECT COUNT(*) = 2 FROM information_schema.processlist WHERE info = 'UPDATE t1 SET v = v + 1 WHERE id = 1'
+--source include/wait_condition.inc
+SHOW GLOBAL STATUS LIKE 'Threadpool_threads';
+
+--echo # A new admin connection works too.
+--connect (adm2, 127.0.0.1, root,, test, $ADMIN_PORT)
+SELECT 'new admin connection ok';
+--disconnect adm2
+
+--echo # The admin connection clears the pile-up.
+--connection adm
+--replace_result $w1_id W1_ID
+--eval KILL QUERY $w1_id
+--replace_result $w2_id W2_ID
+--eval KILL QUERY $w2_id
+
+--connection w1
+--error ER_QUERY_INTERRUPTED
+--reap
+--connection w2
+--error ER_QUERY_INTERRUPTED
+--reap
+--connection holder
+ROLLBACK;
+--connection w3
+--reap
+
+--connection default
+--disconnect adm
+--disconnect holder
+--disconnect w1
+--disconnect w2
+--disconnect w3
+SELECT v FROM t1;
+DROP TABLE t1;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

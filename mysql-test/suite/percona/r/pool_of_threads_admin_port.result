@@ -1,0 +1,37 @@
+#
+# With admin_thread_handling=one-thread-per-connection, admin port
+# connections keep working when every thread pool worker is blocked.
+#
+# restart:--thread-handling=pool-of-threads --thread-pool-size=1 --thread-pool-max-threads=2 --admin-address=127.0.0.1 --admin-port=ADMIN_PORT --admin-thread-handling=one-thread-per-connection --innodb-lock-wait-timeout=60 --loose-skip-mysqlx
+SELECT @@GLOBAL.admin_thread_handling;
+@@GLOBAL.admin_thread_handling
+one-thread-per-connection
+CREATE TABLE t1 (id INT PRIMARY KEY, v INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 0);
+# Admin connection opened before the pool fills up, like a pooled client.
+BEGIN;
+SELECT id FROM t1 WHERE id = 1 FOR UPDATE;
+id
+1
+# Both pool workers wait on the row lock and w3's statement has no worker.
+UPDATE t1 SET v = v + 1 WHERE id = 1;
+UPDATE t1 SET v = v + 1 WHERE id = 1;
+UPDATE t1 SET v = v + 1 WHERE id = 1;
+SHOW GLOBAL STATUS LIKE 'Threadpool_threads';
+Variable_name	Value
+Threadpool_threads	2
+# A new admin connection works too.
+SELECT 'new admin connection ok';
+new admin connection ok
+new admin connection ok
+# The admin connection clears the pile-up.
+KILL QUERY W1_ID;
+KILL QUERY W2_ID;
+ERROR 70100: Query execution was interrupted
+ERROR 70100: Query execution was interrupted
+ROLLBACK;
+SELECT v FROM t1;
+v
+1
+DROP TABLE t1;
+# restart

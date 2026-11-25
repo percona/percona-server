@@ -42,6 +42,12 @@ The following options may be given as the first argument:
  CRL directory (check OpenSSL docs) for --admin-port
  --admin-ssl-key=name 
  X509 key in PEM format for --admin-port
+ --admin-thread-handling=name 
+ How connections on the admin interface are handled:
+ 'inherit' uses thread_handling,
+ 'one-thread-per-connection' gives each admin connection
+ its own thread, so it keeps working when the thread pool
+ is saturated
  --admin-tls-ciphersuites=name 
  TLS v1.3 ciphersuite to use for --admin-port
  --allow-suspicious-udfs 
@@ -1786,6 +1792,7 @@ admin-ssl-cipher (No default value)
 admin-ssl-crl (No default value)
 admin-ssl-crlpath (No default value)
 admin-ssl-key (No default value)
+admin-thread-handling inherit
 admin-tls-ciphersuites (No default value)
 allow-suspicious-udfs FALSE
 authentication-policy *,,

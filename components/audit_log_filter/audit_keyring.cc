@@ -191,7 +191,6 @@ bool get_keyring_options_key_list_sorted(OptionsIdList &list,
 
   std::string data_id;
   std::string auth_id;
-  bool is_iter_valid = iterator_srv->is_valid(forward_iterator);
 
   auto time_now = with_age ? std::time(nullptr) : 0;
 
@@ -204,14 +203,32 @@ bool get_keyring_options_key_list_sorted(OptionsIdList &list,
     });
   }
 
-  while (is_iter_valid) {
-    data_id.assign(1024, '\0');
-    auth_id.assign(1024, '\0');
+  // The iterator is not valid after the last key. A failure to read a key
+  // the iterator points to is not the end of the keys.
+  while (iterator_srv->is_valid(forward_iterator)) {
+    size_t data_id_length = 0;
+    size_t auth_id_length = 0;
 
-    if (iterator_srv->get(forward_iterator, data_id.data(), 1024,
-                          auth_id.data(), 1024) == true) {
-      break;
+    if (iterator_srv->get_length(forward_iterator, &data_id_length,
+                                 &auth_id_length)) {
+      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Failed to get keyring key metadata length");
+      return false;
     }
+
+    // The buffers hold the terminating '\0' too
+    data_id.assign(data_id_length + 1, '\0');
+    auth_id.assign(auth_id_length + 1, '\0');
+
+    if (iterator_srv->get(forward_iterator, data_id.data(), data_id.size(),
+                          auth_id.data(), auth_id.size())) {
+      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Failed to get keyring key metadata");
+      return false;
+    }
+
+    data_id.resize(data_id_length);
+    auth_id.resize(auth_id_length);
 
     if (auth_id.find(kAuthId) != std::string::npos) {
       std::string timestamp;
@@ -231,7 +248,11 @@ bool get_keyring_options_key_list_sorted(OptionsIdList &list,
       }
     }
 
-    is_iter_valid = !iterator_srv->next(forward_iterator);
+    if (iterator_srv->next(forward_iterator)) {
+      LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Failed to get next keyring key");
+      return false;
+    }
   }
 
   std::sort(list.begin(), list.end(), [](const auto &a, const auto &b) {
@@ -320,7 +341,7 @@ bool get_keyring_options(const std::string &options_id,
                         data_type_length, &fetched_data_type_length)) {
     LogComponentErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                     "Failed to fetch keyring data");
-    return true;
+    return false;
   }
 
   options_json_str =
@@ -498,10 +519,7 @@ void replace_legacy_generated_options(std::string &options_id) {
     return;
   }
 
-  // The ID of the active options is padded with '\0', see
-  // get_keyring_options_key_list_sorted(), the messages need it without
-  // the padding
-  const std::string old_options_id{options_id.c_str()};
+  const std::string old_options_id{options_id};
   std::string new_options_id;
 
   if (!generate_keyring_options(new_options_id, old_options_id)) {
@@ -653,13 +671,11 @@ void prune_encryption_options(
   }
 
   // The active options are not used by any log file when the log is not
-  // encrypted. Both IDs may be padded with '\0', see
-  // get_keyring_options_key_list_sorted().
-  const std::string active_options_id{
-      SysVars::get_encryption_options_id().c_str()};
+  // encrypted
+  const auto active_options_id = SysVars::get_encryption_options_id();
 
   for (const auto &el : id_list) {
-    if (active_options_id == el.data_id.c_str()) {
+    if (active_options_id == el.data_id) {
       continue;
     }
 

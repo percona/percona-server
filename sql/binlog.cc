@@ -2955,9 +2955,10 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     /*
       Reset binlog_snapshot_% variables for the current connection so that the
       current coordinates are shown after committing a consistent snapshot
-      transaction.
+      transaction. A statement rollback keeps the transaction and its read
+      view, so it keeps the coordinates too.
     */
-    if (cache_mngr != nullptr) {
+    if (cache_mngr != nullptr && ending_trans(thd, all)) {
       cache_mngr->drop_consistent_snapshot(thd);
     }
     if ((error = trx_coordinator::rollback_in_engines(thd, all))) goto end;

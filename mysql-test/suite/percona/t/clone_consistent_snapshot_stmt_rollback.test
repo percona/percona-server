@@ -1,0 +1,49 @@
+#
+# A failed statement inside a transaction started WITH CONSISTENT SNAPSHOT
+# rolls back only the statement. The transaction keeps its read view and must
+# keep its binary log coordinates too, for itself and for clones.
+#
+--source include/have_log_bin.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--connect (donor,localhost,root,,)
+--let $donor_id=`SELECT CONNECTION_ID()`
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--let $file= query_get_value(SHOW SESSION STATUS LIKE 'Binlog_snapshot_file', Value, 1)
+--let $pos= query_get_value(SHOW SESSION STATUS LIKE 'Binlog_snapshot_position', Value, 1)
+
+--connection default
+# Moves the binary log past the snapshot.
+INSERT INTO t1 VALUES (2);
+
+--connection donor
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (3), (1);
+--let $donor_file= query_get_value(SHOW SESSION STATUS LIKE 'Binlog_snapshot_file', Value, 1)
+--let $donor_pos= query_get_value(SHOW SESSION STATUS LIKE 'Binlog_snapshot_position', Value, 1)
+--let $assert_text= The donor keeps its binary log snapshot
+--let $assert_cond= "$donor_file" = "$file" AND $donor_pos = $pos
+--source include/assert.inc
+SELECT * FROM t1;
+
+--connection default
+--replace_regex /FROM SESSION [0-9]+/FROM SESSION DONOR_ID/
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+SELECT * FROM t1;
+--let $clone_file= query_get_value(SHOW SESSION STATUS LIKE 'Binlog_snapshot_file', Value, 1)
+--let $clone_pos= query_get_value(SHOW SESSION STATUS LIKE 'Binlog_snapshot_position', Value, 1)
+--let $assert_text= The clone has the binary log snapshot of the donor
+--let $assert_cond= "$clone_file" = "$file" AND $clone_pos = $pos
+--source include/assert.inc
+COMMIT;
+
+--connection donor
+COMMIT;
+--disconnect donor
+
+--connection default
+DROP TABLE t1;
+--source include/wait_until_count_sessions.inc

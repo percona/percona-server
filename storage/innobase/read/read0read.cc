@@ -631,11 +631,13 @@ void ReadView::copy_complete() {
   m_creator_trx_id = 0;
 }
 
-void MVCC::view_clone(ReadView *&view, trx_t *from_trx) {
+void MVCC::view_clone(ReadView *&view, ReadView *donor, trx_t *from_trx) {
   ut_ad(trx_sys_mutex_own());
   ut_ad(trx_mutex_own(from_trx));
-  ReadView *donor = from_trx->read_view;
-  ut_ad(is_view_active(donor) && !donor->is_closed());
+  /* An autocommit non-locking donor can close its view and tag its pointer
+  after the caller read it. */
+  ut_ad((reinterpret_cast<uintptr_t>(from_trx->read_view) & ~uintptr_t{1}) ==
+        reinterpret_cast<uintptr_t>(donor));
 
   if (view == nullptr) {
     view = get_view();

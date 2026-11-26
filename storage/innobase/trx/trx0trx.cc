@@ -2405,16 +2405,18 @@ ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx,
   view_close(), does not retain undo history for a clone. Its auto_commit and
   will_lock change without these mutexes too, so this check can misjudge it.
   Its read_view is still safe to copy then: it is untagged only while the view
-  is open, see MVCC::view_open(), and purge needs trx_sys->mutex to skip it. */
+  is open, see MVCC::view_open(), and purge needs trx_sys->mutex to skip it.
+  Read the pointer once: view_close() can tag it after the check, but the
+  view stays allocated and purge cannot skip it before the clone is added. */
+  ReadView *const from_view = from_trx->read_view;
   if (from_trx->mysql_thd != from_thd || from_trx->state != TRX_STATE_ACTIVE ||
       trx_is_autocommit_non_locking(from_trx) ||
-      !MVCC::is_view_active(from_trx->read_view) ||
-      from_trx->read_view->is_closed()) {
+      !MVCC::is_view_active(from_view) || from_view->is_closed()) {
     return nullptr;
   }
 
   ut_ad(trx != from_trx);
-  trx_sys->mvcc->view_clone(trx->read_view, from_trx);
+  trx_sys->mvcc->view_clone(trx->read_view, from_view, from_trx);
   donor_guard.reset();
   DEBUG_SYNC_C("trx_clone_read_view_after_donor_unlock");
   return trx->read_view;

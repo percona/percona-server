@@ -70,6 +70,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_dbug.h"
 #include "mysql/plugin.h"
+#include "scope_guard.h"
 #include "sql/clone_handler.h"
 
 static const ulint MAX_DETAILED_ERROR_LEN = 256;
@@ -2376,40 +2377,37 @@ ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
   return (trx->read_view);
 }
 
-/** Clones the read view from another transaction. All consistent reads within
-the receiver transaction will get the same read view as the donor transaction
-@param[in]	trx		receiver transaction
-@param[in]	from_trx	donor transaction
-@return read view clone */
 ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
-  ut_ad(locksys::owns_exclusive_global_latch());
-  ut_ad(trx_sys_mutex_own());
-  ut_ad(trx_mutex_own(from_trx));
-
+  ut_ad(trx != from_trx);
   if (UNIV_UNLIKELY(srv_read_only_mode)) {
     ut_ad(trx->read_view == nullptr);
-    trx_sys_mutex_exit();
-    trx_mutex_exit(from_trx);
-    return (nullptr);
+    return nullptr;
   }
 
-  if (from_trx->state != TRX_STATE_ACTIVE || from_trx->read_view == nullptr) {
-    trx_sys_mutex_exit();
-    trx_mutex_exit(from_trx);
-    return (nullptr);
+  locksys::Global_exclusive_latch_guard lock_sys_guard{UT_LOCATION_HERE};
+  IB_mutex_guard trx_sys_guard{&trx_sys->mutex, UT_LOCATION_HERE};
+  trx_mutex_enter(from_trx);
+  auto donor_guard =
+      create_scope_guard([from_trx] { trx_mutex_exit(from_trx); });
+
+  /* An autocommit non-locking transaction closes and reopens its statement
+  view without either mutex. A closed view, tagged or not yet tagged by
+  view_close(), does not retain undo history for a clone. Its auto_commit and
+  will_lock change without these mutexes too, so this check can misjudge it.
+  Its read_view is still safe to copy then: it is untagged only while the view
+  is open, see MVCC::view_open(), and purge needs trx_sys->mutex to skip it. */
+  if (from_trx->state != TRX_STATE_ACTIVE ||
+      trx_is_autocommit_non_locking(from_trx) ||
+      !MVCC::is_view_active(from_trx->read_view) ||
+      from_trx->read_view->is_closed()) {
+    return nullptr;
   }
 
-  const bool needs_adding = (trx->read_view == nullptr);
-
+  const bool needs_adding = trx->read_view == nullptr;
   from_trx->read_view->clone(trx->read_view, from_trx);
-
-  trx_mutex_exit(from_trx);
-
+  donor_guard.reset();
   if (needs_adding) trx_sys->mvcc->view_add(trx->read_view);
-
-  trx_sys_mutex_exit();
-
-  return (trx->read_view);
+  return trx->read_view;
 }
 
 /** Prepares a transaction for commit/rollback. */

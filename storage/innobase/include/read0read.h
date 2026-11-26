@@ -80,7 +80,8 @@ class MVCC {
   ulint size() const;
 
   /**
-  @return true if the view is active and valid */
+  @return true for a non-null, untagged pointer. A cached view stays tagged
+  until MVCC::view_open() opens it again. */
   static bool is_view_active(ReadView *view) {
     ut_a(view != reinterpret_cast<ReadView *>(0x1));
 

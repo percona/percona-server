@@ -520,11 +520,15 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
   /** If no new RW transaction has been started since the last view
   was created then reuse the the existing view. */
   if (view != nullptr) {
-    uintptr_t p = reinterpret_cast<uintptr_t>(view);
+    /* Keep trx->read_view tagged until the view is open again. A clone reads
+    it under trx_sys->mutex and must not find an untagged pointer to a closed
+    view, whose undo history purge does not protect. */
+    ReadView *const closed =
+        reinterpret_cast<ReadView *>(reinterpret_cast<uintptr_t>(view) & ~1);
 
-    view = reinterpret_cast<ReadView *>(p & ~1);
+    DEBUG_SYNC_C("mvcc_view_open_before_reopen");
 
-    ut_ad(view->m_closed);
+    ut_ad(closed->m_closed);
 
     /* NOTE: This can be optimised further, for now we only
     reuse the view if there are no active RW transactions.
@@ -534,20 +538,22 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
     Therefore we must set the low limit id after we reset the
     closed status after the check. */
 
-    if (trx_is_autocommit_non_locking(trx) && view->empty()) {
-      view->m_closed = false;
+    if (trx_is_autocommit_non_locking(trx) && closed->empty()) {
+      closed->m_closed = false;
 
-      if (view->m_low_limit_id == trx_sys_get_next_trx_id_or_no()) {
+      if (closed->m_low_limit_id == trx_sys_get_next_trx_id_or_no()) {
+        view = closed;
         return;
-      } else {
-        view->m_closed = true;
       }
+
+      closed->m_closed = true;
     }
   }
 
   trx_sys_mutex_enter();
 
   if (view != nullptr) {
+    view = reinterpret_cast<ReadView *>(reinterpret_cast<uintptr_t>(view) & ~1);
     UT_LIST_REMOVE(m_views, view);
 
   } else {

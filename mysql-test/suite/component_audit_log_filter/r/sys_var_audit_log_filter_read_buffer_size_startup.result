@@ -1,0 +1,9 @@
+call mtr.add_suppression("option 'audit-log-filter.read-buffer-size': unsigned value 1073741824 adjusted to 16777216");
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+16777216
+SELECT COUNT(*) > 0 AS warning_logged FROM performance_schema.error_log
+WHERE PRIO = 'Warning'
+  AND DATA LIKE '%audit-log-filter.read-buffer-size%value 1073741824 adjusted to 16777216%';
+warning_logged
+1

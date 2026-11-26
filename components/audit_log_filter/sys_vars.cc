@@ -18,6 +18,7 @@
 #include "components/audit_log_filter/audit_log_filter.h"
 #include "components/audit_log_filter/audit_log_reader.h"
 
+#include "mysql_com.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
@@ -472,7 +473,13 @@ int_arg_check_type check_key_derivation_iterations_count_mean{
 bool_arg_check_type check_format_unix_timestamp{false};
 bool_arg_check_type check_direct_io{false};
 str_arg_check_type check_database{default_config_database_name.data()};
-ulong_arg_check_type check_read_buffer_size{32768UL, 32768UL, ULONG_MAX, 0UL};
+/*
+  A batch of audit_log_read() is not longer than the read buffer, unless a
+  single record is. The maximum keeps a batch within MAX_BLOB_WIDTH, the
+  largest result length a function can advertise to the server.
+*/
+ulong_arg_check_type check_read_buffer_size{32768UL, 32768UL, MAX_BLOB_WIDTH,
+                                            0UL};
 
 struct SysVarInfo {
   const char *name;

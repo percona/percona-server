@@ -29,6 +29,27 @@ SET GLOBAL audit_log_filter.read_buffer_size=6000000;
 SELECT @@global.audit_log_filter.read_buffer_size;
 @@global.audit_log_filter.read_buffer_size
 6000000
+#
+# The maximum is 16777216, the largest result length audit_log_read()
+# can advertise
+SET GLOBAL audit_log_filter.read_buffer_size=16777216;
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+16777216
+SET GLOBAL audit_log_filter.read_buffer_size=16777217;
+Warnings:
+Warning	1292	Truncated incorrect audit_log_filter.read_buffer_size value: '16777217'
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+16777216
+SET GLOBAL audit_log_filter.read_buffer_size=6000000;
+SET GLOBAL audit_log_filter.read_buffer_size=18446744073709551615;
+Warnings:
+Warning	1292	Truncated incorrect audit_log_filter.read_buffer_size value: '18446744073709551615'
+SELECT @@global.audit_log_filter.read_buffer_size;
+@@global.audit_log_filter.read_buffer_size
+16777216
+SET GLOBAL audit_log_filter.read_buffer_size=6000000;
 SET GLOBAL audit_log_filter.read_buffer_size=0.5;
 ERROR 42000: Incorrect argument type to variable 'audit_log_filter.read_buffer_size'
 SELECT @@global.audit_log_filter.read_buffer_size;

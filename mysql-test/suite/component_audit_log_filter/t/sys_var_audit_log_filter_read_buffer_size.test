@@ -22,6 +22,21 @@ SELECT @@global.audit_log_filter.read_buffer_size;
 SET GLOBAL audit_log_filter.read_buffer_size=6000000;
 SELECT @@global.audit_log_filter.read_buffer_size;
 
+--echo #
+--echo # The maximum is 16777216, the largest result length audit_log_read()
+--echo # can advertise
+SET GLOBAL audit_log_filter.read_buffer_size=16777216;
+SELECT @@global.audit_log_filter.read_buffer_size;
+
+SET GLOBAL audit_log_filter.read_buffer_size=16777217;
+SELECT @@global.audit_log_filter.read_buffer_size;
+
+SET GLOBAL audit_log_filter.read_buffer_size=6000000;
+SET GLOBAL audit_log_filter.read_buffer_size=18446744073709551615;
+SELECT @@global.audit_log_filter.read_buffer_size;
+
+SET GLOBAL audit_log_filter.read_buffer_size=6000000;
+
 --error ER_WRONG_TYPE_FOR_VAR
 SET GLOBAL audit_log_filter.read_buffer_size=0.5;
 SELECT @@global.audit_log_filter.read_buffer_size;

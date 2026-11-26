@@ -49,3 +49,18 @@ MYSQL_ADD_EXECUTABLE(audit_field_regex-t
 )
 TARGET_COMPILE_DEFINITIONS(audit_field_regex-t PRIVATE
   AUDIT_LOG_FILTER_REGEX_TEST_SINK)
+
+MYSQL_ADD_EXECUTABLE(audit_password-t
+  audit_password-t.cc
+  ${AUDIT_LOG_FILTER_SOURCE_DIR}/audit_password.cc
+  ADD_TEST audit_password
+  LINK_LIBRARIES OpenSSL::Crypto gunit_small
+)
+
+# The unit test provides the system variable used by the options generator.
+MYSQL_ADD_EXECUTABLE(audit_encryption-t
+  audit_encryption-t.cc
+  ${AUDIT_LOG_FILTER_SOURCE_DIR}/audit_encryption.cc
+  ADD_TEST audit_encryption
+  LINK_LIBRARIES OpenSSL::Crypto extra::rapidjson extra::boost gunit_small
+)

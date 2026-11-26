@@ -1,0 +1,19 @@
+#
+# A value of audit_log_filter.read_buffer_size above the maximum in the
+# server options is adjusted to the maximum when the component is installed.
+#
+--source include/have_component_audit_log.inc
+--source ../inc/audit_tables_init.inc
+
+call mtr.add_suppression("option 'audit-log-filter.read-buffer-size': unsigned value 1073741824 adjusted to 16777216");
+
+--source ../inc/audit_comp_install.inc
+
+SELECT @@global.audit_log_filter.read_buffer_size;
+
+SELECT COUNT(*) > 0 AS warning_logged FROM performance_schema.error_log
+WHERE PRIO = 'Warning'
+  AND DATA LIKE '%audit-log-filter.read-buffer-size%value 1073741824 adjusted to 16777216%';
+
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

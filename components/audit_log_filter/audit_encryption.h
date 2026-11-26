@@ -47,7 +47,8 @@ class EncryptionOptions {
    * @brief Restore EncryptionOptions instance from its JSON representation
    *
    * @param json_string JSON string representing EncryptionOptions data
-   * @return Instance of EncryptionOptions
+   * @return Instance of EncryptionOptions, nullptr when json_string does not
+   *         hold the options or the salt is malformed
    */
   static std::unique_ptr<EncryptionOptions> from_json_string(
       const std::string &json_string) noexcept;

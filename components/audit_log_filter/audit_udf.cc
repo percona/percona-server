@@ -28,6 +28,8 @@
 #include "components/audit_log_filter/log_writer/file_handle.h"
 #include "components/audit_log_filter/sys_vars.h"
 
+#include "mysql/service_mysql_alloc.h"
+#include "mysql_com.h"
 #include "rapidjson/document.h"
 
 #include <mysql/components/services/dynamic_privilege.h>
@@ -36,10 +38,13 @@
 #include <mysql/components/services/udf_metadata.h>
 #include <mysql/components/services/udf_registration.h>
 
+#include <openssl/evp.h>
+
 #include <boost/algorithm/string/trim.hpp>
 
 #include <cassert>
 #include <cstring>
+#include <limits>
 #include <regex>
 #include <unordered_set>
 
@@ -48,6 +53,28 @@ namespace {
 
 inline constexpr const size_t kKeyringIdLength = 766;
 inline constexpr const size_t kKeyringPasswordLength = 766;
+
+/*
+  Maximum result lengths of the string functions, in characters. The server
+  takes the length of the longest argument when a function does not set
+  UDF_INIT::max_length, which is zero for a function without arguments.
+*/
+
+// A status message, a bookmark or a file name printed to the result buffer
+inline constexpr const size_t kMessageResultLength = MYSQL_ERRMSG_SIZE - 1;
+
+// A batch of events. This is the largest length the server takes from a
+// function, and the maximum of audit_log_filter.read_buffer_size. A batch is
+// longer only when a single record is: a record larger than the read buffer
+// is returned whole.
+inline constexpr const size_t kLogReadResultLength = MAX_BLOB_WIDTH;
+
+// Encryption options as printed by EncryptionOptions::to_json_string(). A
+// character of the password takes up to 6 characters there (\u00XX).
+inline constexpr const size_t kEncryptionOptionsResultLength =
+    sizeof(R"({"password":"","salt":"","iterations":})") - 1 +
+    (6 * kKeyringPasswordLength) + (2 * PKCS5_SALT_LEN) +
+    std::numeric_limits<int>::digits10 + 2;
 
 const std::unordered_set<std::string> log_read_udf_allowed_args{
     "start", "timestamp", "id", "max_array_length"};
@@ -308,6 +335,7 @@ bool AuditUdf::audit_log_filter_set_filter_udf_init(AuditUdf *udf
     return true;
   }
 
+  initid->max_length = kMessageResultLength;
   initid->maybe_null = false;
   initid->const_item = false;
   return false;
@@ -428,6 +456,7 @@ bool AuditUdf::audit_log_filter_remove_filter_udf_init(AuditUdf *udf
     return true;
   }
 
+  initid->max_length = kMessageResultLength;
   initid->maybe_null = false;
   initid->const_item = false;
   return false;
@@ -553,6 +582,7 @@ bool AuditUdf::audit_log_filter_set_user_udf_init(AuditUdf *udf
   }
 
   initid->ptr = reinterpret_cast<char *>(user_info_data.release());
+  initid->max_length = kMessageResultLength;
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -671,6 +701,7 @@ bool AuditUdf::audit_log_filter_remove_user_udf_init(AuditUdf *udf
   }
 
   initid->ptr = reinterpret_cast<char *>(user_info_data.release());
+  initid->max_length = kMessageResultLength;
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -737,6 +768,7 @@ bool AuditUdf::audit_log_filter_flush_udf_init(AuditUdf *udf [[maybe_unused]],
     return true;
   }
 
+  initid->max_length = kMessageResultLength;
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -804,6 +836,7 @@ bool AuditUdf::audit_log_read_udf_init(AuditUdf *udf [[maybe_unused]],
     return true;
   }
 
+  initid->max_length = kLogReadResultLength;
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -1093,6 +1126,7 @@ bool AuditUdf::audit_log_read_bookmark_udf_init(AuditUdf *udf [[maybe_unused]],
     return true;
   }
 
+  initid->max_length = kMessageResultLength;
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -1140,6 +1174,7 @@ bool AuditUdf::audit_log_rotate_udf_init(AuditUdf *udf [[maybe_unused]],
     return true;
   }
 
+  initid->max_length = kMessageResultLength;
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -1225,6 +1260,7 @@ bool AuditUdf::audit_log_encryption_password_get_udf_init(
     return true;
   }
 
+  initid->max_length = kEncryptionOptionsResultLength;
   initid->maybe_null = false;
   initid->const_item = false;
 
@@ -1237,6 +1273,11 @@ char *AuditUdf::audit_log_encryption_password_get_udf(
     unsigned char *error) noexcept {
   *is_null = 0;
   *error = 0;
+
+  // The function is called for every row of the result, release the buffer
+  // of the previous row. The last one is released by the deinit function.
+  my_free(initid->ptr);
+  initid->ptr = nullptr;
 
   std::unique_ptr<encryption::EncryptionOptions> options;
 
@@ -1325,6 +1366,7 @@ bool AuditUdf::audit_log_encryption_password_set_udf_init(
     return true;
   }
 
+  initid->max_length = kMessageResultLength;
   initid->maybe_null = false;
   initid->const_item = false;
 

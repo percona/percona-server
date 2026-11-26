@@ -1,0 +1,104 @@
+#
+# The string functions of the component set the maximum length of their
+# result. A column or a temporary table made from the result can hold it:
+#  - functions without arguments
+#  - functions with a result longer than their arguments
+#  - audit_log_read(), a batch of events has no fixed length
+#  - audit_log_encryption_password_get() with the longest password
+#
+--source include/have_component_audit_log.inc
+--source include/have_component_keyring_file.inc
+--source suite/component_keyring_file/inc/setup_component.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+call mtr.add_suppression("incorrect rule definition");
+
+--let $options_id = `SELECT MAX(KEY_ID) FROM performance_schema.keyring_keys WHERE KEY_ID LIKE 'audit_log-%'`
+
+--echo #
+--echo # Functions without arguments
+CREATE TABLE t1 AS
+SELECT audit_log_encryption_password_get() AS password_get,
+       audit_log_read_bookmark() AS read_bookmark,
+       audit_log_filter_flush() AS filter_flush,
+       audit_log_rotate() AS rotate;
+SHOW CREATE TABLE t1;
+--replace_regex /\d{8}T\d{6}(-\d+)?/<timestamp>/ /\d{4}-\d\d-\d\d \d\d:\d\d:\d\d/<timestamp>/
+SELECT password_get = audit_log_encryption_password_get() COLLATE utf8mb4_bin AS password_get_stored,
+       read_bookmark, filter_flush, rotate
+FROM t1;
+
+--echo #
+--echo # Functions with a result longer than their arguments
+--replace_result $options_id <options_id>
+eval CREATE TABLE t2 AS
+SELECT audit_log_filter_set_filter('f', '{}') AS set_filter_failed,
+       audit_log_filter_set_filter('f', '{"filter": {"log": true}}') AS set_filter,
+       audit_log_filter_set_user('%', 'f') AS set_user,
+       audit_log_filter_remove_user('%') AS remove_user,
+       audit_log_filter_remove_filter('f') AS remove_filter,
+       audit_log_encryption_password_get('$options_id') AS password_get,
+       audit_log_encryption_password_set('p') AS password_set;
+SHOW CREATE TABLE t2;
+--replace_result $options_id <options_id>
+eval SELECT set_filter_failed, set_filter, set_user, remove_user, remove_filter,
+       password_get = audit_log_encryption_password_get('$options_id') COLLATE utf8mb4_bin AS password_get_stored,
+       password_set
+FROM t2;
+
+--echo #
+--echo # audit_log_read() with an argument and without one
+SELECT audit_log_filter_set_filter('log_all', '{"filter": {"log": true}}');
+SELECT audit_log_filter_set_user('%', 'log_all');
+SELECT 1;
+SELECT 2;
+SELECT audit_log_filter_remove_user('%');
+SELECT audit_log_filter_remove_filter('log_all');
+
+CREATE TABLE t3 AS
+SELECT audit_log_read('{"start": {"timestamp": "2020-01-01 00:00:00"}, "max_array_length": 1}') AS read_start,
+       audit_log_read() AS read_next;
+SHOW CREATE TABLE t3;
+SELECT JSON_VALID(read_start) AS read_start_valid,
+       JSON_LENGTH(read_start) AS read_start_events,
+       CHAR_LENGTH(read_start) > CHAR_LENGTH('{"start": {"timestamp": "2020-01-01 00:00:00"}, "max_array_length": 1}') AS read_start_longer_than_argument,
+       JSON_VALID(read_next) AS read_next_valid,
+       JSON_LENGTH(read_next) > 1 AS read_next_events
+FROM t3;
+SELECT audit_log_read('null');
+
+--echo #
+--echo # The result is not cut in a temporary table
+SELECT * FROM (SELECT audit_log_filter_flush() AS filter_flush LIMIT 1) AS dt;
+SELECT audit_log_filter_flush() AS filter_flush UNION ALL SELECT '';
+SELECT DISTINCT audit_log_read_bookmark() = read_bookmark AS read_bookmark_kept
+FROM (SELECT audit_log_read_bookmark() AS read_bookmark LIMIT 1) AS dt;
+
+--echo #
+--echo # The longest password, every character of it is escaped in the result
+SELECT audit_log_encryption_password_set(REPEAT(CHAR(1), 766));
+CREATE TABLE t4 AS SELECT audit_log_encryption_password_get() AS password_get;
+SHOW CREATE TABLE t4;
+SELECT password_get = audit_log_encryption_password_get() COLLATE utf8mb4_bin AS password_get_stored,
+       CHAR_LENGTH(JSON_UNQUOTE(JSON_EXTRACT(password_get, '$.password'))) AS password_length,
+       CHAR_LENGTH(password_get) > 6 * 766 AS password_escaped
+FROM t4;
+
+--echo #
+--echo # The maximum lengths sent to the client: 4662 characters of the options
+--echo # with the longest password for audit_log_encryption_password_get() and
+--echo # the largest length the server takes from a function, 16777216
+--echo # characters, for audit_log_read(). They are sent in bytes, 4 for a
+--echo # character, and the server multiplies the length of a blob once more.
+--enable_metadata
+SELECT audit_log_encryption_password_get() AS password_get LIMIT 0;
+SELECT audit_log_read() AS log_read LIMIT 0;
+--disable_metadata
+
+--echo #
+--echo # Cleanup
+DROP TABLE t1, t2, t3, t4;
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc
+--source suite/component_keyring_file/inc/teardown_component.inc

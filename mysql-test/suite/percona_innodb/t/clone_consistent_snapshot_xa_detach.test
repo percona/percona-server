@@ -1,9 +1,8 @@
 #
 # XA PREPARE detaches a read-only XA transaction from its session and frees it
 # while START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION of another
-# session already took it as the donor transaction. The clone must not use the
-# freed transaction object, which can already belong to another session, even
-# to the receiver itself.
+# session runs. The clone must not use the freed transaction object, which can
+# already belong to another session, even to the receiver itself.
 #
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
@@ -24,12 +23,12 @@ SET DEBUG_SYNC='before_execute_sql_command SIGNAL donor_started WAIT_FOR donor_g
 SET DEBUG_SYNC='now WAIT_FOR donor_started';
 
 --connect (receiver,localhost,root,,)
-SET DEBUG_SYNC='innobase_clone_read_view_after_donor_trx SIGNAL receiver_has_donor WAIT_FOR receiver_go';
+SET DEBUG_SYNC='innobase_clone_read_view_start SIGNAL receiver_started WAIT_FOR receiver_go';
 --replace_regex /FROM SESSION [0-9]+/FROM SESSION DONOR_ID/
 --send_eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
 
 --connection default
-SET DEBUG_SYNC='now WAIT_FOR receiver_has_donor';
+SET DEBUG_SYNC='now WAIT_FOR receiver_started';
 SET DEBUG_SYNC='now SIGNAL donor_go';
 
 --connection donor

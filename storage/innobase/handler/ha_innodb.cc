@@ -6431,18 +6431,7 @@ static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
   DBUG_ENTER("innobase_start_trx_and_clone_read_view");
   assert(hton == innodb_hton_ptr);
 
-  /* Get transaction handle from the donor session */
-  trx_t *const from_trx = thd_to_trx(from_thd);
-  if (!from_trx) {
-    push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
-                        "InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was "
-                        "ignored because the specified session does not have "
-                        "an open transaction inside InnoDB.");
-
-    DBUG_RETURN(0);
-  }
-
-  DEBUG_SYNC_C("innobase_clone_read_view_after_donor_trx");
+  DEBUG_SYNC_C("innobase_clone_read_view_start");
 
   /* Create a new trx struct for thd, if it does not yet have one */
   trx_t *const trx = check_trx_exists(thd);
@@ -6457,16 +6446,21 @@ static int innobase_start_trx_and_clone_read_view(handlerton *hton, THD *thd,
   trx->isolation_level =
       innobase_trx_map_isolation_level(thd_get_trx_isolation(thd));
 
+  bool donor_found;
   if (trx->isolation_level != TRX_ISO_REPEATABLE_READ) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
                         "InnoDB: WITH CONSISTENT SNAPSHOT was ignored because "
                         "this phrase can only be used with REPEATABLE READ "
                         "isolation level.");
-  } else if (!trx_clone_read_view(trx, from_trx, from_thd)) {
+  } else if (!trx_clone_read_view(trx, from_thd, donor_found)) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
-                        "InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was "
-                        "ignored because the target transaction has not "
-                        "been assigned a read view.");
+                        donor_found
+                            ? "InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION "
+                              "was ignored because the target transaction has "
+                              "not been assigned a read view."
+                            : "InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION "
+                              "was ignored because the specified session does "
+                              "not have an open transaction inside InnoDB.");
   }
 
   /* Set the MySQL flag to mark that there is an active transaction */

@@ -448,6 +448,7 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
   m_thd->ha_data.clear();
   m_thd->ha_data.resize(m_thd->ha_data.capacity());
   mysql_mutex_unlock(&m_thd->LOCK_thd_data);
+  DEBUG_SYNC(m_thd, "attachable_trx_ha_data_reset");
 
   // The attachable transaction must used READ COMMITTED isolation level.
 

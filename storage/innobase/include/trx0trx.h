@@ -221,16 +221,17 @@ static inline ReadView *trx_get_read_view(trx_t *trx);
 /** @return the transaction's read view or NULL if one not assigned. */
 static inline const ReadView *trx_get_read_view(const trx_t *trx);
 
-/** Clone the donor's view for all consistent reads in the receiver.
-Return nullptr in read-only server mode or if the donor is no longer the
-transaction of from_thd, is inactive, has no open view, or is an autocommit
-non-locking transaction.
+/** Clone the view of the transaction of another session for all consistent
+reads in the receiver. Return nullptr in read-only server mode, if the session
+has no InnoDB transaction or more than one, or if its transaction is inactive,
+has no open view, or is an autocommit non-locking transaction.
 @param[in]	trx	receiver transaction
-@param[in]	from_trx	donor transaction, read from from_thd
-@param[in]	from_thd	donor session
+@param[in]	from_thd	donor session; only compared, never dereferenced
+@param[out]	donor_found	whether the donor session has an InnoDB
+transaction
 @return read view clone */
-[[nodiscard]] ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx,
-                                            const THD *from_thd);
+[[nodiscard]] ReadView *trx_clone_read_view(trx_t *trx, const THD *from_thd,
+                                            bool &donor_found);
 
 /** Prepares a transaction for commit/rollback. */
 void trx_commit_or_rollback_prepare(trx_t *trx); /*!< in/out: transaction */

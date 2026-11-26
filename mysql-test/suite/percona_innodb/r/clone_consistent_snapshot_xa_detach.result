@@ -8,13 +8,13 @@ XA END 'x';
 SET DEBUG_SYNC='before_execute_sql_command SIGNAL donor_started WAIT_FOR donor_go';
 XA PREPARE 'x';
 SET DEBUG_SYNC='now WAIT_FOR donor_started';
-SET DEBUG_SYNC='innobase_clone_read_view_after_donor_trx SIGNAL receiver_has_donor WAIT_FOR receiver_go';
+SET DEBUG_SYNC='innobase_clone_read_view_start SIGNAL receiver_started WAIT_FOR receiver_go';
 START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION DONOR_ID;
-SET DEBUG_SYNC='now WAIT_FOR receiver_has_donor';
+SET DEBUG_SYNC='now WAIT_FOR receiver_started';
 SET DEBUG_SYNC='now SIGNAL donor_go';
 SET DEBUG_SYNC='now SIGNAL receiver_go';
 Warnings:
-Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was ignored because the target transaction has not been assigned a read view.
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was ignored because the specified session does not have an open transaction inside InnoDB.
 SELECT * FROM t1;
 id
 1

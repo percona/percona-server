@@ -2382,8 +2382,9 @@ ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
   return (trx->read_view);
 }
 
-ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx,
-                              const THD *from_thd) {
+ReadView *trx_clone_read_view(trx_t *trx, const THD *from_thd,
+                              bool &donor_found) {
+  donor_found = true;
   if (UNIV_UNLIKELY(srv_read_only_mode)) {
     ut_ad(trx->read_view == nullptr);
     return nullptr;
@@ -2391,16 +2392,31 @@ ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx,
 
   locksys::Global_exclusive_latch_guard lock_sys_guard{UT_LOCATION_HERE};
   IB_mutex_guard trx_sys_guard{&trx_sys->mutex, UT_LOCATION_HERE};
+
+  /* Find the donor transaction here, not through the handlerton data of
+  from_thd: the donor session creates, swaps and frees that data without a
+  latch the clone could take. Disconnecting and XA PREPARE detach a transaction
+  from its session under trx_sys->mutex, so it can be found only while it
+  still belongs to from_thd. A session inside an attachable transaction has a
+  second one; which of them it uses is not known here, so refuse both.
+  The mysql_thd of a transaction being allocated is set without the mutex;
+  for the donor that is a transaction without a read view yet. */
+  trx_t *from_trx = nullptr;
+  for (trx_t *t : trx_sys->mysql_trx_list) {
+    if (t->mysql_thd != from_thd) continue;
+    if (from_trx != nullptr) return nullptr;
+    from_trx = t;
+  }
+  if (from_trx == nullptr) {
+    donor_found = false;
+    return nullptr;
+  }
+
   trx_mutex_enter(from_trx);
   auto donor_guard =
       create_scope_guard([from_trx] { trx_mutex_exit(from_trx); });
 
-  /* XA PREPARE can detach the donor transaction from its session, and free it,
-  after the caller read it from from_thd. A freed trx_t stays in the pool and
-  can be allocated again, even to the receiver. Freeing resets its mysql_thd,
-  and detaching a prepared one does that under trx_sys->mutex.
-
-  An autocommit non-locking transaction closes and reopens its statement
+  /* An autocommit non-locking transaction closes and reopens its statement
   view without either mutex. A closed view, tagged or not yet tagged by
   view_close(), does not retain undo history for a clone. Its auto_commit and
   will_lock change without these mutexes too, so this check can misjudge it.
@@ -2409,7 +2425,7 @@ ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx,
   Read the pointer once: view_close() can tag it after the check, but the
   view stays allocated and purge cannot skip it before the clone is added. */
   ReadView *const from_view = from_trx->read_view;
-  if (from_trx->mysql_thd != from_thd || from_trx->state != TRX_STATE_ACTIVE ||
+  if (from_trx->state != TRX_STATE_ACTIVE ||
       trx_is_autocommit_non_locking(from_trx) ||
       !MVCC::is_view_active(from_view) || from_view->is_closed()) {
     return nullptr;

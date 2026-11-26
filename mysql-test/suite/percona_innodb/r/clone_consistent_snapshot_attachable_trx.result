@@ -1,0 +1,23 @@
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT * FROM t1;
+id
+1
+SET DEBUG_SYNC='attachable_trx_ha_data_reset SIGNAL donor_attached WAIT_FOR donor_go';
+# The data dictionary lookup of a missing table runs in an attachable
+# transaction.
+SELECT * FROM no_such_table;
+SET DEBUG_SYNC='now WAIT_FOR donor_attached';
+INSERT INTO t1 VALUES (2);
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION DONOR_ID;
+# The snapshot of the donor: row 2 is not visible.
+SELECT * FROM t1;
+id
+1
+COMMIT;
+SET DEBUG_SYNC='now SIGNAL donor_go';
+ERROR 42S02: Table 'test.no_such_table' doesn't exist
+COMMIT;
+SET DEBUG_SYNC='RESET';
+DROP TABLE t1;

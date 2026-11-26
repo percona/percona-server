@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "components/audit_log_filter/audit_log_filter.h"
+#include "components/audit_log_filter/audit_action.h"
 #include "components/audit_log_filter/audit_filter.h"
 #include "components/audit_log_filter/audit_keyring.h"
 #include "components/audit_log_filter/audit_log_reader.h"
@@ -29,6 +30,7 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
 
+#include <mysql/components/services/bits/mysql_thd_attributes_bits.h>
 #include <mysql/components/services/mysql_connection_attributes_iterator.h>
 #include <mysql/components/services/mysql_thd_attributes.h>
 
@@ -50,11 +52,15 @@
 #include "sql/sql_class.h"
 
 #include <scope_guard.h>
+#include <algorithm>
 #include <array>
+#include <cstdint>
 #include <exception>
+#include <functional>
 #include <memory>
 #include <new>
 #include <stdexcept>
+#include <string_view>
 #include <variant>
 
 #ifdef WIN32
@@ -206,6 +212,81 @@ mysql_service_status_t get_sql_command(MYSQL_THD thd,
 bool is_stored_program_statement(MYSQL_THD thd) {
   auto *server_thd = static_cast<THD *>(thd);
   return server_thd != nullptr && server_thd->sp_runtime_ctx != nullptr;
+}
+
+/**
+ * @brief Check if the statement of a session has failed already.
+ *
+ * The server ignores an error returned for an event of a statement which
+ * is in the error state, see event_tracking_dispatch_error() in
+ * sql/sql_audit.cc.
+ *
+ * @param thd Session
+ * @return true in case the diagnostics area of the session has an error,
+ *         false otherwise
+ */
+bool is_statement_failed(MYSQL_THD thd) {
+  uint16_t da_status = 0;
+  return !mysql_service_mysql_thd_attributes->get(thd, "da_status",
+                                                  &da_status) &&
+         (da_status & (STATUS_DA_ERROR | STATUS_DA_FATAL_ERROR)) != 0;
+}
+
+/**
+ * @brief Check if the server aborts an event when its consumer asks for it.
+ *
+ * The server ignores an error returned for the events below and only
+ * writes a warning to the error log, see the users of
+ * Ignore_event_tracking_error_handler and
+ * Ignore_command_start_error_handler in sql/sql_audit.cc.
+ *
+ * @param event_class Event class
+ * @param event_data Event info
+ * @return true in case the event may be aborted, false otherwise
+ */
+bool is_abortable_event(const audit_event_class_t event_class,
+                        const void *event_data) noexcept {
+  switch (event_class) {
+    case audit_event_class_t::AUDIT_AUTHENTICATION_CLASS:
+      return false;
+    case audit_event_class_t::AUDIT_GENERAL_CLASS: {
+      const auto subclass =
+          static_cast<const mysql_event_tracking_general_data *>(event_data)
+              ->event_subclass;
+      return (subclass &
+              (EVENT_TRACKING_GENERAL_ERROR | EVENT_TRACKING_GENERAL_STATUS |
+               EVENT_TRACKING_GENERAL_RESULT)) == 0;
+    }
+    case audit_event_class_t::AUDIT_CONNECTION_CLASS: {
+      const auto subclass =
+          static_cast<const mysql_event_tracking_connection_data *>(event_data)
+              ->event_subclass;
+      return (subclass & EVENT_TRACKING_CONNECTION_DISCONNECT) == 0;
+    }
+    case audit_event_class_t::AUDIT_COMMAND_CLASS: {
+      const auto *data =
+          static_cast<const mysql_event_tracking_command_data *>(event_data);
+
+      if ((data->event_subclass & EVENT_TRACKING_COMMAND_START) == 0) {
+        return false;
+      }
+
+      // Names of the commands which cannot be aborted when they start,
+      // the ones for which
+      // Ignore_command_start_error_handler::ignore_command() in
+      // sql/sql_audit.cc returns true: COM_QUIT, COM_PING, COM_SLEEP,
+      // COM_CONNECT, COM_DELAYED_INSERT, COM_TIME and COM_END ("Error")
+      static constexpr std::array<std::string_view, 7> ignored_commands{
+          "Quit",           "Ping", "Sleep", "Connect",
+          "Delayed insert", "Time", "Error"};
+      const std::string_view command{data->command.str, data->command.length};
+
+      return std::find(ignored_commands.cbegin(), ignored_commands.cend(),
+                       command) == ignored_commands.cend();
+    }
+    default:
+      return true;
+  }
 }
 
 }  // namespace
@@ -735,17 +816,25 @@ int AuditLogFilter::notify_event(audit_event_class_t event_class,
       rec->extended_info.query_charset = get_query_charset(thd);
     }
 
+    // An event which satisfies an 'abort' condition is not aborted when
+    // the server does not abort events of this kind, when its statement
+    // has failed already or when the account is exempt. Such an event is
+    // written to the log.
+    const auto is_aborted = [&]() {
+      return is_abortable_event(event_class, event_data) &&
+             !is_statement_failed(thd) && !check_abort_exempt_privilege(sctx);
+    };
+
     // Apply filtering rule
-    AuditAction filter_result =
-        AuditEventFilter::apply(filter_rule.get(), record);
+    AuditAction filter_result = AuditEventFilter::apply(
+        filter_rule.get(), record, std::cref(is_aborted));
 
     if (filter_result == AuditAction::Skip) {
       SysVars::inc_events_filtered();
       return 0;
     }
 
-    if (filter_result == AuditAction::Block &&
-        !check_abort_exempt_privilege(sctx)) {
+    if (filter_result == AuditAction::Block) {
       auto ev_name = std::visit(
           [](const auto &rec) -> std::string_view {
             return rec.event_class_name;

@@ -1,0 +1,85 @@
+call mtr.add_suppression("Component audit_log_filter reported: 'Audit log filter '.*': regex '.*' on field '.*' failed");
+CREATE DATABASE tpcc;
+CREATE TABLE tpcc.orders1 (id INT PRIMARY KEY, v INT);
+CREATE USER rx_app@localhost, rx_exempt@localhost;
+GRANT ALL ON tpcc.* TO rx_app@localhost, rx_exempt@localhost;
+GRANT SYSTEM_USER, AUDIT_ABORT_EXEMPT ON *.* TO rx_exempt@localhost;
+# Regex match errors: +0
+# Case: the condition is false, the event is not logged
+SELECT audit_log_filter_set_filter('rx_abort_0', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "table_name.str", "regex": "^secret_[0-9]+$"}}, "print": {"field": {"name": "query.str", "print": false, "replace": {"function": {"name": "query_digest"}}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_abort_0') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_exempt@localhost', 'rx_abort_0') AS result;
+result
+OK
+# INSERT INTO orders1 VALUES (0, 1) by an ordinary account
+# Records: 0
+# INSERT INTO orders1 VALUES (10, 2) by an exempt account
+# Records: 0
+# Regex match errors: +0
+# Case: abort is true
+SELECT audit_log_filter_set_filter('rx_abort_1', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": true, "print": {"field": {"name": "query.str", "print": false, "replace": {"function": {"name": "query_digest"}}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_abort_1') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_exempt@localhost', 'rx_abort_1') AS result;
+result
+OK
+# INSERT INTO orders1 VALUES (1, 1) by an ordinary account
+ERROR HY000: Statement was aborted by an audit log filter.
+# Records: 0
+# INSERT INTO orders1 VALUES (11, 2) by an exempt account
+# Records: 1
+#   1 x table_access insert tpcc.orders1 INSERT INTO `orders1` VALUES (...)
+# Regex match errors: +0
+# Case: the condition is true
+SELECT audit_log_filter_set_filter('rx_abort_2', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "table_name.str", "regex": "^orders[0-9]+$"}}, "print": {"field": {"name": "query.str", "print": false, "replace": {"function": {"name": "query_digest"}}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_abort_2') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_exempt@localhost', 'rx_abort_2') AS result;
+result
+OK
+# INSERT INTO orders1 VALUES (2, 1) by an ordinary account
+ERROR HY000: Statement was aborted by an audit log filter.
+# Records: 0
+# INSERT INTO orders1 VALUES (12, 2) by an exempt account
+# Records: 1
+#   1 x table_access insert tpcc.orders1 INSERT INTO `orders1` VALUES (...)
+# Regex match errors: +0
+# Case: the condition is undecided, the match reaches the time limit
+SELECT audit_log_filter_set_filter('rx_abort_3', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "query.str", "regex": "(a+)+$"}}, "print": {"field": {"name": "query.str", "print": false, "replace": {"function": {"name": "query_digest"}}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_abort_3') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_exempt@localhost', 'rx_abort_3') AS result;
+result
+OK
+# INSERT INTO orders1 VALUES (3, 1) by an ordinary account
+ERROR HY000: Statement was aborted by an audit log filter.
+# Records: 0
+# INSERT INTO orders1 VALUES (13, 2) by an exempt account
+# Records: 1
+#   1 x table_access insert tpcc.orders1 INSERT INTO `orders1` VALUES (...)
+# Regex match errors: +2
+SELECT id, v FROM tpcc.orders1 ORDER BY id;
+id	v
+0	1
+10	2
+11	2
+12	2
+13	2
+#
+# Cleanup
+#
+DROP USER rx_app@localhost, rx_exempt@localhost;
+DROP DATABASE tpcc;

@@ -1,0 +1,169 @@
+call mtr.add_suppression("Component audit_log_filter reported: 'Audit log filter '.*': regex '.*' on field '.*' failed");
+CREATE DATABASE tpcc;
+CREATE TABLE tpcc.orders1 (id INT PRIMARY KEY, v INT);
+CREATE USER rx_app@localhost;
+GRANT ALL ON tpcc.* TO rx_app@localhost;
+GRANT CREATE USER ON *.* TO rx_app@localhost;
+CREATE USER rx_dropped@localhost;
+# Regex match errors: +0
+#
+# 'abort' condition of the 'general' 'status' event
+#
+# Case: the condition is false, the event is not logged
+SELECT audit_log_filter_set_filter('rx_status_0', '{"filter": {"class": {"name": "general", "event": {"name": "status", "abort": {"field": {"name": "general_query.str", "regex": "^SELECT"}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_status_0') AS result;
+result
+OK
+# INSERT INTO orders1 VALUES (0, 1)
+# Records: 0
+# Regex match errors: +0
+# Case: abort is true
+SELECT audit_log_filter_set_filter('rx_status_1', '{"filter": {"class": {"name": "general", "event": {"name": "status", "abort": true}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_status_1') AS result;
+result
+OK
+# INSERT INTO orders1 VALUES (1, 1)
+# Records: 1
+#   1 x general INSERT INTO orders1 VALUES (1, 1)
+# Regex match errors: +0
+# Case: the condition is true
+SELECT audit_log_filter_set_filter('rx_status_2', '{"filter": {"class": {"name": "general", "event": {"name": "status", "abort": {"field": {"name": "general_query.str", "regex": "^INSERT"}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_status_2') AS result;
+result
+OK
+# INSERT INTO orders1 VALUES (2, 1)
+# Records: 1
+#   1 x general INSERT INTO orders1 VALUES (2, 1)
+# Regex match errors: +0
+# Case: the condition is undecided, the match reaches the time limit
+SELECT audit_log_filter_set_filter('rx_status_3', '{"filter": {"class": {"name": "general", "event": {"name": "status", "abort": {"field": {"name": "general_query.str", "regex": "(a+)+$"}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_status_3') AS result;
+result
+OK
+# INSERT INTO orders1 VALUES (3, 1)
+# Records: 1
+#   1 x general INSERT INTO orders1 VALUES (3, 1) <masked>
+# Regex match errors: +1
+# Case: abort is true, the 'print' action applies to the record
+SELECT audit_log_filter_set_filter('rx_status_4', '{"filter": {"class": {"name": "general", "event": {"name": "status", "abort": true, "print": {"field": {"name": "general_query.str", "print": false, "replace": {"function": {"name": "query_digest"}}}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_status_4') AS result;
+result
+OK
+# INSERT INTO orders1 VALUES (4, 1)
+# Records: 1
+#   1 x general INSERT INTO `orders1` VALUES (...)
+# Regex match errors: +0
+SELECT id FROM tpcc.orders1 ORDER BY id;
+id
+0
+1
+2
+3
+4
+#
+# The other events which are not aborted
+#
+SET GLOBAL audit_log_filter.event_mode = FULL;
+SELECT audit_log_filter_set_filter('rx_ignored', '{
+"filter": {
+"class": [
+{"name": "general", "event": {"name": ["error", "result"], "abort": true}},
+{"name": "connection", "event": {"name": "disconnect", "abort": true}},
+{"name": "command", "event": [
+{"name": "end", "abort": true},
+{"name": "start", "abort": {"or": [
+{"field": {"name": "command.str", "value": "Ping"}},
+{"field": {"name": "command.str", "value": "Quit"}}]}}]},
+{"name": "authentication", "event": {"name": "authid_drop", "abort": true}}
+]
+}
+}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_ignored') AS result;
+result
+OK
+INSERT INTO orders1 VALUES (10, 1);
+INSERT INTO orders1 VALUES (10, 1);
+ERROR 23000: Duplicate entry '10' for key 'orders1.PRIMARY'
+SELECT id FROM orders1 WHERE id = 10;
+id
+10
+DROP USER rx_dropped@localhost;
+# Only the events with an 'abort' condition have actions in this
+# filter. The record of each of them is written: 'general' 'error' of
+# the failed statement, 'command' 'start' of Ping and Quit
+# Records: 16
+#   1 x authentication auth_authid_drop
+#   6 x command command_end
+#   2 x command command_start
+#   1 x connection disconnect
+#   1 x general error
+#   5 x general result
+SELECT COUNT(*) AS dropped_users FROM mysql.user WHERE user = 'rx_dropped';
+dropped_users
+0
+SELECT audit_log_filter_remove_filter('rx_ignored') AS result;
+result
+OK
+#
+# An event of a statement which has failed already is not aborted
+#
+SELECT audit_log_filter_set_filter('rx_failed', '{"filter": {"class": {"name": "query", "event": {"name": "status_end", "abort": true}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_failed') AS result;
+result
+OK
+# The statement fails with its own error and its record is written
+INSERT INTO orders1 VALUES (10, 1);
+ERROR 23000: Duplicate entry '10' for key 'orders1.PRIMARY'
+# The event of a statement which has not failed is aborted
+INSERT INTO orders1 VALUES (11, 1);
+ERROR HY000: Statement was aborted by an audit log filter.
+# The row of the aborted statement is not in the table. It is checked
+# from this connection, which has no filter: the filter would abort
+# the SELECT as well.
+SELECT id FROM tpcc.orders1 WHERE id = 11;
+id
+# Records: 1
+#   1 x query query_status_end
+SELECT audit_log_filter_remove_filter('rx_failed') AS result;
+result
+OK
+SET GLOBAL audit_log_filter.event_mode = REDUCED;
+#
+# An event which the server aborts is still aborted. Its record is not
+# written, so its 'print' condition is not evaluated: the match which
+# would reach the time limit is not counted.
+#
+SELECT audit_log_filter_set_filter('rx_table_access', '{"filter": {"class": [{"name": "general", "event": {"name": "status", "abort": true}}, {"name": "table_access", "event": {"name": "insert", "abort": true, "print": {"field": {"name": "query.str", "print": {"field": {"name": "query.str", "regex": "(a+)+$"}}, "replace": {"function": {"name": "query_digest"}}}}}}]}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_table_access') AS result;
+result
+OK
+# Regex match errors: +0
+# INSERT INTO orders1 VALUES (20, 1)
+ERROR HY000: Statement was aborted by an audit log filter.
+SELECT id FROM orders1 WHERE id = 20;
+id
+# Records: 2
+#   1 x general INSERT INTO orders1 VALUES (20, 1) <masked>
+#   1 x general SELECT id FROM orders1 WHERE id = 20
+# Regex match errors: +0
+#
+# Cleanup
+#
+DROP USER rx_app@localhost;
+DROP DATABASE tpcc;

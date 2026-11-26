@@ -158,23 +158,64 @@ truncated to 96 bytes ending with `...`.
 
 Matching is limited by the ICU time limit (32) and backtracking stack limit
 (8000000 bytes), the defaults of `regexp_time_limit` and `regexp_stack_limit`.
-The session values of those variables are not used. A match exceeding a limit,
-or failing for any other reason, is treated as not matching:
+The session values of those variables are not used. The limits apply to the
+search over the whole value and not to each position in it, so the cost of a
+search adds up with the length of the value:
 
-| Context | Effect of a failed match |
+- A pattern which is anchored at the start (`^...`) or starts with literal
+  text, such as `^INSERT INTO secret` or `secret_[0-9]+$`, is tried at few
+  positions and stays within the time limit for values of several megabytes.
+- A pattern which can start to match at most positions, such as
+  `[a-z]+_secret` or `[0-9]+x`, reaches the time limit for values from about
+  100 kilobytes, although it does not backtrack excessively.
+
+A match exceeding a limit, or failing for any other reason, is neither a match
+nor a mismatch: the condition is undecided. `not` of an undecided condition is
+undecided as well. `and` is false when any of its operands is false and `or`
+is true when any of its operands is true, also when that operand follows the
+failed one; otherwise an undecided operand makes them undecided. An event
+which could not be classified is not skipped:
+
+| Context | Effect of an undecided condition |
 |---|---|
-| `log` | The condition does not select the event; `not` selects it. |
-| `abort` | The statement is not aborted. |
+| `log` | The event is logged. |
+| `abort` | The statement is aborted, except in the cases described below, in which an event is not aborted. |
 | `print` condition | The field is replaced. |
 | `activate` | The replacement filter is not activated. |
 
-A failed match can therefore leave an event unlogged or let a statement through
-a positive `abort` condition. Every failure increments the
+An event which satisfies an `abort` condition and is not aborted is written to
+the log, with the `print` actions of its event applied. This is the case for:
+
+- an account with both `SYSTEM_USER` and `AUDIT_ABORT_EXEMPT`,
+- the events which the server does not abort: the `general` events `status`,
+  `error` and `result`, `connection` `disconnect`, `command` `end`, `command`
+  `start` of commands such as `Quit` and `Ping`, and all `authentication`
+  events,
+- an event of a statement which has failed already, for example `query`
+  `status_end` of a statement which ended with an error.
+
+`abort` takes precedence over the other actions of such an event: its record
+is written whatever its `log` condition is, also for `"log": false`, and its
+`activate` condition is not evaluated, so the event does not activate the
+replacement filter.
+
+The record of an event which is aborted is not written, and the `print`
+actions of the event are not applied to it. A failed match of a `print`
+condition is therefore neither counted nor reported for an aborted event.
+
+A failed match can therefore log an event, or abort a statement, which the
+pattern does not match. In particular, an `abort` condition on `query.str` or
+`general_query.str` rejects every statement which is long enough for its
+pattern to reach the time limit, for example a multi-row `INSERT` of a data
+load. Use patterns which are anchored at the start or start with literal text
+in `abort` conditions on these fields.
+
+Every failure increments the
 `Audit_log_filter_regex_match_errors` status variable and the first failure of
 each condition, then at most one per 60 seconds, writes a warning:
 
 ```
-Audit log filter 'f': regex '(a+)+$' on field 'general_query.str' failed (timeout: U_REGEX_TIME_OUT); condition treated as not matching. ...
+Audit log filter 'f': regex '(a+)+$' on field 'general_query.str' failed (timeout: U_REGEX_TIME_OUT); the condition is undecided. ...
 ```
 
 A killed statement or connection, or a statement stopped by

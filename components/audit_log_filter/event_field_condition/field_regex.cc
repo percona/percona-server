@@ -155,10 +155,12 @@ bool RegexWarningLimiter::try_acquire(std::chrono::nanoseconds now) noexcept {
 
 EventFieldConditionRegex::EventFieldConditionRegex(
     std::string field_name, std::unique_ptr<regex::CompiledRegex> regex,
-    RegexConditionDiagnostics diagnostics, regex::RegexLimits limits) noexcept
+    RegexConditionDiagnostics diagnostics, const bool failure_result,
+    regex::RegexLimits limits) noexcept
     : m_field_name{std::move(field_name)},
       m_regex{std::move(regex)},
       m_diagnostics{std::move(diagnostics)},
+      m_failure_result{failure_result},
       m_limits{limits} {}
 
 regex::RegexMatchResult EventFieldConditionRegex::evaluate(
@@ -193,7 +195,7 @@ bool EventFieldConditionRegex::check_applies(
     report_failure(error,
                    std::chrono::duration_cast<std::chrono::nanoseconds>(
                        std::chrono::steady_clock::now().time_since_epoch()));
-    return false;
+    return m_failure_result;
   }
 
   return result == regex::RegexMatchResult::Match;

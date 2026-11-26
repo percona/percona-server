@@ -27,10 +27,13 @@ INSERT INTO tpcc.orders2 VALUES (1, 1);
 INSERT INTO tpcc.history2 VALUES (1, 1);
 INSERT INTO tpcc.rx_kill_data VALUES (1, 1);
 CREATE USER rx_app@localhost, rx_exempt@localhost, rx_kill_user@localhost,
-app_svc_1@localhost, app_svc_2@localhost, other_user@localhost;
-GRANT ALL ON tpcc.* TO rx_app@localhost, rx_exempt@localhost;
+app_svc_1@localhost, app_svc_2@localhost, other_user@localhost,
+rx_exempt_only@localhost;
+GRANT ALL ON tpcc.* TO rx_app@localhost, rx_exempt@localhost,
+rx_exempt_only@localhost;
 GRANT ALL ON test.* TO rx_app@localhost;
 GRANT SYSTEM_USER, AUDIT_ABORT_EXEMPT ON *.* TO rx_exempt@localhost;
+GRANT AUDIT_ABORT_EXEMPT ON *.* TO rx_exempt_only@localhost;
 GRANT SELECT ON tpcc.* TO rx_kill_user@localhost;
 GRANT UPDATE ON tpcc.rx_kill_data TO rx_kill_user@localhost;
 GRANT SELECT ON test.* TO app_svc_1@localhost, app_svc_2@localhost, other_user@localhost;
@@ -473,8 +476,8 @@ rx_next_sentinel
 # Records: 0
 # Regex match errors: +0
 #
-# ICU time limit: the condition does not match, the error is counted
-# and reported once, the statement itself succeeds
+# ICU time limit: the condition is undecided and the event is logged,
+# the error is counted and reported once, the statement itself succeeds
 #
 SELECT audit_log_filter_set_filter('rx_timeout', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "regex": "(a+)+$"}}}}}}') AS result;
 result
@@ -489,7 +492,8 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-# Records: 0
+# Records: 3
+#   3 x general SELECT 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 # Regex match errors: +3
 # Warnings: one timeout warning for the condition
 # Recovery
@@ -510,6 +514,60 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 # Records: 1
 #   1 x general <masked>
+# An abort condition reaching the time limit aborts the statement,
+# except for an account with both SYSTEM_USER and AUDIT_ABORT_EXEMPT
+SELECT audit_log_filter_set_filter('rx_timeout_abort', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "query.str", "regex": "(a+)+$"}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_timeout_abort') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_exempt@localhost', 'rx_timeout_abort') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_exempt_only@localhost', 'rx_timeout_abort') AS result;
+result
+OK
+# INSERT INTO keep_1 VALUES (10, 10) /* <40 x a> */
+ERROR HY000: Statement was aborted by an audit log filter.
+# A statement not reaching the limit is not aborted
+INSERT INTO keep_1 VALUES (11, 11);
+# INSERT INTO keep_1 VALUES (12, 12) /* <40 x a> */
+# AUDIT_ABORT_EXEMPT without SYSTEM_USER does not exempt the account
+# INSERT INTO keep_1 VALUES (13, 13) /* <40 x a> */
+ERROR HY000: Statement was aborted by an audit log filter.
+SELECT id FROM tpcc.keep_1 WHERE id >= 10 ORDER BY id;
+id
+11
+12
+# Regex match errors: +3
+# The time limit applies to the search over the whole value. A pattern
+# anchored at the start is within it for a statement of 300 kilobytes,
+# a pattern which can start to match at most positions is not and its
+# abort condition rejects the statement
+SELECT audit_log_filter_set_filter('rx_long_anchored', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "query.str", "regex": "^INSERT INTO secret"}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_filter('rx_long_unanchored', '{"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "query.str", "regex": "[a-z]+_secret"}}}}}}') AS result;
+result
+OK
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_long_anchored') AS result;
+result
+OK
+# INSERT INTO keep_1 VALUES (20, 20) /* <300000 bytes> */
+# Regex match errors: +0
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_long_unanchored') AS result;
+result
+OK
+# INSERT INTO keep_1 VALUES (21, 21) /* <300000 bytes> */
+ERROR HY000: Statement was aborted by an audit log filter.
+# A short statement is not aborted
+INSERT INTO keep_1 VALUES (22, 22);
+SELECT id FROM tpcc.keep_1 WHERE id >= 20 ORDER BY id;
+id
+20
+22
+# Regex match errors: +1
 # A short-circuited regex leaf is not evaluated
 SELECT audit_log_filter_set_filter('rx_timeout_and', '{"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"and": [{"field": {"name": "general_command.str", "value": "NoSuchCommand"}}, {"field": {"name": "general_query.str", "regex": "(a+)+$"}}]}}}}}') AS result;
 result
@@ -640,6 +698,7 @@ SET GLOBAL audit_log_filter.event_mode = REDUCED;
 # Cleanup
 #
 DROP USER rx_app@localhost, rx_exempt@localhost, rx_kill_user@localhost,
-app_svc_1@localhost, app_svc_2@localhost, other_user@localhost;
+app_svc_1@localhost, app_svc_2@localhost, other_user@localhost,
+rx_exempt_only@localhost;
 DROP DATABASE tpcc;
 DROP TABLE test.orders1;

@@ -7,6 +7,8 @@
 ####################################################################
 
 --source include/have_component_audit_log.inc
+# The records which are checked depend on the commands the client sends
+--source include/no_ps_protocol.inc
 --source ../inc/audit_tables_init.inc
 --source ../inc/audit_comp_install.inc
 
@@ -41,10 +43,13 @@ INSERT INTO tpcc.history2 VALUES (1, 1);
 INSERT INTO tpcc.rx_kill_data VALUES (1, 1);
 
 CREATE USER rx_app@localhost, rx_exempt@localhost, rx_kill_user@localhost,
-            app_svc_1@localhost, app_svc_2@localhost, other_user@localhost;
-GRANT ALL ON tpcc.* TO rx_app@localhost, rx_exempt@localhost;
+            app_svc_1@localhost, app_svc_2@localhost, other_user@localhost,
+            rx_exempt_only@localhost;
+GRANT ALL ON tpcc.* TO rx_app@localhost, rx_exempt@localhost,
+                       rx_exempt_only@localhost;
 GRANT ALL ON test.* TO rx_app@localhost;
 GRANT SYSTEM_USER, AUDIT_ABORT_EXEMPT ON *.* TO rx_exempt@localhost;
+GRANT AUDIT_ABORT_EXEMPT ON *.* TO rx_exempt_only@localhost;
 GRANT SELECT ON tpcc.* TO rx_kill_user@localhost;
 GRANT UPDATE ON tpcc.rx_kill_data TO rx_kill_user@localhost;
 GRANT SELECT ON test.* TO app_svc_1@localhost, app_svc_2@localhost, other_user@localhost;
@@ -483,8 +488,8 @@ disconnect rx;
 --source filter_definition_regex_errors.inc
 
 --echo #
---echo # ICU time limit: the condition does not match, the error is counted
---echo # and reported once, the statement itself succeeds
+--echo # ICU time limit: the condition is undecided and the event is logged,
+--echo # the error is counted and reported once, the statement itself succeeds
 --echo #
 let $rx_definition = {"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"field": {"name": "general_query.str", "regex": "(a+)+$"}}}}}};
 eval SELECT audit_log_filter_set_filter('rx_timeout', '$rx_definition') AS result;
@@ -504,7 +509,7 @@ connection default;
 --source filter_definition_regex_summary.inc
 --source filter_definition_regex_errors.inc
 --let rx_warning_label = one timeout warning for the condition
---let rx_warning_text = Audit log filter 'rx_timeout': regex '(a+)+$' on field 'general_query.str' failed (timeout: U_REGEX_TIME_OUT); condition treated as not matching. Further failures of this condition are reported at most once per 60 seconds.
+--let rx_warning_text = Audit log filter 'rx_timeout': regex '(a+)+$' on field 'general_query.str' failed (timeout: U_REGEX_TIME_OUT); the condition is undecided. Further failures of this condition are reported at most once per 60 seconds.
 --let rx_warning_count = 1
 --let rx_warning_slow_max = 3
 --source filter_definition_regex_warnings.inc
@@ -532,6 +537,76 @@ connection default;
 --source filter_definition_regex_summary.inc
 --let rx_query_mask =
 disconnect rx;
+
+--echo # An abort condition reaching the time limit aborts the statement,
+--echo # except for an account with both SYSTEM_USER and AUDIT_ABORT_EXEMPT
+let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "query.str", "regex": "(a+)+$"}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_timeout_abort', '$rx_definition') AS result;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_timeout_abort') AS result;
+SELECT audit_log_filter_set_user('rx_exempt@localhost', 'rx_timeout_abort') AS result;
+SELECT audit_log_filter_set_user('rx_exempt_only@localhost', 'rx_timeout_abort') AS result;
+connect (rx, localhost, rx_app,, tpcc);
+connect (exempt, localhost, rx_exempt,, tpcc);
+connect (exempt_only, localhost, rx_exempt_only,, tpcc);
+connection rx;
+--echo # INSERT INTO keep_1 VALUES (10, 10) /* <40 x a> */
+--disable_query_log
+--error ER_AUDIT_API_ABORT
+eval INSERT INTO keep_1 VALUES (10, 10) /* $rx_a40 */;
+--enable_query_log
+--echo # A statement not reaching the limit is not aborted
+INSERT INTO keep_1 VALUES (11, 11);
+connection exempt;
+--echo # INSERT INTO keep_1 VALUES (12, 12) /* <40 x a> */
+--disable_query_log
+eval INSERT INTO keep_1 VALUES (12, 12) /* $rx_a40 */;
+--enable_query_log
+connection exempt_only;
+--echo # AUDIT_ABORT_EXEMPT without SYSTEM_USER does not exempt the account
+--echo # INSERT INTO keep_1 VALUES (13, 13) /* <40 x a> */
+--disable_query_log
+--error ER_AUDIT_API_ABORT
+eval INSERT INTO keep_1 VALUES (13, 13) /* $rx_a40 */;
+--enable_query_log
+connection default;
+SELECT id FROM tpcc.keep_1 WHERE id >= 10 ORDER BY id;
+--source filter_definition_regex_errors.inc
+disconnect rx;
+disconnect exempt;
+disconnect exempt_only;
+
+--echo # The time limit applies to the search over the whole value. A pattern
+--echo # anchored at the start is within it for a statement of 300 kilobytes,
+--echo # a pattern which can start to match at most positions is not and its
+--echo # abort condition rejects the statement
+--let $rx_filler = `SELECT REPEAT("(12345,'some text data'),", 12500)`
+let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "query.str", "regex": "^INSERT INTO secret"}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_long_anchored', '$rx_definition') AS result;
+let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": {"field": {"name": "query.str", "regex": "[a-z]+_secret"}}}}}};
+eval SELECT audit_log_filter_set_filter('rx_long_unanchored', '$rx_definition') AS result;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_long_anchored') AS result;
+connect (rx, localhost, rx_app,, tpcc);
+--echo # INSERT INTO keep_1 VALUES (20, 20) /* <300000 bytes> */
+--disable_query_log
+eval INSERT INTO keep_1 VALUES (20, 20) /* $rx_filler */;
+--enable_query_log
+connection default;
+--source filter_definition_regex_errors.inc
+disconnect rx;
+SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_long_unanchored') AS result;
+connect (rx, localhost, rx_app,, tpcc);
+--echo # INSERT INTO keep_1 VALUES (21, 21) /* <300000 bytes> */
+--disable_query_log
+--error ER_AUDIT_API_ABORT
+eval INSERT INTO keep_1 VALUES (21, 21) /* $rx_filler */;
+--enable_query_log
+--echo # A short statement is not aborted
+INSERT INTO keep_1 VALUES (22, 22);
+connection default;
+SELECT id FROM tpcc.keep_1 WHERE id >= 20 ORDER BY id;
+--source filter_definition_regex_errors.inc
+disconnect rx;
+--let $rx_filler =
 
 --echo # A short-circuited regex leaf is not evaluated
 let $rx_definition = {"filter": {"class": {"name": "general", "event": {"name": "status", "log": {"and": [{"field": {"name": "general_command.str", "value": "NoSuchCommand"}}, {"field": {"name": "general_query.str", "regex": "(a+)+$"}}]}}}}};
@@ -750,7 +825,8 @@ SET GLOBAL audit_log_filter.event_mode = REDUCED;
 --echo # Cleanup
 --echo #
 DROP USER rx_app@localhost, rx_exempt@localhost, rx_kill_user@localhost,
-          app_svc_1@localhost, app_svc_2@localhost, other_user@localhost;
+          app_svc_1@localhost, app_svc_2@localhost, other_user@localhost,
+          rx_exempt_only@localhost;
 DROP DATABASE tpcc;
 DROP TABLE test.orders1;
 

@@ -25,6 +25,8 @@
 # [--let rx_connection_names = space separated name=connection_id pairs,
 #                              connection records get the name of their
 #                              connection ID appended, 'other' if not listed]
+# [--let rx_record_events = 1, the identity of every record is
+#                           '<class> <event>'; needs the JSON or JSONL format]
 # [--let rx_allowed_records = Perl regex every record identity must match;
 #                             the records are not printed]
 # [--let rx_min_records = minimum number of records required together with
@@ -104,7 +106,9 @@ perl;
     for my $r (@$list) {
       my $class = $r->{class};
       next if $class eq 'audit';
-      if ($class eq 'table_access') {
+      if ($ENV{rx_record_events}) {
+        push @records, "$class $r->{event}";
+      } elsif ($class eq 'table_access') {
         my $d = $r->{table_access_data};
         push @records, table_access_record($r->{event}, $d->{db}, $d->{table},
                                            $d->{query});
@@ -122,6 +126,8 @@ perl;
       }
     }
   } else {
+    die "rx_record_events needs the JSON or JSONL format"
+      if $ENV{rx_record_events};
     my %table_events = (TableRead => 'read', TableInsert => 'insert',
                         TableUpdate => 'update', TableDelete => 'delete');
     my %connection_events = (Connect => 'connect', Quit => 'disconnect',

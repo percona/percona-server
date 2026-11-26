@@ -84,7 +84,7 @@ bool has_exact_member(const rapidjson::Value &json_obj,
  */
 std::shared_ptr<EventFieldConditionBase> make_field_regex_condition(
     const rapidjson::Value &field_json, const std::string &class_name,
-    std::string_view rule_name, std::string &reason) {
+    std::string_view rule_name, bool failure_result, std::string &reason) {
   const rapidjson::Value *name_json = nullptr;
   const rapidjson::Value *regex_json = nullptr;
   std::string member_error;
@@ -198,7 +198,8 @@ std::shared_ptr<EventFieldConditionBase> make_field_regex_condition(
                                         make_diagnostic_text(pattern)};
 
   return std::make_shared<EventFieldConditionRegex>(
-      std::string{field_name}, std::move(compiled), std::move(diagnostics));
+      std::string{field_name}, std::move(compiled), std::move(diagnostics),
+      failure_result);
 }
 
 }  // namespace
@@ -803,15 +804,15 @@ bool AuditRuleParser::parse_event_subclass_obj_json(
 
 std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition(
     const rapidjson::Value &condition_json, const std::string &class_name,
-    AuditRule *audit_rule) noexcept {
+    AuditRule *audit_rule, const bool regex_failure_result) noexcept {
   auto cond_type = get_condition_type(condition_json, audit_rule);
 
   if (cond_type == EventFieldConditionType::Unknown) {
     return nullptr;
   }
 
-  return parse_condition_json(condition_json, cond_type, class_name,
-                              audit_rule);
+  return parse_condition_json(condition_json, cond_type, class_name, audit_rule,
+                              regex_failure_result);
 }
 
 EventFieldConditionType AuditRuleParser::get_condition_type(
@@ -887,7 +888,7 @@ EventFieldConditionType AuditRuleParser::get_condition_type(
 std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
     const rapidjson::Value &condition_json,
     const EventFieldConditionType cond_type, const std::string &class_name,
-    AuditRule *audit_rule) noexcept {
+    AuditRule *audit_rule, const bool regex_failure_result) noexcept {
   assert(condition_json.IsBool() || condition_json.IsObject());
 
   switch (cond_type) {
@@ -918,7 +919,7 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
       // with strict validation of the whole object.
       if (has_exact_member(condition_json["field"], kFieldRegexMemberName)) {
         return parse_field_regex_json(condition_json["field"], class_name,
-                                      audit_rule);
+                                      audit_rule, regex_failure_result);
       }
 
       if (!condition_json["field"].HasMember("name") ||
@@ -1114,8 +1115,8 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
           return nullptr;
         }
 
-        auto condition =
-            parse_condition_json(*it, sub_cond_type, class_name, audit_rule);
+        auto condition = parse_condition_json(*it, sub_cond_type, class_name,
+                                              audit_rule, regex_failure_result);
 
         if (condition == nullptr) {
           return nullptr;
@@ -1176,8 +1177,8 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
           return nullptr;
         }
 
-        auto condition =
-            parse_condition_json(*it, sub_cond_type, class_name, audit_rule);
+        auto condition = parse_condition_json(*it, sub_cond_type, class_name,
+                                              audit_rule, regex_failure_result);
 
         if (condition == nullptr) {
           return nullptr;
@@ -1221,8 +1222,11 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
         return nullptr;
       }
 
-      auto condition = parse_condition_json(
-          condition_json["not"], sub_cond_type, class_name, audit_rule);
+      // A failed regex match must move the negated result towards the
+      // requested value, so the operand gets the opposite one.
+      auto condition =
+          parse_condition_json(condition_json["not"], sub_cond_type, class_name,
+                               audit_rule, !regex_failure_result);
 
       if (condition == nullptr) {
         return nullptr;
@@ -1300,7 +1304,8 @@ std::shared_ptr<EventFieldConditionBase> AuditRuleParser::parse_condition_json(
 std::shared_ptr<EventFieldConditionBase>
 AuditRuleParser::parse_field_regex_json(const rapidjson::Value &field_json,
                                         const std::string &class_name,
-                                        AuditRule *audit_rule) noexcept {
+                                        AuditRule *audit_rule,
+                                        const bool failure_result) noexcept {
   /*
    * Parse 'field' with 'regex' operator, it must contain exactly one string
    * 'name' of a string type event field and one non-empty string 'regex'
@@ -1313,7 +1318,8 @@ AuditRuleParser::parse_field_regex_json(const rapidjson::Value &field_json,
 
   try {
     auto condition = make_field_regex_condition(
-        field_json, class_name, audit_rule->get_rule_name_view(), reason);
+        field_json, class_name, audit_rule->get_rule_name_view(),
+        failure_result, reason);
 
     if (condition != nullptr) {
       return condition;
@@ -1478,7 +1484,9 @@ std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
       std::shared_ptr<EventFieldConditionBase> log_cond;
 
       if (action_json.HasMember("log")) {
-        log_cond = parse_condition(action_json["log"], class_name, audit_rule);
+        // An event which could not be classified is logged
+        log_cond =
+            parse_condition(action_json["log"], class_name, audit_rule, true);
 
         if (log_cond == nullptr) {
           return nullptr;
@@ -1491,8 +1499,9 @@ std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
       return std::make_shared<EventFieldActionLog>(log_cond);
     }
     case EventActionType::Block: {
+      // A statement which could not be classified is aborted
       auto block_cond =
-          parse_condition(action_json["abort"], class_name, audit_rule);
+          parse_condition(action_json["abort"], class_name, audit_rule, true);
 
       if (block_cond == nullptr) {
         LogComponentErr(ERROR_LEVEL, ER_AUDIT_PARSE_ACTION_BAD_ABORT_TYPE,
@@ -1544,8 +1553,9 @@ std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
         return nullptr;
       }
 
+      // The value is printed only when the condition is known to allow it
       auto print_cond =
-          parse_condition(field_json["print"], class_name, audit_rule);
+          parse_condition(field_json["print"], class_name, audit_rule, false);
 
       if (print_cond == nullptr) {
         return nullptr;
@@ -1604,8 +1614,10 @@ std::shared_ptr<EventFieldActionBase> AuditRuleParser::parse_action_json(
         return nullptr;
       }
 
+      // The replacement filter is activated only when the condition is known
+      // to apply
       auto activation_cond = parse_condition(action_json["filter"]["activate"],
-                                             class_name, audit_rule);
+                                             class_name, audit_rule, false);
 
       if (activation_cond == nullptr) {
         return nullptr;

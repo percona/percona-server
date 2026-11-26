@@ -1,0 +1,92 @@
+####################################################################
+# PS-12098: an event which satisfies an 'abort' condition is not aborted
+# for an account with both SYSTEM_USER and AUDIT_ABORT_EXEMPT, its record
+# is written to the log instead. The 'print' actions of the event apply to
+# this record like to any other one.
+####################################################################
+
+--source include/have_component_audit_log.inc
+# The records which are checked depend on the commands the client sends
+--source include/no_ps_protocol.inc
+--source ../inc/audit_tables_init.inc
+--source ../inc/audit_comp_install.inc
+
+call mtr.add_suppression("Component audit_log_filter reported: 'Audit log filter '.*': regex '.*' on field '.*' failed");
+
+CREATE DATABASE tpcc;
+CREATE TABLE tpcc.orders1 (id INT PRIMARY KEY, v INT);
+CREATE USER rx_app@localhost, rx_exempt@localhost;
+GRANT ALL ON tpcc.* TO rx_app@localhost, rx_exempt@localhost;
+GRANT SYSTEM_USER, AUDIT_ABORT_EXEMPT ON *.* TO rx_exempt@localhost;
+
+--let $rx_errors_base =
+--source filter_definition_regex_errors.inc
+--let $rx_a40 = `SELECT REPEAT('a', 40)`
+--let rx_table_access_query = 1
+
+--let $rx_case_i = 0
+while ($rx_case_i < 4) {
+  --let $rx_comment =
+  if ($rx_case_i == 0) {
+    --echo # Case: the condition is false, the event is not logged
+    --let $rx_abort = {"field": {"name": "table_name.str", "regex": "^secret_[0-9]+\$"}}
+  }
+  if ($rx_case_i == 1) {
+    --echo # Case: abort is true
+    --let $rx_abort = true
+  }
+  if ($rx_case_i == 2) {
+    --echo # Case: the condition is true
+    --let $rx_abort = {"field": {"name": "table_name.str", "regex": "^orders[0-9]+\$"}}
+  }
+  if ($rx_case_i == 3) {
+    --echo # Case: the condition is undecided, the match reaches the time limit
+    --let $rx_abort = {"field": {"name": "query.str", "regex": "(a+)+\$"}}
+    --let $rx_comment = /* $rx_a40 */
+  }
+  --let $rx_definition = {"filter": {"class": {"name": "table_access", "event": {"name": "insert", "abort": $rx_abort, "print": {"field": {"name": "query.str", "print": false, "replace": {"function": {"name": "query_digest"}}}}}}}}
+  eval SELECT audit_log_filter_set_filter('rx_abort_$rx_case_i', '$rx_definition') AS result;
+  eval SELECT audit_log_filter_set_user('rx_app@localhost', 'rx_abort_$rx_case_i') AS result;
+  eval SELECT audit_log_filter_set_user('rx_exempt@localhost', 'rx_abort_$rx_case_i') AS result;
+  connect (rx, localhost, rx_app,, tpcc);
+  connect (exempt, localhost, rx_exempt,, tpcc);
+  connection default;
+  --source filter_definition_regex_begin.inc
+  connection rx;
+  --echo # INSERT INTO orders1 VALUES ($rx_case_i, 1) by an ordinary account
+  --disable_query_log
+  if ($rx_case_i == 0) {
+    eval INSERT INTO orders1 VALUES ($rx_case_i, 1) $rx_comment;
+  }
+  if ($rx_case_i != 0) {
+    --error ER_AUDIT_API_ABORT
+    eval INSERT INTO orders1 VALUES ($rx_case_i, 1) $rx_comment;
+  }
+  --enable_query_log
+  connection default;
+  --source filter_definition_regex_summary.inc
+  --source filter_definition_regex_begin.inc
+  connection exempt;
+  --let $rx_exempt_id = 1$rx_case_i
+  --echo # INSERT INTO orders1 VALUES ($rx_exempt_id, 2) by an exempt account
+  --disable_query_log
+  eval INSERT INTO orders1 VALUES ($rx_exempt_id, 2) $rx_comment;
+  --enable_query_log
+  connection default;
+  --source filter_definition_regex_summary.inc
+  --source filter_definition_regex_errors.inc
+  disconnect rx;
+  disconnect exempt;
+  --inc $rx_case_i
+}
+SELECT id, v FROM tpcc.orders1 ORDER BY id;
+
+--echo #
+--echo # Cleanup
+--echo #
+--let rx_table_access_query =
+DROP USER rx_app@localhost, rx_exempt@localhost;
+DROP DATABASE tpcc;
+--source clean_all_audit_logs.inc
+--source ../inc/audit_comp_uninstall.inc
+--source ../inc/audit_tables_cleanup.inc

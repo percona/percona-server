@@ -121,14 +121,24 @@ class AuditRuleParser {
    * @brief Parse definition of a logical condition in audit event filter
    *        represented by a JSON string.
    *
+   * The result of a regex field condition whose match fails is not known.
+   * The caller chooses the value such a failure gives to the whole
+   * condition: true for a condition which must not miss an event ('log',
+   * 'abort'), false for a condition which allows something ('print',
+   * 'activate'). 'and' and 'or' pass the value down unchanged and 'not'
+   * passes its inversion, so that a failed match moves the whole condition
+   * towards the requested value and never away from it.
+   *
    * @param condition_json JSON object representing condition definition
    * @param class_name Audit event class name for field name validation
    * @param audit_rule Audit filtering rule instance to be initialized
+   * @param regex_failure_result Value of the whole condition requested for
+   *                             a failed regex match
    * @return Pointer to an instance representing parsed condition
    */
   static std::shared_ptr<EventFieldConditionBase> parse_condition(
       const rapidjson::Value &condition_json, const std::string &class_name,
-      AuditRule *audit_rule) noexcept;
+      AuditRule *audit_rule, bool regex_failure_result) noexcept;
 
   /**
    * @brief Get type of condition specified for an event field.
@@ -148,11 +158,15 @@ class AuditRuleParser {
    * @param cond_type Condition type, one of @ref EventFieldConditionType
    * @param class_name Audit event class name for field name validation
    * @param audit_rule Audit filtering rule instance to be initialized
+   * @param regex_failure_result Value of this condition requested for
+   *                             a failed regex match, see
+   *                             @ref parse_condition
    * @return Logical condition instance
    */
   static std::shared_ptr<EventFieldConditionBase> parse_condition_json(
       const rapidjson::Value &condition_json, EventFieldConditionType cond_type,
-      const std::string &class_name, AuditRule *audit_rule) noexcept;
+      const std::string &class_name, AuditRule *audit_rule,
+      bool regex_failure_result) noexcept;
 
   /**
    * @brief Parse audit event field condition using a regular expression.
@@ -162,11 +176,12 @@ class AuditRuleParser {
    * @param field_json JSON object representing 'field' definition
    * @param class_name Audit event class name for field name validation
    * @param audit_rule Audit filtering rule instance to be initialized
+   * @param failure_result Value of the condition in case the match fails
    * @return Logical condition instance or nullptr in case of an error
    */
   static std::shared_ptr<EventFieldConditionBase> parse_field_regex_json(
       const rapidjson::Value &field_json, const std::string &class_name,
-      AuditRule *audit_rule) noexcept;
+      AuditRule *audit_rule, bool failure_result) noexcept;
 
   /**
    * @brief Parse function definition in a filtering rule represented by

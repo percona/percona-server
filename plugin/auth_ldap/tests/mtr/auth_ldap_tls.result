@@ -8,6 +8,9 @@ authentication_ldap_simple_bind_base_dn
 authentication_ldap_simple_bind_root_dn	
 authentication_ldap_simple_bind_root_pwd	
 authentication_ldap_simple_ca_path	
+authentication_ldap_simple_fallback_server_host	
+authentication_ldap_simple_fallback_server_port	0
+authentication_ldap_simple_group_role_mapping	
 authentication_ldap_simple_group_search_attr	cn
 authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
 authentication_ldap_simple_init_pool_size	10
@@ -26,6 +29,9 @@ authentication_ldap_simple_bind_base_dn	ou=people,dc=planetexpress,dc=com
 authentication_ldap_simple_bind_root_dn	
 authentication_ldap_simple_bind_root_pwd	
 authentication_ldap_simple_ca_path	
+authentication_ldap_simple_fallback_server_host	
+authentication_ldap_simple_fallback_server_port	0
+authentication_ldap_simple_group_role_mapping	
 authentication_ldap_simple_group_search_attr	cn
 authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
 authentication_ldap_simple_init_pool_size	10
@@ -45,6 +51,9 @@ authentication_ldap_simple_bind_base_dn	ou=people,dc=planetexpress,dc=com
 authentication_ldap_simple_bind_root_dn	
 authentication_ldap_simple_bind_root_pwd	
 authentication_ldap_simple_ca_path	
+authentication_ldap_simple_fallback_server_host	
+authentication_ldap_simple_fallback_server_port	0
+authentication_ldap_simple_group_role_mapping	
 authentication_ldap_simple_group_search_attr	cn
 authentication_ldap_simple_group_search_filter	(|(&(objectClass=posixGroup)(memberUid={UA}))(&(objectClass=group)(member={UD})))
 authentication_ldap_simple_init_pool_size	10

@@ -4,6 +4,10 @@
 # Password: "secret" (stored in cleartext, otherwise sasl doesn't work)
 # SASL configured, SASL indetity "john3" should match the user!
 
+# The client plugin supports only SCRAM-SHA-1 (and GSSAPI), and the SASL
+# library of macOS has no SCRAM mechanism.
+--source include/not_mac_os.inc
+
 --source include/count_sessions.inc
 
 CREATE ROLE 'test_role';

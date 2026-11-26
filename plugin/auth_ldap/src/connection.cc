@@ -53,6 +53,7 @@ std::string ldap_filter_escape(const std::string &input) {
   return out;
 }
 
+#ifdef HAVE_LDAP_SET_URLLIST_PROC
 // example of this callback is in the OpenLDAP's
 // servers/slapd/back-meta/bind.c (meta_back_default_urllist)
 int cb_urllist_proc(LDAP * /* ld */, LDAPURLDesc **urllist, LDAPURLDesc **url,
@@ -72,6 +73,7 @@ int cb_urllist_proc(LDAP * /* ld */, LDAPURLDesc **urllist, LDAPURLDesc **url,
 
   return LDAP_SUCCESS;
 }
+#endif  // HAVE_LDAP_SET_URLLIST_PROC
 
 void cb_log(LDAP_CONST char *data) { log_ldap_dbg(data); }
 
@@ -118,6 +120,31 @@ void Connection::initialize_global_ldap_parameters(bool enable_debug,
     ber_set_option(nullptr, LBER_OPT_LOG_PRINT_FN,
                    reinterpret_cast<const void *>(cb_log));
   }
+}
+
+void Connection::deinitialize_global_ldap_parameters() {
+  // The log callback and the debug level are process-wide libldap settings,
+  // while cb_log lives in this plugin. libldap can outlive the plugin: it may
+  // be used by another plugin or the server itself, and system libraries on
+  // macOS are never unloaded and log from their exit-time destructors. Remove
+  // the callback, so that libldap does not call into an unloaded plugin.
+  //
+  // If another plugin registered its own callback after us, leave it alone.
+  // Older libldap versions (e.g. the macOS system one) cannot report the
+  // current callback; then reset it unconditionally, which at worst disables
+  // the libldap debug output of the other LDAP plugin.
+  BER_LOG_PRINT_FN current = nullptr;
+  if (ber_get_option(nullptr, LBER_OPT_LOG_PRINT_FN, &current) ==
+          LBER_OPT_SUCCESS &&
+      current != cb_log) {
+    return;
+  }
+
+  static const int debug_none = 0;
+  ldap_set_option(nullptr, LDAP_OPT_DEBUG_LEVEL, &debug_none);
+  // Restore the liblber default (print to stderr).
+  ber_set_option(nullptr, LBER_OPT_LOG_PRINT_FN,
+                 reinterpret_cast<const void *>(ber_error_print));
 }
 
 Connection::Connection(std::size_t idx, const std::string &ldap_host,
@@ -205,10 +232,15 @@ Connection::status Connection::connect(const std::string &bind_dn,
       }
     }
 
+#ifdef HAVE_LDAP_SET_URLLIST_PROC
+    // Move the server that accepted the connection to the front of the list,
+    // so that reconnects on this handle try it first. Optional: without it
+    // the servers are always tried in the configured order.
     err = ldap_set_urllist_proc(ldap_, cb_urllist_proc, nullptr);
     if (err != LDAP_OPT_SUCCESS) {
       log_warning("ldap_set_urllist_proc failed", err);
     }
+#endif
 
     return connect_step(bind_dn, bind_auth, auth_resp, sasl_mech);
   }

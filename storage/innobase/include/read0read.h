@@ -55,8 +55,9 @@ class MVCC {
   /** Copy the donor's open view and insert the copy immediately after it.
   The caller holds trx_sys->mutex and the donor transaction mutex.
   @param[in,out] view  Receiver view to overwrite, or nullptr to allocate one
+  @param[in] donor     Open donor view, untagged
   @param[in] from_trx  Transaction that owns the donor view */
-  void view_clone(ReadView *&view, trx_t *from_trx);
+  void view_clone(ReadView *&view, ReadView *donor, trx_t *from_trx);
 
   /** Allocate and create a view.
   @param view   View owned by this class created for the caller. Must be

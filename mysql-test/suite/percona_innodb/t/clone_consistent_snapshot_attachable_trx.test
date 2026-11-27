@@ -1,0 +1,47 @@
+#
+# START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION must clone the
+# transaction of the donor session also while the donor runs an attachable
+# transaction, which hides the handlerton data of the session, and must not
+# create InnoDB session data for the donor.
+#
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--connect (donor,localhost,root,,)
+--let $donor_id=`SELECT CONNECTION_ID()`
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT * FROM t1;
+SET DEBUG_SYNC='attachable_trx_ha_data_reset SIGNAL donor_attached WAIT_FOR donor_go';
+--echo # The data dictionary lookup of a missing table runs in an attachable
+--echo # transaction.
+--send SELECT * FROM no_such_table
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR donor_attached';
+INSERT INTO t1 VALUES (2);
+
+--connect (receiver,localhost,root,,)
+--replace_regex /FROM SESSION [0-9]+/FROM SESSION DONOR_ID/
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--echo # The snapshot of the donor: row 2 is not visible.
+SELECT * FROM t1;
+COMMIT;
+
+--connection default
+SET DEBUG_SYNC='now SIGNAL donor_go';
+
+--connection donor
+--error ER_NO_SUCH_TABLE
+--reap
+COMMIT;
+
+--connection default
+--disconnect donor
+--disconnect receiver
+SET DEBUG_SYNC='RESET';
+DROP TABLE t1;
+--source include/wait_until_count_sessions.inc

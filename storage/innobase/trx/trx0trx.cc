@@ -64,6 +64,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 #include "trx0xa.h"
 #include "usr0sess.h"
+#include "ut0dbg.h"
+#include "ut0mutex.h"
 #include "ut0new.h"
 #include "ut0pool.h"
 #include "ut0vec.h"
@@ -160,7 +162,8 @@ static void trx_init(trx_t *trx) {
 
   trx->id = 0;
 
-  trx->preallocated_id = 0;
+  /* Cleared at commit under trx_sys->mutex, see trx_commit_in_memory(). */
+  ut_ad(trx->preallocated_id == 0);
 
   trx->no = TRX_ID_MAX;
 
@@ -1077,9 +1080,7 @@ static inline void trx_add_to_rw_trx_list(trx_t *trx) {
   allocated ids that is guaranteed because the id is the greatest, so a
   simple prepend keeps the order. A preallocated id (used by the
   consistent snapshot clone-view feature), however, might not be received
-  in ascending order, so prepending it could break the ordering invariant
-  validated by trx_sys_validate_trx_list(). Mirror the rw_trx_ids handling
-  in trx_assign_id_for_rw() and insert it at its proper position. */
+  in ascending order. Insert it at its sorted position on promotion. */
   if (trx->preallocated_id != 0) {
     trx_t *prev = nullptr;
     for (auto cur : trx_sys->rw_trx_list) {
@@ -1309,25 +1310,11 @@ void trx_assign_rseg_durable(trx_t *trx) {
   trx->rsegs.m_redo.rseg = srv_read_only_mode ? nullptr : get_next_redo_rseg();
 }
 
-/** Assign an id for this RW transaction and insert it into trx_sys->rw_trx_ids
-@param trx	transaction to assign an id for */
+/** Use the donor's registered reservation, or allocate a fresh active id. */
 static void trx_assign_id_for_rw(trx_t *trx) {
   ut_ad(trx_sys_mutex_own());
-
   trx->id =
       trx->preallocated_id ? trx->preallocated_id : trx_sys_allocate_trx_id();
-
-  if (trx->preallocated_id) {
-    // preallocated_id might not be received in ascending order,
-    // so we need to maintain ordering in rw_trx_ids and update
-    // min_active_trx_id
-    auto upper_bound_it = std::upper_bound(trx_sys->rw_trx_ids.begin(),
-                                           trx_sys->rw_trx_ids.end(), trx->id);
-    trx_sys->rw_trx_ids.insert(upper_bound_it, trx->id);
-  } else {
-    // The id is known to be greatest
-    trx_sys->rw_trx_ids.push_back(trx->id);
-  }
 }
 
 /** Assign a temp-tablespace bound rollback-segment to a transaction.
@@ -1870,6 +1857,15 @@ static void trx_update_mod_tables_timestamp(trx_t *trx) /*!< in: transaction */
   trx->mod_tables.clear();
 }
 
+/** Remove an ordinary or reserved id from the set copied by new read views. */
+static void trx_erase_active_id(trx_id_t id) {
+  ut_ad(trx_sys_mutex_own());
+  auto &ids = trx_sys->rw_trx_ids;
+  const auto it = std::lower_bound(ids.begin(), ids.end(), id);
+  ut_ad(it != ids.end() && *it == id);
+  ids.erase(it);
+}
+
 /**
 Erase the transaction from running transaction lists and serialization
 list. Active RW transaction list of a MVCC snapshot(ReadView::prepare)
@@ -1880,11 +1876,7 @@ static void trx_erase_lists(trx_t *trx) {
   ut_ad(trx->id > 0);
   ut_ad(trx_sys_mutex_own());
 
-  trx_ids_t::iterator it = std::lower_bound(trx_sys->rw_trx_ids.begin(),
-                                            trx_sys->rw_trx_ids.end(), trx->id);
-
-  ut_ad(*it == trx->id);
-  trx_sys->rw_trx_ids.erase(it);
+  trx_erase_active_id(trx->id);
 
   if (trx->read_only || trx->rsegs.m_redo.rseg == nullptr) {
     ut_ad(!trx->in_rw_trx_list);
@@ -2067,6 +2059,7 @@ written */
       MONITOR_INC(MONITOR_TRX_RO_COMMIT);
       if (trx->read_view != nullptr) {
         trx_sys->mvcc->view_close(trx->read_view, false);
+        DEBUG_SYNC_C("after_trx_ro_view_closed");
       }
 
     } else {
@@ -2174,6 +2167,18 @@ written */
 
   if (trx->fts_trx != nullptr) {
     trx_finalize_for_fts(trx, trx->undo_no != 0);
+  }
+
+  /* A donor is no longer ACTIVE, so cloning cannot create a reservation here.
+  For a promoted donor, trx_erase_lists() already removed the id. Clear it
+  under trx_sys->mutex for a promoted donor too: the debug check in
+  ReadView::copy_trx_ids() reads it under that mutex only. */
+  if (trx->preallocated_id != 0) {
+    IB_mutex_guard guard{&trx_sys->mutex, UT_LOCATION_HERE};
+    if (trx->id == 0) {
+      trx_erase_active_id(trx->preallocated_id);
+    }
+    trx->preallocated_id = 0;
   }
 
   trx_mutex_enter(trx);
@@ -2377,8 +2382,8 @@ ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
   return (trx->read_view);
 }
 
-ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
-  ut_ad(trx != from_trx);
+ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx,
+                              const THD *from_thd) {
   if (UNIV_UNLIKELY(srv_read_only_mode)) {
     ut_ad(trx->read_view == nullptr);
     return nullptr;
@@ -2390,23 +2395,28 @@ ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
   auto donor_guard =
       create_scope_guard([from_trx] { trx_mutex_exit(from_trx); });
 
-  /* An autocommit non-locking transaction closes and reopens its statement
+  /* XA PREPARE can detach the donor transaction from its session, and free it,
+  after the caller read it from from_thd. A freed trx_t stays in the pool and
+  can be allocated again, even to the receiver. Freeing resets its mysql_thd,
+  and detaching a prepared one does that under trx_sys->mutex.
+
+  An autocommit non-locking transaction closes and reopens its statement
   view without either mutex. A closed view, tagged or not yet tagged by
   view_close(), does not retain undo history for a clone. Its auto_commit and
   will_lock change without these mutexes too, so this check can misjudge it.
   Its read_view is still safe to copy then: it is untagged only while the view
   is open, see MVCC::view_open(), and purge needs trx_sys->mutex to skip it. */
-  if (from_trx->state != TRX_STATE_ACTIVE ||
+  if (from_trx->mysql_thd != from_thd || from_trx->state != TRX_STATE_ACTIVE ||
       trx_is_autocommit_non_locking(from_trx) ||
       !MVCC::is_view_active(from_trx->read_view) ||
       from_trx->read_view->is_closed()) {
     return nullptr;
   }
 
-  const bool needs_adding = trx->read_view == nullptr;
-  from_trx->read_view->clone(trx->read_view, from_trx);
+  ut_ad(trx != from_trx);
+  trx_sys->mvcc->view_clone(trx->read_view, from_trx);
   donor_guard.reset();
-  if (needs_adding) trx_sys->mvcc->view_add(trx->read_view);
+  DEBUG_SYNC_C("trx_clone_read_view_after_donor_unlock");
   return trx->read_view;
 }
 

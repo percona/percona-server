@@ -2771,7 +2771,9 @@ static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
   mysql_mutex_assert_owner(mysql_bin_log.get_log_lock());
   const binlog_cache_mngr *from_cache_mngr = thd_get_cache_mngr(from_thd);
 
-  if (from_cache_mngr == nullptr) {
+  /* The cache manager outlives the transaction that saved its coordinates. */
+  if (from_cache_mngr == nullptr ||
+      !from_cache_mngr->has_consistent_snapshot()) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
                         "WITH CONSISTENT SNAPSHOT FROM SESSION was ignored for "
                         "binary log, because the specified session does not "
@@ -2953,9 +2955,10 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     /*
       Reset binlog_snapshot_% variables for the current connection so that the
       current coordinates are shown after committing a consistent snapshot
-      transaction.
+      transaction. A statement rollback keeps the transaction and its read
+      view, so it keeps the coordinates too.
     */
-    if (cache_mngr != nullptr) {
+    if (cache_mngr != nullptr && ending_trans(thd, all)) {
       cache_mngr->drop_consistent_snapshot(thd);
     }
     if ((error = trx_coordinator::rollback_in_engines(thd, all))) goto end;

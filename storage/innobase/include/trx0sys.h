@@ -128,9 +128,10 @@ file copy.
 static inline void trx_sysf_rseg_set_page_no(trx_sysf_t *sys_header, ulint i,
                                              page_no_t page_no, mtr_t *mtr);
 
-/** Allocates a new transaction id (for trx->id). Before calling,
-the trx_sys_mutex must be acquired.
-@return new, allocated trx id */
+/** Allocate a transaction id and register it in rw_trx_ids under
+trx_sys->mutex. This includes an id reserved for a read-only donor before it
+becomes read-write.
+@return the registered id */
 inline trx_id_t trx_sys_allocate_trx_id();
 
 /** Allocates a new transaction number (for trx->no). Before calling,
@@ -552,7 +553,10 @@ struct trx_sys_t {
   /** Array of Read write transaction IDs for MVCC snapshot. A ReadView would
   take a snapshot of these transactions whose changes are not visible to it.
   We should remove transactions from the list before committing in memory and
-  releasing locks to ensure right order of removal and consistent snapshot. */
+  releasing locks to ensure right order of removal and consistent snapshot.
+  It also has the ids preallocated for read-only donors of cloned read views,
+  see trx_t::preallocated_id. Their transactions are not in active_rw_trxs
+  until they become read-write. */
   trx_ids_t rw_trx_ids;
 
   char pad7[ut::INNODB_CACHE_LINE_SIZE];

@@ -94,6 +94,7 @@ a
 # active transaction
 START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id;
 Warnings:
+Warning	138	WITH CONSISTENT SNAPSHOT FROM SESSION was ignored for binary log, because the specified session does not have a consistent snapshot of binary log coordinates.
 Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was ignored because the target transaction has not been assigned a read view.
 # connection con1
 INSERT INTO t1 VALUES(6);
@@ -117,6 +118,7 @@ INSERT INTO t1 VALUES(7);
 # active transaction
 START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id;
 Warnings:
+Warning	138	WITH CONSISTENT SNAPSHOT FROM SESSION was ignored for binary log, because the specified session does not have a consistent snapshot of binary log coordinates.
 Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was ignored because the target transaction has not been assigned a read view.
 SELECT * FROM t1;
 a
@@ -139,6 +141,8 @@ a
 INSERT INTO t1 VALUES(8);
 # connection con3
 START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id;
+Warnings:
+Warning	138	WITH CONSISTENT SNAPSHOT FROM SESSION was ignored for binary log, because the specified session does not have a consistent snapshot of binary log coordinates.
 SELECT * FROM t1;
 a
 1

@@ -257,7 +257,10 @@ inline trx_id_t trx_sys_allocate_trx_id_or_no() {
 
 inline trx_id_t trx_sys_allocate_trx_id() {
   ut_ad(trx_sys_mutex_own());
-  return trx_sys_allocate_trx_id_or_no();
+  const trx_id_t id = trx_sys_allocate_trx_id_or_no();
+  ut_ad(trx_sys->rw_trx_ids.empty() || trx_sys->rw_trx_ids.back() < id);
+  trx_sys->rw_trx_ids.push_back(id);
+  return id;
 }
 
 inline trx_id_t trx_sys_allocate_trx_no() {

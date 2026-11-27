@@ -222,12 +222,15 @@ static inline ReadView *trx_get_read_view(trx_t *trx);
 static inline const ReadView *trx_get_read_view(const trx_t *trx);
 
 /** Clone the donor's view for all consistent reads in the receiver.
-Return nullptr in read-only server mode or if the donor is inactive, has no
-open view, or is an autocommit non-locking transaction.
+Return nullptr in read-only server mode or if the donor is no longer the
+transaction of from_thd, is inactive, has no open view, or is an autocommit
+non-locking transaction.
 @param[in]	trx	receiver transaction
-@param[in]	from_trx	donor transaction
+@param[in]	from_trx	donor transaction, read from from_thd
+@param[in]	from_thd	donor session
 @return read view clone */
-[[nodiscard]] ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx);
+[[nodiscard]] ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx,
+                                            const THD *from_thd);
 
 /** Prepares a transaction for commit/rollback. */
 void trx_commit_or_rollback_prepare(trx_t *trx); /*!< in/out: transaction */
@@ -866,7 +869,10 @@ struct trx_t {
                             RO transaction whose read view was
                             cloned. If this transaction is promoted
                             to RW, it will become the transaction
-                            id. */
+                            id. It is in trx_sys->rw_trx_ids from
+                            the clone on, so that read views opened
+                            in the meantime treat it as active.
+                            Written under trx_sys->mutex. */
 
   trx_id_t no; /*!< transaction serialization number:
                max trx id shortly before the

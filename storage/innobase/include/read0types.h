@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define read0types_h
 
 #include <algorithm>
+#include <atomic>
 #include "dict0mem.h"
 
 #include "mem0mem.h"
@@ -189,7 +190,8 @@ class ReadView {
   bool sees(trx_id_t id) const { return (id < m_up_limit_id); }
 
   /**
-  Mark the view as closed */
+  Reset the creator and clone state before returning the view to the free
+  list. */
   void close() {
     ut_ad(m_creator_trx_id != TRX_ID_MAX);
     m_creator_trx_id = TRX_ID_MAX;
@@ -198,7 +200,7 @@ class ReadView {
 
   /**
   @return true if the view is closed */
-  bool is_closed() const { return (m_closed); }
+  bool is_closed() const { return m_closed.load(); }
 
   /**
   Write the limits to the file.
@@ -237,16 +239,6 @@ class ReadView {
   @return true if there are no transaction ids in the snapshot */
   bool empty() const { return (m_ids.empty()); }
 
-  /**
-  Clones a read view object. The resulting read view has identical change
-  visibility as the donor read view
-  @param	result	pointer to resulting read view. If NULL, a view will be
-  allocated. If non-NULL, a view will overwrite a previously-existing
-  in-use or released view.
-  @param	from_trx	transation owning the donor read view. */
-
-  void clone(ReadView *&result, trx_t *from_trx) const;
-
 #ifdef UNIV_DEBUG
   /**
   @return the view low limit number */
@@ -283,7 +275,8 @@ class ReadView {
   inline void prepare(trx_id_t id);
 
   /**
-  Copy state from another view. Must call copy_complete() to finish.
+  Copy the limits, active ids and creator. Purge calls copy_complete()
+  after releasing trx_sys->mutex. A session clone retains its donor creator.
   @param other          view to copy from */
   inline void copy_prepare(const ReadView &other);
 
@@ -337,12 +330,14 @@ class ReadView {
   trx_id_t m_view_low_limit_no;
 #endif /* UNIV_DEBUG */
 
-  /** AC-NL-RO transaction view that has been "closed". */
-  bool m_closed;
+  /** Purge reads this flag under trx_sys->mutex. The owner can close or
+  reopen a cached view without that mutex, see MVCC::view_close() and
+  MVCC::view_open(). All accesses use the default sequentially consistent
+  order, which the lock-free reopen needs. */
+  std::atomic<bool> m_closed;
 
-  /** This is a view cloned by clone but not by
-  MVCC::clone_oldest_view. Used to make sure the cloned transaction does
-  not see its own changes. */
+  /** A session clone retains the donor's creator id even if the receiver
+  becomes read-write. It cannot be cached for an unrelated transaction. */
   bool m_cloned;
 
   typedef UT_LIST_NODE_T(ReadView) node_t;

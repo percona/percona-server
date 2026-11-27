@@ -1348,10 +1348,9 @@ class binlog_cache_mngr {
     return binlog_info.log_file_name[0] != '\0';
   }
 
-  /**
-    Removes consistent snapshot from cache.
-   */
-  void drop_consistent_snapshot() {
+  /** Clear the snapshot under its owner's session mutex to exclude clones. */
+  void drop_consistent_snapshot(THD *thd) {
+    MUTEX_LOCK(guard, &thd->LOCK_thd_data);
     binlog_info.log_file_name[0] = '\0';
     snapshot_gtid_executed.clear();
   }
@@ -1359,7 +1358,13 @@ class binlog_cache_mngr {
   binlog_stmt_cache_data stmt_cache;
   binlog_trx_cache_data trx_cache;
 
+  /**
+    Snapshot creation and cloning write under LOCK_log. Transaction cleanup
+    clears the coordinates under the session's LOCK_thd_data. A clone reads
+    its donor under both locks, in LOCK_log then LOCK_thd_data order.
+  */
   LOG_INFO binlog_info;
+  /** gtid_executed of the snapshot, protected like binlog_info. */
   std::string snapshot_gtid_executed;
 
  private:
@@ -2747,7 +2752,7 @@ static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd) {
 
   binlog_cache_mngr *const cache_mngr = thd_get_cache_mngr(thd);
 
-  /* Server layer calls us with LOCK_log locked, so this is safe. */
+  mysql_mutex_assert_owner(mysql_bin_log.get_log_lock());
   mysql_bin_log.raw_get_current_log(&cache_mngr->binlog_info);
   gtid_state->get_snapshot_gtid_executed(cache_mngr->snapshot_gtid_executed);
 
@@ -2760,10 +2765,11 @@ static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
                                             THD *from_thd) {
   DBUG_ENTER("binlog_start_consistent_snapshot");
 
-  const binlog_cache_mngr *from_cache_mngr =
-      opt_bin_log
-          ? static_cast<binlog_cache_mngr *>(thd_get_cache_mngr(from_thd))
-          : nullptr;
+  /* The binary log handlerton is enabled only with opt_bin_log. */
+  assert(opt_bin_log);
+  mysql_mutex_assert_owner(&from_thd->LOCK_thd_data);
+  mysql_mutex_assert_owner(mysql_bin_log.get_log_lock());
+  const binlog_cache_mngr *from_cache_mngr = thd_get_cache_mngr(from_thd);
 
   if (from_cache_mngr == nullptr) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
@@ -2779,19 +2785,13 @@ static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
 
   binlog_cache_mngr *const cache_mngr = thd_get_cache_mngr(thd);
 
-  const my_off_t pos = from_cache_mngr->binlog_info.pos;
-  char log_file_name[FN_REFLEN];
-  strmake(log_file_name, from_cache_mngr->binlog_info.log_file_name,
-          sizeof(log_file_name) - 1);
-
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-
+  /* LOCK_log is enough, a clone from this session holds it to read the
+  snapshot, see binlog_cache_mngr::binlog_info. */
   cache_mngr->snapshot_gtid_executed = from_cache_mngr->snapshot_gtid_executed;
-  cache_mngr->binlog_info.pos = pos;
-  strmake(cache_mngr->binlog_info.log_file_name, log_file_name,
+  cache_mngr->binlog_info.pos = from_cache_mngr->binlog_info.pos;
+  strmake(cache_mngr->binlog_info.log_file_name,
+          from_cache_mngr->binlog_info.log_file_name,
           sizeof(cache_mngr->binlog_info.log_file_name) - 1);
-
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   trans_register_ha(thd, true, hton, nullptr);
 
@@ -2956,9 +2956,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
       transaction.
     */
     if (cache_mngr != nullptr) {
-      mysql_mutex_lock(&thd->LOCK_thd_data);
-      cache_mngr->drop_consistent_snapshot();
-      mysql_mutex_unlock(&thd->LOCK_thd_data);
+      cache_mngr->drop_consistent_snapshot(thd);
     }
     if ((error = trx_coordinator::rollback_in_engines(thd, all))) goto end;
   }
@@ -8507,9 +8505,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
     transaction.
   */
   if (all) {
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    cache_mngr->drop_consistent_snapshot();
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
+    cache_mngr->drop_consistent_snapshot(thd);
   }
 
   Transaction_ctx::enum_trx_scope trx_scope =

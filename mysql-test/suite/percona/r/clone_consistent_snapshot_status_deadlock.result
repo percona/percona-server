@@ -1,0 +1,35 @@
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SET DEBUG_SYNC='clone_consistent_snapshot_donor_locked SIGNAL clone_locked WAIT_FOR clone_go';
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION DONOR_ID;
+SET DEBUG_SYNC='now WAIT_FOR clone_locked';
+# The receiver holds LOCK_thd_data of the donor.
+SELECT COUNT(*) > 0 AS has_status FROM performance_schema.status_by_thread WHERE THREAD_ID = DONOR_THREAD;
+# The status reader waits for LOCK_thd_data of the donor under LOCK_status.
+INSERT INTO t1 VALUES (1);
+# The commit waits for LOCK_status under LOCK_log, or for LOCK_log.
+SET DEBUG_SYNC='now SIGNAL clone_go';
+COMMIT;
+has_status
+1
+COMMIT;
+SET DEBUG_SYNC='RESET';
+#
+# Two sessions that clone from each other at the same time must not wait
+# for each other: neither may lock LOCK_thd_data of the receiver while it
+# holds LOCK_log. Both have a consistent snapshot, so the binary log part
+# of the clone runs.
+#
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SET DEBUG_SYNC='clone_consistent_snapshot_donor_locked SIGNAL a_locked WAIT_FOR a_go';
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION B_ID;
+SET DEBUG_SYNC='now WAIT_FOR a_locked';
+# A holds LOCK_log and LOCK_thd_data of B.
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION A_ID;
+# B waits for LOCK_log, or for its own LOCK_thd_data, which A holds.
+SET DEBUG_SYNC='now SIGNAL a_go';
+COMMIT;
+COMMIT;
+SET DEBUG_SYNC='RESET';
+DROP TABLE t1;

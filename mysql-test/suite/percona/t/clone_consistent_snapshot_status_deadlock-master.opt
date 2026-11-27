@@ -1,0 +1,4 @@
+--performance-schema-instrument='wait/synch/mutex/sql/THD::LOCK_thd_data=ON'
+--performance-schema-instrument='wait/synch/mutex/sql/LOCK_status=ON'
+--performance-schema-instrument='wait/synch/mutex/sql/MYSQL_BIN_LOG::LOCK_log=ON'
+--performance-schema-consumer-events-waits-current=ON

@@ -2505,24 +2505,31 @@ static int ha_clone_consistent_snapshot(THD *thd) {
     goto error;
   }
 
-  {
-    Find_thd_with_id find_thd_with_id(id, true);
-    from_thd_ptr =
-        Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-
-    if (!from_thd_ptr) {
-      my_error(ER_NO_SUCH_THREAD, MYF(0), id);
-      goto error;
-    }
-  }
-
   /*
     Blocking commits and binlog updates ensures that we get the same snapshot
     for all engines (including the binary log). This allows us among other
     things to do backups with START TRANSACTION WITH CONSISTENT SNAPSHOT and
     have a consistent binlog position.
+
+    Lock LOCK_log before LOCK_thd_data of the donor: a binary log commit locks
+    LOCK_status under LOCK_log, and status readers lock LOCK_thd_data of a
+    session under LOCK_status.
   */
   tc_log->xlock();
+
+  {
+    Find_thd_with_id find_thd_with_id(id, true);
+    from_thd_ptr =
+        Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  }
+
+  if (!from_thd_ptr) {
+    tc_log->xunlock();
+    my_error(ER_NO_SUCH_THREAD, MYF(0), id);
+    goto error;
+  }
+
+  DEBUG_SYNC(thd, "clone_consistent_snapshot_donor_locked");
 
   plugin_foreach(thd, clone_snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
                  from_thd_ptr.get());

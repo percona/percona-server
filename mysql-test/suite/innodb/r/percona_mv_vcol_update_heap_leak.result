@@ -1,0 +1,12 @@
+#
+# PS-12266: UPDATE of a multi-valued index value while another indexed
+# virtual column is NULL must not grow memory held by the table handle
+#
+CREATE TABLE t1 (id INT PRIMARY KEY, j JSON, b VARCHAR(64) GENERATED ALWAYS AS (j->>'$.b') VIRTUAL, KEY k_b (b), KEY k_mv ((CAST(j->'$.a' AS CHAR(64) ARRAY)))) ENGINE=InnoDB;
+SET @before = (SELECT current_number_of_bytes_used FROM performance_schema.memory_summary_global_by_event_name WHERE event_name = 'memory/innodb/memory');
+FLUSH TABLES t1;
+SET @after = (SELECT current_number_of_bytes_used FROM performance_schema.memory_summary_global_by_event_name WHERE event_name = 'memory/innodb/memory');
+SELECT @before - @after < 256 * 1024 AS handle_memory_bounded;
+handle_memory_bounded
+1
+DROP TABLE t1;

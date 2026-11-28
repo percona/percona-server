@@ -1811,13 +1811,17 @@ static inline void row_upd_eval_new_vals(
 static void row_upd_dup_v_new_vals(upd_t *update) {
   ut_ad(update != nullptr);
 
+  /* update->heap lives as long as the table handle; the copies are per row */
+  mem_heap_t *heap =
+      update->per_stmt_heap != nullptr ? update->per_stmt_heap : update->heap;
+
   for (ulint j = 0; j < upd_get_n_fields(update); j++) {
     upd_field_t *upd_field = upd_get_nth_field(update, j);
     if (upd_field->new_val.type.is_virtual()) {
       if (dfield_is_multi_value(&upd_field->new_val)) {
-        dfield_multi_value_dup(&upd_field->new_val, update->heap);
+        dfield_multi_value_dup(&upd_field->new_val, heap);
       } else {
-        dfield_dup(&upd_field->new_val, update->heap);
+        dfield_dup(&upd_field->new_val, heap);
       }
     }
   }
